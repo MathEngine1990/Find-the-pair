@@ -1,4 +1,4 @@
-import bridge from '@vkontakte/vk-bridge';
+vkBridge.send('VKWebAppInit');
 import { initVKBridge } from './vkBridgeInit';
 import Phaser from 'phaser';
 import { preload, create, update } from './game'; // твои сцены/ф-ции
