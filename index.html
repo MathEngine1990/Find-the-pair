@@ -1,42 +1,35 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Найди пару</title>
-    <style>
-        body {
-            margin: 0;
-            background-color: #1d2330;
-        }
-        #game-container {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Найди пару</title>
+
+  <link rel="icon" href="./assets/icon-192.png" type="image/png">
+
+  <style>
+    html, body { margin:0; padding:0; height:100%; background:#1d2330; overflow:hidden; }
+    #game-container { width:100vw; height:100vh; }
+  </style>
+
+  <!-- VK Bridge (UMD) — без npm/import -->
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script>
+    if (window.vkBridge) {
+      vkBridge.send('VKWebAppInit').catch(()=>{});
+    }
+  </script>
+
+  <!-- Phaser (UMD) — глобальная переменная Phaser -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
-    
-<link rel="icon" href="./assets/icon-192.png" type="image/png"> <!-- фиксим 404 по favicon -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-<div id="game-container"></div>
-
-
-<!-- Phaser как UMD (глобальная переменная Phaser) -->
-<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
-
-<!-- Сначала сцена, чтобы она создала window.GameScene -->
-<script src="./scenes/GameScene.js"></script>
-<!-- Потом запускающий файл -->
-<script src="./main.js"></script>
-
-
 <body>
-    <div id="game-container"></div>
+  <div id="game-container"></div>
 
+  <!-- Сцена должна определить window.GameScene -->
+  <script src="./scenes/GameScene.js"></script>
 
-    <!-- Main JS -->
-    <script type="module" src="main.js"></script>
+  <!-- Запуск (БЕЗ type="module"!) -->
+  <script src="./main.js"></script>
 </body>
 </html>
