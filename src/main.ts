@@ -35,3 +35,32 @@ export async function initVKBridge() {
   return { insideVK: true, launchParams /*, appearance*/ };
 }
 
+import { initVKBridge } from './vkBridgeInit';
+import Phaser from 'phaser';
+import { preload, create, update } from './game'; // твои сцены/ф-ции
+
+async function boot() {
+  const vk = await initVKBridge();
+
+  // Проброс параметров в игру (если нужно)
+  const gameConfig: Phaser.Types.Core.GameConfig = {
+    type: Phaser.AUTO,
+    parent: 'game-container',
+    width: 900,
+    height: 900,
+    backgroundColor: '#1d2330',
+    scene: { preload, create, update }
+  };
+
+  // Пример: поменять тему бэкграунда, если темная схема
+  if (vk.insideVK) {
+    const scheme = document.body.getAttribute('data-scheme');
+    if (scheme && scheme.includes('dark')) {
+      (gameConfig as any).backgroundColor = '#0f1117';
+    }
+  }
+
+  new Phaser.Game(gameConfig);
+}
+
+boot();
