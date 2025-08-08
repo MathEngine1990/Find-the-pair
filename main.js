@@ -1,4 +1,4 @@
-import vkBridge from '@vkontakte/vk-bridge';
+vkBridge.send('VKWebAppInit');
 import Phaser from 'phaser';
 import GameScene from './scenes/GameScene.js'; // Импорт вашей сцены
 
