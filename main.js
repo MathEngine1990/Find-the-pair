@@ -1,15 +1,22 @@
-import BootScene from './scenes/BootScene.js';
-import IntroScene from './scenes/IntroScene.js';
-import MainMenuScene from './scenes/MainMenuScene.js';
-import GameScene from './scenes/GameScene.js';
+import vkBridge from '@vkontakte/vk-bridge';
+import Phaser from 'phaser';
+import GameScene from './scenes/GameScene.js'; // Импорт вашей сцены
 
-const config = {
-    type: Phaser.AUTO,
-    parent: 'game-container',
-    width: 900,
-    height: 900,
-    backgroundColor: '#1d2330',
-    scene: [BootScene, IntroScene, MainMenuScene, GameScene]
-};
+vkBridge.send('VKWebAppInit')
+  .then(() => {
+    console.log('VKBridge initialized');
 
-new Phaser.Game(config);
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: 900,
+      height: 900,
+      backgroundColor: '#1d2330',
+      scene: [GameScene]
+    };
+
+    new Phaser.Game(config);
+  })
+  .catch((error) => {
+    console.error('VKBridge init error:', error);
+  });

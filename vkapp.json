@@ -1,9 +1,5 @@
 {
-  "app_id": YOUR_APP_ID,
-  "name": "Название игры",
-  "version": "1.0.0",
-  "start_url": "index.html",
-  "title": "Игра на память",
-  "description": "Простая карточная игра",
-  "icon": "icon.png"
+  "start_url": "https://github.com/MathEngine1990/Find-the-pair/",
+  "icon": "assets/icon.png",
+  "title": "Игра на память"
 }
