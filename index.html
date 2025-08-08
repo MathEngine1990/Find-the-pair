@@ -16,6 +16,16 @@
         }
     </style>
 </head>
+    
+    <!-- В <head> ИЛИ перед </body> -->
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+<script>
+  // безопасная инициализация: не упадёт, если открыто не во ВК
+  if (window.vkBridge) {
+    vkBridge.send('VKWebAppInit').catch(()=>{});
+  }
+</script>
+
 <body>
     <div id="game-container"></div>
 
