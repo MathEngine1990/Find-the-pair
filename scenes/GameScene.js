@@ -1,4 +1,4 @@
-// Ключи карт
+// Ключи карт (как в твоих ассетах)
 const ALL_CARD_KEYS = [
   'qd','qh','qs','qc',
   'kd','kh','ks','kc',
@@ -104,7 +104,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale.gameSize;
     const hudH = Math.min(90, Math.round(H*0.1));
 
-    // реальные размеры исходного изображения карты (подгони под свои ассеты при нужде)
+    // реальные размеры исходной карты (подгони под свои ассеты при нужде)
     const cardOrigW = 500;
     const cardOrigH = 1300;
 
@@ -144,7 +144,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
-    // показ всех карт 2 сек, затем переворот
+    // показать все 2 сек, затем перевернуть
     this.canClick = false;
     this.time.delayedCall(2000, () => {
       this.cards.forEach(card => card.setTexture('back'));
