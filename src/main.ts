@@ -1,4 +1,7 @@
 import bridge from '@vkontakte/vk-bridge';
+import { initVKBridge } from './vkBridgeInit';
+import Phaser from 'phaser';
+import { preload, create, update } from './game'; // твои сцены/ф-ции
 
 // Небольшой хелпер: мы внутри VK WebView/iframe?
 function isInsideVK(): boolean {
@@ -35,9 +38,7 @@ export async function initVKBridge() {
   return { insideVK: true, launchParams /*, appearance*/ };
 }
 
-import { initVKBridge } from './vkBridgeInit';
-import Phaser from 'phaser';
-import { preload, create, update } from './game'; // твои сцены/ф-ции
+
 
 async function boot() {
   const vk = await initVKBridge();
