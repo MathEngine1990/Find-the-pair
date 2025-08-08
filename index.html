@@ -17,14 +17,21 @@
     </style>
 </head>
     
-    <!-- В <head> ИЛИ перед </body> -->
+<link rel="icon" href="./assets/icon-192.png" type="image/png"> <!-- фиксим 404 по favicon -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<div id="game-container"></div>
+
+<!-- VK Bridge как браузерный UMD -->
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-<script>
-  // безопасная инициализация: не упадёт, если открыто не во ВК
-  if (window.vkBridge) {
-    vkBridge.send('VKWebAppInit').catch(()=>{});
-  }
-</script>
+<!-- Phaser как UMD (глобальная переменная Phaser) -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+
+<!-- Сначала сцена, чтобы она создала window.GameScene -->
+<script src="./scenes/GameScene.js"></script>
+<!-- Потом запускающий файл -->
+<script src="./main.js"></script>
+
 
 <body>
     <div id="game-container"></div>
