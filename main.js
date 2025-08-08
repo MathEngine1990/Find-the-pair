@@ -1,10 +1,10 @@
 (function () {
-  // 1) VK Bridge — безопасно (вне VK просто ничего не делает)
+  // Инициализация VK Bridge (вне ВК не упадёт)
   if (window.vkBridge) {
     vkBridge.send('VKWebAppInit').catch(() => {});
   }
 
-  // 2) Проверки
+  // Проверки
   if (!window.Phaser) {
     console.error('Phaser не найден. Проверь <script> с CDN в index.html');
     return;
@@ -14,7 +14,7 @@
     return;
   }
 
-  // 3) Конфиг с адаптивным масштабом
+  // Конфиг с адаптивным масштабом
   const config = {
     type: Phaser.AUTO,
     parent: 'game-container',
@@ -30,7 +30,7 @@
 
   const game = new Phaser.Game(config);
 
-  // 4) Ресайз
+  // Ресайз
   window.addEventListener('resize', () => {
     game.scale.resize(window.innerWidth, window.innerHeight);
   });

@@ -13,7 +13,7 @@
     #game-container { width:100vw; height:100vh; }
   </style>
 
-  <!-- VK Bridge (не обязателен для браузера; безопасно везде) -->
+  <!-- VK Bridge (без npm/import; безопасно везде) -->
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
   <script>
     if (window.vkBridge) vkBridge.send('VKWebAppInit').catch(()=>{});

@@ -1,4 +1,4 @@
-// Ключи карт (как у тебя в utils)
+// Ключи карт
 const ALL_CARD_KEYS = [
   'qd','qh','qs','qc',
   'kd','kh','ks','kc',
@@ -19,7 +19,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
   preload() {
     // рубашка
     this.load.image('back', 'assets/back_card02.png');
-
     // все карты
     ALL_CARD_KEYS.forEach(key => {
       this.load.image(key, `assets/cards/${key}.png`);
@@ -27,14 +26,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // состояние уровня/игры
     this.levelButtons = [];
     this.cards = [];
     this.opened = [];
     this.canClick = false;
     this.currentLevel = null;
 
-    // HUD и текст
     this.hud = null;
     this.mistakeCount = 0;
     this.mistakeText = null;
@@ -44,7 +41,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.scale.on('resize', () => this.redrawHUD(), this);
   }
 
-  // ---------- UI: меню уровней ----------
+  // --- Меню уровней ---
   showLevelSelect() {
     this.clearLevelButtons();
 
@@ -86,32 +83,28 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.levelButtons = [];
   }
 
-  // ---------- Игра ----------
+  // --- Запуск уровня ---
   startGame(level) {
     this.currentLevel = level;
     this.mistakeCount = 0;
 
-    // очистка сцены
     this.children.removeAll();
     this.cards = [];
     this.opened = [];
     this.canClick = false;
 
-    // HUD
     this.drawHUD();
 
-    // выбор карт
     const total = level.cols * level.rows;
     const pairs = total / 2;
 
     let chosen = Phaser.Utils.Array.Shuffle(ALL_CARD_KEYS.slice()).slice(0, pairs);
     let deck = Phaser.Utils.Array.Shuffle(chosen.concat(chosen));
 
-    // геометрия
     const { width: W, height: H } = this.scale.gameSize;
     const hudH = Math.min(90, Math.round(H*0.1));
 
-    // реальные размеры исходной карты (чтобы масштабировать в сетку)
+    // реальные размеры исходного изображения карты (подгони под свои ассеты при нужде)
     const cardOrigW = 500;
     const cardOrigH = 1300;
 
@@ -132,7 +125,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const startX = spacingX + cardW / 2;
     const startY = hudH + spacingY + cardH / 2;
 
-    // вывод карт
     let i = 0;
     for (let r = 0; r < level.rows; r++) {
       for (let c = 0; c < level.cols; c++) {
@@ -152,7 +144,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
-    // показать все 2 сек, затем перевернуть
+    // показ всех карт 2 сек, затем переворот
     this.canClick = false;
     this.time.delayedCall(2000, () => {
       this.cards.forEach(card => card.setTexture('back'));
@@ -195,7 +187,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.clearHUD();
 
     const { width: W } = this.scale.gameSize;
-    const title = this.add.text(W/2, 80, 'Победа!', {
+    this.add.text(W/2, 80, 'Победа!', {
       fontFamily: 'Arial',
       fontSize: '56px',
       color: '#fff'
@@ -212,7 +204,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
     btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#555' }));
     btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#333' }));
     btn.on('pointerdown', () => {
-      // в меню уровней
       this.children.removeAll();
       this.cards = [];
       this.opened = [];
@@ -222,18 +213,54 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 
-  // ---------- HUD ----------
+  // --- HUD ---
   drawHUD() {
     this.clearHUD();
 
     const { width: W, height: H } = this.scale.gameSize;
     const hudH = Math.min(90, Math.round(H*0.1));
 
-    // фон
     this.hud = this.add.graphics();
     this.hud.fillStyle(0x222333, 1);
     this.hud.fillRect(0, 0, W, hudH);
     this.hud.setDepth(50);
 
-    // ошибки
     this.mistakeText = this.add.text(20, Math.round(hudH/2), 'Ошибок: 0', {
+      fontFamily: 'Arial',
+      fontSize: Math.round(hudH * 0.5) + 'px',
+      color: '#fff'
+    }).setOrigin(0, 0.5).setDepth(100);
+
+    this.exitBtn = this.add.text(W - 20, Math.round(hudH/2), 'В меню', {
+      fontFamily: 'Arial',
+      fontSize: Math.round(hudH * 0.45) + 'px',
+      color: '#fff',
+      backgroundColor: '#333',
+      padding: { left: 10, right: 10, top: 6, bottom: 6 }
+    }).setOrigin(1, 0.5).setInteractive().setDepth(100);
+
+    this.exitBtn.on('pointerover', () => this.exitBtn.setStyle({ backgroundColor: '#555' }));
+    this.exitBtn.on('pointerout',  () => this.exitBtn.setStyle({ backgroundColor: '#333' }));
+    this.exitBtn.on('pointerdown', () => {
+      this.children.removeAll();
+      this.cards = [];
+      this.opened = [];
+      this.canClick = false;
+      this.currentLevel = null;
+      this.showLevelSelect();
+    });
+  }
+
+  clearHUD() {
+    if (this.hud) this.hud.destroy();
+    if (this.mistakeText) this.mistakeText.destroy();
+    if (this.exitBtn) this.exitBtn.destroy();
+    this.hud = null;
+    this.mistakeText = null;
+    this.exitBtn = null;
+  }
+
+  redrawHUD() {
+    if (this.currentLevel) this.drawHUD();
+  }
+};
