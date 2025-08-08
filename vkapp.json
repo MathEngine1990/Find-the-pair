@@ -1,9 +1,5 @@
 {
-  "app_id": 53937545,
-  "name": "Найди пару Find the pair",
-  "version": "1.0.0",
-  "start_url": "index.html",
-  "title": "Игра на память",
-  "description": "Найди все пары карт и проверь свою память!",
-  "icon": "assets/icon.png"
+  "start_url": "https://your-domain.github.io/memory-game/",
+  "icon": "assets/icon.png",
+  "title": "Игра на память"
 }
