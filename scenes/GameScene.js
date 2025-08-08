@@ -1,7 +1,6 @@
-export default class GameScene extends Phaser.Scene {
-  constructor() {
-    super('GameScene');
-  }
+window.GameScene = class GameScene extends Phaser.Scene {
+  constructor(){ super('GameScene'); }
+
 
   preload() {
     this.load.image('back', 'assets/back_card02.png');
