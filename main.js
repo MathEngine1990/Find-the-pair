@@ -1,66 +1,34 @@
 (function () {
-  // Определяем, что мы действительно во ВК (в URL есть параметры vk_*)
+  // Определяем, что запущены во ВК (в query есть параметры vk_*)
   const isVK = /(^|[?&])vk_(app_id|user_id|ts|aref|ref|platform)=/i.test(location.search);
 
   if (isVK) {
-    // динамически грузим vk-bridge, чтобы в обычном браузере его не было
+    // Динамически грузим vk-bridge ТОЛЬКО во ВК
     const s = document.createElement('script');
     s.src = 'https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js';
     s.onload = () => {
-      // Инициализация
       if (window.vkBridge?.supports?.('VKWebAppInit')) {
         vkBridge.send('VKWebAppInit').catch(()=>{});
       }
-      // (необязательно, но приятно) оформить статусбар/хедер
+      // Опционально: красиво оформить системные элементы
       vkBridge.send('VKWebAppSetViewSettings', {
         status_bar_style: 'light',
         action_bar_color: '#1d2330'
       }).catch(()=>{});
-
-      // (опционально) отключить свайп-назад, если он мешает
+      // Опционально: отключить свайп-назад, если мешает
       vkBridge.send('VKWebAppDisableSwipeBack').catch(()=>{});
     };
     document.head.appendChild(s);
 
-    // (опционально) своя обработка «Назад»
+    // (опц.) своя обработка кнопки "назад"
     window.addEventListener('popstate', (e) => {
       if (window.handleBackFromVK) {
         e.preventDefault();
-        window.handleBackFromVK(); // реализуй в игре (например: открыть меню/позу)
-        history.pushState({}, ''); // остаёмся на странице
+        window.handleBackFromVK();
+        history.pushState({}, '');
       }
     });
-    history.pushState({}, ''); // создаём запись истории
-  }
-
-  // ...ниже — твой существующий код Phaser (проверки, конфиг, resize и т.д.) ...
-  if (!window.Phaser) { console.error('Phaser не найден'); return; }
-  if (!window.GameScene) { console.error('GameScene не найдена'); return; }
-
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent: 'game-container',
-    backgroundColor: '#1d2330',
-    scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: window.innerWidth, height: window.innerHeight },
-    scene: [window.GameScene]
-  });
-
-  window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-  });
-
-  // (опционально) сцена/игра на паузу при сворачивании
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { game.loop.sleep(); } else { game.loop.wake(); }
-  });
-})();
-
-
-(function () {
-  // Инициализация VK Bridge (вне ВК не упадёт)
-  if (window.vkBridge) {
-    vkBridge.send('VKWebAppInit').catch(() => {});
+    history.pushState({}, '');
   }
 
   // Проверки
@@ -73,7 +41,7 @@
     return;
   }
 
-  // Конфиг с адаптивным масштабом
+  // Конфиг Phaser с адаптивным масштабом
   const config = {
     type: Phaser.AUTO,
     parent: 'game-container',
@@ -89,8 +57,19 @@
 
   const game = new Phaser.Game(config);
 
-  // Ресайз
+  // Ресайз канваса
   window.addEventListener('resize', () => {
     game.scale.resize(window.innerWidth, window.innerHeight);
   });
+
+  // (опц.) Автопауза при сворачивании
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) game.loop.sleep();
+    else game.loop.wake();
+  });
+
+  // (опц.) обработчик "назад" от ВК
+  window.handleBackFromVK = function () {
+    // Здесь можно открыть своё меню/паузу (по желанию)
+  };
 })();
