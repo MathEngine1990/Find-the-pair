@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "dependencies": {
+    "phaser": "^3.70.0",
+    "@vkontakte/vk-bridge": "^2.6.8"
+  }
+}
