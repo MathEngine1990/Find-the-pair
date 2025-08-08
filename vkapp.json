@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "start_url": "index.html",
   "title": "Игра на память",
-  "description": "Простая карточная игра",
-  "icon": "icon.png"
+  "description": "Найди все пары карт и проверь свою память!",
+  "icon": "assets/icon.png"
 }
