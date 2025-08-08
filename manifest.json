@@ -1,0 +1,14 @@
+{
+  "name": "Игра на память",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1d2330",
+  "theme_color": "#1d2330",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
