@@ -1,14 +1,15 @@
 {
-  "name": "Игра на память",
-  "start_url": "index.html",
-  "display": "standalone",
-  "background_color": "#1d2330",
-  "theme_color": "#1d2330",
+  "name": "Найди пару",
+  "description": "Найди пары одинаковых карт",
+  "start_url": "/",
   "icons": [
     {
-      "src": "assets/icon.png",
+      "src": "icon_512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "display": "standalone",
+  "theme_color": "#1d2330",
+  "background_color": "#1d2330"
 }
