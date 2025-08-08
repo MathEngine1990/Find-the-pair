@@ -1,14 +1,26 @@
 {
-  "type": "module",
-  "dependencies": {
-    "@vkontakte/vk-bridge": "^2.15.7",
-    "phaser": "^3.90.0"
-  }
+  "name": "givepair002",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MathEngine1990/Find-the-pair.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MathEngine1990/Find-the-pair/issues"
+  },
+  "homepage": "https://github.com/MathEngine1990/Find-the-pair#readme"
 }
 "scripts": {
   "dev": "vite",
   "build": "vite build",
-  "preview": "vite preview",
-  "deploy": "gh-pages -d dist"
+  "preview": "vite preview"
 }
 
