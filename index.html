@@ -5,21 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Найди пару</title>
 
-  <!-- иконка, чтобы не было 404 по favicon -->
+  <!-- чтобы не было 404 по favicon -->
   <link rel="icon" href="./assets/icon-192.png" type="image/png">
+  <!-- (опц.) PWA-манифест -->
+  <link rel="manifest" href="./manifest.json">
 
   <style>
     html, body { margin:0; padding:0; height:100%; background:#1d2330; overflow:hidden; }
     #game-container { width:100vw; height:100vh; }
   </style>
 
-  <!-- VK Bridge (без npm/import; безопасно везде) -->
-  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-  <script>
-    if (window.vkBridge) vkBridge.send('VKWebAppInit').catch(()=>{});
-  </script>
-
-  <!-- Phaser (UMD) -->
+  <!-- Phaser (UMD, без npm/import) -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
