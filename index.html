@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Найди пару</title>
 
+  <!-- иконка, чтобы не было 404 по favicon -->
   <link rel="icon" href="./assets/icon-192.png" type="image/png">
 
   <style>
@@ -12,24 +13,22 @@
     #game-container { width:100vw; height:100vh; }
   </style>
 
-  <!-- VK Bridge (UMD) — без npm/import -->
+  <!-- VK Bridge (не обязателен для браузера; безопасно везде) -->
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
   <script>
-    if (window.vkBridge) {
-      vkBridge.send('VKWebAppInit').catch(()=>{});
-    }
+    if (window.vkBridge) vkBridge.send('VKWebAppInit').catch(()=>{});
   </script>
 
-  <!-- Phaser (UMD) — глобальная переменная Phaser -->
+  <!-- Phaser (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
   <div id="game-container"></div>
 
-  <!-- Сцена должна определить window.GameScene -->
+  <!-- Сцена кладёт класс в window.GameScene -->
   <script src="./scenes/GameScene.js"></script>
 
-  <!-- Запуск (БЕЗ type="module"!) -->
+  <!-- Запуск (БЕЗ type="module") -->
   <script src="./main.js"></script>
 </body>
 </html>
