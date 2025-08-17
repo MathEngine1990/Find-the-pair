@@ -39,10 +39,10 @@ const THEME = {
   bgMid:    '#203B30',
   bgBottom: '#5C7865',
 
-  // Тёплая «дымка» как мягкое латунное свечение
+  // Тёплая «дымка»
   fogPink:  'rgba(196,154,58,0.16)',
 
-  // Кнопки/градиенты: латунь ↔ глухой зелёный, с медным акцентом
+  // Кнопки/градиенты
   gradPinkA:  '#C49A3A',
   gradPinkB:  '#3B5A48',
   gradGreenA: '#4D6D5B',
@@ -62,6 +62,15 @@ const THEME = {
 
 window.GameScene = class GameScene extends Phaser.Scene {
   constructor(){ super('GameScene'); }
+
+  // ------- HELPERS: клампы для шрифта -------
+  _pxClamp(px, minPx, maxPx){ // число → округлённый кламп
+    return Math.round(Phaser.Math.Clamp(px, minPx, maxPx));
+  }
+  _pxByH(fraction, minPx, maxPx){ // доля от высоты сцены → кламп
+    const { H } = this.getSceneWH();
+    return this._pxClamp(H * fraction, minPx, maxPx);
+  }
 
   preload(){
     // Карты
@@ -122,7 +131,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const tex = this.textures.createCanvas(key, W, H);
       const ctx = tex.getContext();
 
-      // Вертикальный зелёный градиент
+      // Вертикальный градиент
       const g = ctx.createLinearGradient(0, 0, 0, H);
       g.addColorStop(0.00, THEME.bgTop);
       g.addColorStop(0.55, THEME.bgMid);
@@ -130,7 +139,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, H);
 
-      // Тёплая дымка сверху-справа
+      // Тёплая дымка
       const fog = ctx.createRadialGradient(W*0.7, H*0.1, 10, W*0.7, H*0.1, Math.max(W,H)*0.8);
       fog.addColorStop(0, THEME.fogPink);
       fog.addColorStop(1, 'rgba(255,77,157,0.0)');
@@ -240,20 +249,21 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return key;
   }
 
-  // Удобный фабрикатор «контейнер-кнопки» (текст поверх текстуры)
-  // ВАЖНО: интерактив вешаем на IMG (не на контейнер!), чтобы хит-область масштабировалась.
+  // Контейнер-кнопка (текст поверх текстуры)
+  // Интерактив вешаем на IMG (масштабируется с контейнером)
   makeTextButton(x, y, w, h, label, colTop, colBot, onClick){
     const key = this.makeButtonTexture(w, h, Math.min(20, h/2), colTop, colBot, true);
     const img = this.add.image(0, 0, key).setOrigin(0.5);
     const txt = this.add.text(0, 0, label, {
-      fontFamily: THEME.font, fontSize: Math.round(h*0.42)+'px',
-      color:'#0F1A14', fontStyle:'600'
+      fontFamily: THEME.font,
+      fontSize: this._pxClamp(h*0.42, 14, 28) + 'px', // кламп текста кнопки
+      color:'#0F1A14',
+      fontStyle:'600'
     }).setOrigin(0.5);
 
     const cont = this.add.container(x, y, [img, txt]);
     cont.setSize(w, h);
 
-    // интерактив на img
     img.setInteractive({ useHandCursor: true })
       .on('pointerdown', () => onClick && onClick())
       .on('pointerover', () => this.tweens.add({ targets: cont, scale: 1.04, duration: 120 }))
@@ -266,13 +276,15 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const key = this.makeCircleIconTexture(size, colTop, colBot);
     const img = this.add.image(0,0,key).setOrigin(0.5);
     const txt = this.add.text(0,0,iconText,{
-      fontFamily: THEME.font, fontSize: Math.round(size*0.5)+'px', color:'#0F1A14', fontStyle:'800'
+      fontFamily: THEME.font,
+      fontSize: this._pxClamp(size*0.5, 16, 32) + 'px', // кламп иконки
+      color:'#0F1A14',
+      fontStyle:'800'
     }).setOrigin(0.5);
 
     const cont = this.add.container(x,y,[img,txt]);
     cont.setSize(size,size);
 
-    // интерактив на img (масштабируется вместе с контейнером)
     img.setInteractive({ useHandCursor: true })
       .on('pointerdown', () => onClick && onClick())
       .on('pointerover', () => this.tweens.add({ targets: cont, scale: 1.06, duration: 120 }))
@@ -286,9 +298,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Рубашка (если нет)
     if (!this.textures.exists('back')){
       const g = this.add.graphics();
-      g.fillStyle(0x143225, 1) // тёмный изумруд
+      g.fillStyle(0x143225, 1)
        .fillRoundedRect(0,0,220,320,20);
-      g.lineStyle(8, 0xC49A3A, 0.9) // латунная кромка
+      g.lineStyle(8, 0xC49A3A, 0.9)
        .strokeRoundedRect(0,0,220,320,20);
       g.generateTexture('back', 220, 320);
       g.destroy();
@@ -298,14 +310,14 @@ window.GameScene = class GameScene extends Phaser.Scene {
     ALL_CARD_KEYS.forEach((k) => {
       if (this.textures.exists(k)) return;
       const g = this.add.graphics();
-      g.fillStyle(0x23483B, 1) // глубокий зелёный
+      g.fillStyle(0x23483B, 1)
        .fillRoundedRect(0,0,220,320,20);
-      g.lineStyle(8, 0xD07F2E, 0.95) // медная окантовка
+      g.lineStyle(8, 0xD07F2E, 0.95)
        .strokeRoundedRect(0,0,220,320,20);
 
       const t = this.add.text(110,160,k.toUpperCase(),{
         fontFamily: THEME.font,
-        fontSize: '48px',
+        fontSize: this._pxClamp(48, 18, 48) + 'px', // безопасный диапазон
         color: '#EDE2C6',
         fontStyle: '800'
       }).setOrigin(0.5);
@@ -329,8 +341,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Заголовок
     const title = this.add.text(W/2, H*0.14, 'Память: Найди пару', {
-      fontFamily: THEME.font, fontSize: Math.round(H*0.075)+'px',
-      color: '#EDE2C6', fontStyle:'800'
+      fontFamily: THEME.font,
+      fontSize: this._pxByH(0.075, 18, 40) + 'px', // кламп заголовка
+      color: '#EDE2C6',
+      fontStyle:'800'
     }).setOrigin(0.5);
     this.levelButtons.push(title);
 
@@ -344,7 +358,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const gridTop  = topY;
 
     const startIdx = this.levelPage * PER_PAGE;
-    const endIdx   = Math.min(startIdx + PER_PAGE, LEVELS.length);
+    let endIdx   = Math.min(startIdx + PER_PAGE, LEVELS.length);
     const pageLevels = LEVELS.slice(startIdx, endIdx);
 
     pageLevels.forEach((lvl, i) => {
@@ -378,7 +392,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.levelButtons.push(prevBtn);
 
     const pageTxt = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
-      fontFamily: THEME.font, fontSize: Math.round(size*0.48)+'px', color:'#e9fffb', fontStyle:'600'
+      fontFamily: THEME.font,
+      fontSize: this._pxClamp(size*0.48, 14, 24) + 'px', // кламп счётчика страниц
+      color:'#e9fffb',
+      fontStyle:'600'
     }).setOrigin(0.5);
     this.levelButtons.push(pageTxt);
 
@@ -415,13 +432,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(90, Math.round(H*0.1));
 
-    // Фон HUD с лёгкой прозрачностью
+    // Фон HUD
     this.hud = this.add.graphics().setDepth(5);
     this.hud.fillStyle(THEME.hudFill, 0.9).fillRect(0,0,W,hudH);
 
     // «Ошибок»
     this.mistakeText = this.add.text(24, Math.round(hudH/2), 'Ошибок: 0', {
-      fontFamily: THEME.font, fontSize: Math.round(hudH*0.48)+'px', color: THEME.hudText, fontStyle:'600'
+      fontFamily: THEME.font,
+      fontSize: this._pxClamp(hudH*0.48, 14, 22) + 'px', // кламп HUD-текста
+      color: THEME.hudText,
+      fontStyle:'600'
     }).setOrigin(0,0.5).setDepth(6);
 
     // Домой (иконка)
@@ -514,7 +534,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
         card.setScale(cardScale).setDepth(20);
         card.setData({ key, opened:false, matched:false });
 
-        // Небольшая тень при наведении
+        // Ховер-эффект
         card.on('pointerover', () => this.tweens.add({ targets: card, scale: cardScale*1.03, duration: 120 }));
         card.on('pointerout',  () => this.tweens.add({ targets: card, scale: cardScale*1.00, duration: 120 }));
 
@@ -570,14 +590,18 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Заголовок
     this.add.text(W/2, H*0.22, 'Победа!', {
-      fontFamily: THEME.font, fontSize: Math.round(H*0.09)+'px',
-      color:'#ffffff', fontStyle:'800'
+      fontFamily: THEME.font,
+      fontSize: this._pxByH(0.09, 22, 48) + 'px', // кламп заголовка победы
+      color:'#ffffff',
+      fontStyle:'800'
     }).setOrigin(0.5);
 
     // Итоги
     this.add.text(W/2, H*0.32, `Ошибок за игру: ${this.mistakeCount}`, {
-      fontFamily: THEME.font, fontSize: Math.round(H*0.045)+'px',
-      color:'#eafff7', fontStyle:'600'
+      fontFamily: THEME.font,
+      fontSize: this._pxByH(0.045, 14, 24) + 'px', // кламп текста итогов
+      color:'#eafff7',
+      fontStyle:'600'
     }).setOrigin(0.5);
 
     // Кнопка «сыграть ещё»
