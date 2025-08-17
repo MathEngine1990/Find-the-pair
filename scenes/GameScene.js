@@ -325,9 +325,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
-    // Показать 1.2 сек и перевернуть на «рубашку»
+    // Показать 5 сек и перевернуть на «рубашку»
     this.canClick = false;
-    this.time.delayedCall(1200, () => {
+    this.time.delayedCall(5000, () => {
       this.cards.forEach(card => card.setTexture('back'));
       this.canClick = true;
     });
