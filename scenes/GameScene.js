@@ -1,266 +1,206 @@
-// Ключи карт (как в твоих ассетах)
-const ALL_CARD_KEYS = [
-  'qd','qh','qs','qc',
-  'kd','kh','ks','kc',
-  'ad','ah','as','ac',
-  'jd','jh','js','jc',
-  '10h','10c'
-];
+// --- START PATCH: уровни + универсальная генерация поля и карт ---
 
+// 1) Конфиг из 11 уровней (строки × колонки)
 const LEVELS = [
-  { label: '3x4 (6 пар)', cols: 4, rows: 3 },
-  { label: '4x4 (8 пар)', cols: 4, rows: 4 },
-  { label: '6x6 (18 пар)', cols: 6, rows: 6 }
+  { rows: 2, cols: 3, name: "2×3" },
+  { rows: 2, cols: 4, name: "2×4" },
+  { rows: 2, cols: 5, name: "2×5" },
+  { rows: 3, cols: 4, name: "3×4" },
+  { rows: 4, cols: 4, name: "4×4" },
+  { rows: 3, cols: 6, name: "3×6" },
+  { rows: 4, cols: 5, name: "4×5" },
+  { rows: 4, cols: 6, name: "4×6" },
+  { rows: 4, cols: 7, name: "4×7" },
+  { rows: 5, cols: 6, name: "5×6" },
+  { rows: 6, cols: 6, name: "6×6" },
 ];
 
-window.GameScene = class GameScene extends Phaser.Scene {
-  constructor() { super('GameScene'); }
+// 2) Текущий уровень (можешь менять извне из меню)
+let currentLevelIndex = 0;
 
-  preload() {
-    // рубашка
-    this.load.image('back', 'assets/back_card02.png');
-    // все карты
-    ALL_CARD_KEYS.forEach(key => {
-      this.load.image(key, `assets/cards/${key}.png`);
-    });
+// 3) Вспомогалки
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Верни список ключей текстур/фреймов для карт.
+// Подстрой под твои ассеты: здесь просто пример.
+function getAllCardKeys(scene) {
+  // Если у тебя атлас/спрайтшит, собери ключи отсюда.
+  // Например: return scene.textures.get('cards').getFrameNames();
+  // Или если отдельные изображения: перечисли/сгенерируй ключи:
+  const keys = [];
+  for (let i = 1; i <= 50; i++) keys.push(`card_${i}`); // пример
+  return keys;
+}
+
+// 4) Создание колоды под нужное количество пар
+function buildDeck(scene, pairsCount) {
+  const keys = getAllCardKeys(scene);
+  if (keys.length === 0) {
+    console.warn("Нет ключей карт — проверь ассеты!");
+    return [];
+  }
+  // Если ассетов меньше, чем нужно пар — безопасно переиспользуем
+  const base = [];
+  for (let i = 0; i < pairsCount; i++) {
+    base.push(keys[i % keys.length]);
+  }
+  const deck = shuffle(base.flatMap(k => [k, k]));
+  return deck;
+}
+
+// 5) Расчёт размеров ячейки и отступов так, чтобы всё красиво влезло
+function computeLayout(scene, rows, cols, opts = {}) {
+  const padding = opts.padding ?? 16;      // внешние поля
+  const gap = opts.gap ?? 12;              // расстояние между карточками
+  const maxW = scene.scale.width - padding * 2;
+  const maxH = scene.scale.height - padding * 2;
+
+  // Размер клетки с учётом зазоров
+  const cellW = (maxW - (cols - 1) * gap) / cols;
+  const cellH = (maxH - (rows - 1) * gap) / rows;
+  const cell = Math.floor(Math.min(cellW, cellH)); // квадратные карточки
+
+  // Итоговые реальные размеры сетки (для центровки)
+  const boardW = cell * cols + gap * (cols - 1);
+  const boardH = cell * rows + gap * (rows - 1);
+
+  const left = (scene.scale.width - boardW) / 2;
+  const top  = (scene.scale.height - boardH) / 2;
+
+  return { cell, gap, left, top, boardW, boardH };
+}
+
+// 6) Создание поля: размещаем карты по сетке
+function createBoard(scene, levelIdx) {
+  const { rows, cols } = LEVELS[levelIdx];
+  const pairsCount = (rows * cols) / 2;
+
+  // Проверка на чётность (у нас все уровни чётные, но оставим защиту)
+  if ((rows * cols) % 2 !== 0) {
+    throw new Error(`Сетка ${rows}×${cols} содержит нечётное число ячеек`);
   }
 
-  create() {
-    this.levelButtons = [];
-    this.cards = [];
-    this.opened = [];
-    this.canClick = false;
-    this.currentLevel = null;
+  const deck = buildDeck(scene, pairsCount);
+  const L = computeLayout(scene, rows, cols);
 
-    this.hud = null;
-    this.mistakeCount = 0;
-    this.mistakeText = null;
-    this.exitBtn = null;
+  const cards = [];
+  let idx = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = L.left + c * (L.cell + L.gap) + L.cell / 2;
+      const y = L.top  + r * (L.cell + L.gap) + L.cell / 2;
 
-    this.showLevelSelect();
-    this.scale.on('resize', () => this.redrawHUD(), this);
+      // Создай спрайт карты; подстрой под свои ключи «рубашки»/фронта
+      const faceKey = deck[idx++];
+      const card = createCardSprite(scene, x, y, L.cell, faceKey);
+      cards.push(card);
+    }
   }
 
-  // --- Меню уровней ---
-  showLevelSelect() {
-    this.clearLevelButtons();
+  // Верни массив карточек, если дальше где-то нужен
+  return cards;
+}
 
-    const { width: W, height: H } = this.scale.gameSize;
+// 7) Универсальное создание карточки + логика переворота/совпадения.
+// Подстрой под твою игру: названия текстур, анимации, звуки и т.д.
+function createCardSprite(scene, x, y, size, faceKey) {
+  // Допустим, у тебя есть текстура "back" для рубашки:
+  const back = scene.add.image(x, y, "back").setDisplaySize(size, size).setInteractive({ useHandCursor: true });
+  const face = scene.add.image(x, y, faceKey).setDisplaySize(size, size).setVisible(false);
 
-    const title = this.add.text(W/2, H*0.2, 'Игра на память', {
-      fontFamily: 'Arial',
-      fontSize: Math.round(H*0.06) + 'px',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.levelButtons.push(title);
+  // Сохраним состояние на объекте "back"
+  back.__faceKey = faceKey;
+  back.__isOpen = false;
+  back.__pairRef = face;
 
-    const startY = H*0.35;
-    const gapY   = Math.max(54, H*0.08);
+  back.on("pointerup", () => {
+    // Здесь вызови свой обработчик логики матча:
+    flipCard(scene, back);
+  });
 
-    LEVELS.forEach((lvl, i) => {
-      const btn = this.add.text(W/2, startY + i*gapY, lvl.label, {
-        fontFamily: 'Arial',
-        fontSize: Math.round(H*0.045) + 'px',
-        color: '#ffffff',
-        backgroundColor: '#333',
-        padding: { left: 14, right: 14, top: 10, bottom: 10 }
-      }).setOrigin(0.5).setInteractive();
+  return back;
+}
 
-      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#555' }));
-      btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#333' }));
-      btn.on('pointerdown', () => {
-        this.clearLevelButtons();
-        this.startGame(lvl);
-      });
+// 8) Пример переворота (замени на свою реализацию, если уже есть)
+let openBuffer = []; // 0..2 открытых карты
 
-      this.levelButtons.push(btn);
-    });
-  }
+function flipCard(scene, backSprite) {
+  if (backSprite.__isOpen) return;
 
-  clearLevelButtons() {
-    if (!this.levelButtons) return;
-    this.levelButtons.forEach(b => b && b.destroy());
-    this.levelButtons = [];
-  }
+  backSprite.__isOpen = true;
+  backSprite.setVisible(false);
+  backSprite.__pairRef.setVisible(true);
 
-  // --- Запуск уровня ---
-  startGame(level) {
-    this.currentLevel = level;
-    this.mistakeCount = 0;
+  openBuffer.push(backSprite);
 
-    this.children.removeAll();
-    this.cards = [];
-    this.opened = [];
-    this.canClick = false;
+  if (openBuffer.length === 2) {
+    const [a, b] = openBuffer;
+    const isMatch = a.__faceKey === b.__faceKey;
 
-    this.drawHUD();
-
-    const total = level.cols * level.rows;
-    const pairs = total / 2;
-
-    let chosen = Phaser.Utils.Array.Shuffle(ALL_CARD_KEYS.slice()).slice(0, pairs);
-    let deck = Phaser.Utils.Array.Shuffle(chosen.concat(chosen));
-
-    const { width: W, height: H } = this.scale.gameSize;
-    const hudH = Math.min(90, Math.round(H*0.1));
-
-    // реальные размеры исходной карты (подгони под свои ассеты при нужде)
-    const cardOrigW = 500;
-    const cardOrigH = 1300;
-
-    const padding = Math.max(8, Math.round(Math.min(W, H) * 0.01));
-    const availW = W - padding * (level.cols + 1);
-    const availH = (H - hudH) - padding * (level.rows + 1);
-
-    const scaleX = availW / (cardOrigW * level.cols);
-    const scaleY = availH / (cardOrigH * level.rows);
-    const cardScale = Math.min(scaleX, scaleY, 1);
-
-    const cardW = cardOrigW * cardScale;
-    const cardH = cardOrigH * cardScale;
-
-    const spacingX = (W - (cardW * level.cols)) / (level.cols + 1);
-    const spacingY = ((H - hudH) - (cardH * level.rows)) / (level.rows + 1);
-
-    const startX = spacingX + cardW / 2;
-    const startY = hudH + spacingY + cardH / 2;
-
-    let i = 0;
-    for (let r = 0; r < level.rows; r++) {
-      for (let c = 0; c < level.cols; c++) {
-        const key = deck[i++];
-        const x = startX + c * (cardW + spacingX);
-        const y = startY + r * (cardH + spacingY);
-
-        const card = this.add.image(x, y, key).setInteractive();
-        card.setScale(cardScale);
-        card.setDepth(10);
-        card.setData('key', key);
-        card.setData('opened', false);
-        card.setData('matched', false);
-
-        card.on('pointerdown', () => this.onCardClick(card));
-        this.cards.push(card);
+    scene.time.delayedCall(400, () => {
+      if (isMatch) {
+        // Убрать карты/сыграть анимацию
+        a.__pairRef.setAlpha(0.2);
+        b.__pairRef.setAlpha(0.2);
+        a.disableInteractive();
+        b.disableInteractive();
+      } else {
+        // Закрыть обратно
+        a.__isOpen = false;
+        b.__isOpen = false;
+        a.setVisible(true);
+        b.setVisible(true);
+        a.__pairRef.setVisible(false);
+        b.__pairRef.setVisible(false);
       }
-    }
-
-    // показать все 2 сек, затем перевернуть
-    this.canClick = false;
-    this.time.delayedCall(2000, () => {
-      this.cards.forEach(card => card.setTexture('back'));
-      this.canClick = true;
+      openBuffer = [];
+      // здесь можно проверять «все пары открыты» -> переход к след. уровню
     });
   }
+}
 
-  onCardClick(card) {
-    if (!this.canClick) return;
-    if (card.getData('opened') || card.getData('matched')) return;
+// 9) Точки входа из твоей сцены
+// В create() сцены вместо «сложностей» делай так:
+function startLevel(scene, levelIndex) {
+  currentLevelIndex = levelIndex;
+  // почисти предыдущее поле, если надо:
+  // scene.children.removeAll(); // осторожно, если есть UI/фон
+  createBoard(scene, currentLevelIndex);
+}
 
-    card.setTexture(card.getData('key'));
-    card.setData('opened', true);
-    this.opened.push(card);
+// 10) Пример мини-UI выбора уровня (опционально):
+function addLevelUI(scene) {
+  const txt = scene.add.text(16, 16, `Level: ${LEVELS[currentLevelIndex].name}`, { fontSize: "20px", color: "#fff" });
+  const prev = scene.add.text(16, 44, "← Prev", { fontSize: "18px", color: "#fff" }).setInteractive({ useHandCursor: true });
+  const next = scene.add.text(100, 44, "Next →", { fontSize: "18px", color: "#fff" }).setInteractive({ useHandCursor: true });
 
-    if (this.opened.length === 2) {
-      this.canClick = false;
-      this.time.delayedCall(600, () => {
-        const [a, b] = this.opened;
-        if (a.getData('key') === b.getData('key')) {
-          a.setData('matched', true);
-          b.setData('matched', true);
-        } else {
-          this.mistakeCount++;
-          if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
-          a.setTexture('back').setData('opened', false);
-          b.setTexture('back').setData('opened', false);
-        }
-        this.opened = [];
-        this.canClick = true;
+  prev.on("pointerup", () => {
+    currentLevelIndex = (currentLevelIndex - 1 + LEVELS.length) % LEVELS.length;
+    scene.scene.restart({ level: currentLevelIndex });
+  });
+  next.on("pointerup", () => {
+    currentLevelIndex = (currentLevelIndex + 1) % LEVELS.length;
+    scene.scene.restart({ level: currentLevelIndex });
+  });
 
-        if (this.cards.every(c => c.getData('matched'))) {
-          this.showWin();
-        }
-      });
-    }
-  }
+  scene.events.on("transitioncomplete", () => {
+    txt.setText(`Level: ${LEVELS[currentLevelIndex].name}`);
+  });
+}
 
-  showWin() {
-    this.clearHUD();
+// 11) Если ты используешь init/data:
+function init(data) {
+  if (typeof data?.level === "number") currentLevelIndex = data.level;
+}
+function create() {
+  addLevelUI(this);       // опционально
+  startLevel(this, currentLevelIndex);
+}
 
-    const { width: W } = this.scale.gameSize;
-    this.add.text(W/2, 80, 'Победа!', {
-      fontFamily: 'Arial',
-      fontSize: '56px',
-      color: '#fff'
-    }).setOrigin(0.5);
-
-    const btn = this.add.text(W/2, 170, 'Сыграть ещё', {
-      fontFamily: 'Arial',
-      fontSize: '40px',
-      color: '#fff',
-      backgroundColor: '#333',
-      padding: { left: 14, right: 14, top: 10, bottom: 10 }
-    }).setOrigin(0.5).setInteractive();
-
-    btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#555' }));
-    btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#333' }));
-    btn.on('pointerdown', () => {
-      this.children.removeAll();
-      this.cards = [];
-      this.opened = [];
-      this.canClick = false;
-      this.currentLevel = null;
-      this.showLevelSelect();
-    });
-  }
-
-  // --- HUD ---
-  drawHUD() {
-    this.clearHUD();
-
-    const { width: W, height: H } = this.scale.gameSize;
-    const hudH = Math.min(90, Math.round(H*0.1));
-
-    this.hud = this.add.graphics();
-    this.hud.fillStyle(0x222333, 1);
-    this.hud.fillRect(0, 0, W, hudH);
-    this.hud.setDepth(50);
-
-    this.mistakeText = this.add.text(20, Math.round(hudH/2), 'Ошибок: 0', {
-      fontFamily: 'Arial',
-      fontSize: Math.round(hudH * 0.5) + 'px',
-      color: '#fff'
-    }).setOrigin(0, 0.5).setDepth(100);
-
-    this.exitBtn = this.add.text(W - 20, Math.round(hudH/2), 'В меню', {
-      fontFamily: 'Arial',
-      fontSize: Math.round(hudH * 0.45) + 'px',
-      color: '#fff',
-      backgroundColor: '#333',
-      padding: { left: 10, right: 10, top: 6, bottom: 6 }
-    }).setOrigin(1, 0.5).setInteractive().setDepth(100);
-
-    this.exitBtn.on('pointerover', () => this.exitBtn.setStyle({ backgroundColor: '#555' }));
-    this.exitBtn.on('pointerout',  () => this.exitBtn.setStyle({ backgroundColor: '#333' }));
-    this.exitBtn.on('pointerdown', () => {
-      this.children.removeAll();
-      this.cards = [];
-      this.opened = [];
-      this.canClick = false;
-      this.currentLevel = null;
-      this.showLevelSelect();
-    });
-  }
-
-  clearHUD() {
-    if (this.hud) this.hud.destroy();
-    if (this.mistakeText) this.mistakeText.destroy();
-    if (this.exitBtn) this.exitBtn.destroy();
-    this.hud = null;
-    this.mistakeText = null;
-    this.exitBtn = null;
-  }
-
-  redrawHUD() {
-    if (this.currentLevel) this.drawHUD();
-  }
-};
+// --- END PATCH ---
