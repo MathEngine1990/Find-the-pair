@@ -256,7 +256,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const img = this.add.image(0, 0, key).setOrigin(0.5);
     const txt = this.add.text(0, 0, label, {
       fontFamily: THEME.font,
-      fontSize: this._pxClamp(h*0.42, 14, 28) + 'px', // кламп текста кнопки
+      fontSize: this._pxClamp(h*0.2, 14, 28) + 'px', // кламп текста кнопки
       color:'#0F1A14',
       fontStyle:'600'
     }).setOrigin(0.5);
@@ -277,7 +277,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const img = this.add.image(0,0,key).setOrigin(0.5);
     const txt = this.add.text(0,0,iconText,{
       fontFamily: THEME.font,
-      fontSize: this._pxClamp(size*0.5, 16, 32) + 'px', // кламп иконки
+      fontSize: this._pxClamp(size*0.3, 16, 32) + 'px', // кламп иконки
       color:'#0F1A14',
       fontStyle:'800'
     }).setOrigin(0.5);
@@ -393,7 +393,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     const pageTxt = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
       fontFamily: THEME.font,
-      fontSize: this._pxClamp(size*0.48, 14, 24) + 'px', // кламп счётчика страниц
+      fontSize: this._pxClamp(size*0.3, 14, 24) + 'px', // кламп счётчика страниц
       color:'#e9fffb',
       fontStyle:'600'
     }).setOrigin(0.5);
@@ -439,7 +439,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // «Ошибок»
     this.mistakeText = this.add.text(24, Math.round(hudH/2), 'Ошибок: 0', {
       fontFamily: THEME.font,
-      fontSize: this._pxClamp(hudH*0.48, 14, 22) + 'px', // кламп HUD-текста
+      fontSize: this._pxClamp(hudH*0.3, 14, 22) + 'px', // кламп HUD-текста
       color: THEME.hudText,
       fontStyle:'600'
     }).setOrigin(0,0.5).setDepth(6);
