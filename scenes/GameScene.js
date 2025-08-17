@@ -106,7 +106,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const COLS = 3, ROWS = 3, PER_PAGE = COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(LEVELS.length / PER_PAGE));
 
-    const title = this.add.text(W/2, H*0.16, 'ПараВоз', {
+    const title = this.add.text(W/2, H*0.16, 'Память: Найди пару', {
       fontFamily: 'Arial',
       fontSize: Math.round(H*0.06)+'px',
       color: '#ffffff'
