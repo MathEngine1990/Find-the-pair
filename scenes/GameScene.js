@@ -1,4 +1,10 @@
 // GameScene.js
+//
+// Стиль: изумруд + латунь/медь, скругления, объёмные кнопки, современный шрифт.
+// Без доп. ассетов для UI — всё рисуется кодом через Canvas-текстуры.
+//
+// (Рекомендуется подключить шрифт в index.html)
+// <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 
 // --- Карточные ключи под твои ассеты (assets/cards/<key>.png) ---
 const ALL_CARD_KEYS = [
@@ -9,7 +15,7 @@ const ALL_CARD_KEYS = [
   '10h','10c'
 ];
 
-// --- 11 уровней как просили ---
+// --- 11 уровней ---
 const LEVELS = [
   { label: '2×3 (3 пары)',  cols: 3, rows: 2 },
   { label: '2×4 (4 пары)',  cols: 4, rows: 2 },
@@ -24,19 +30,47 @@ const LEVELS = [
   { label: '6×6 (18 пар)',  cols: 6, rows: 6 }
 ];
 
+// --- Тема ---
+const THEME = {
+  font: 'Jura, Russo One, sans-serif',
+
+  // Фон: глубокий изумруд → тёмный хвойный → мшисто-оливковый
+  bgTop:    '#07130E',
+  bgMid:    '#203B30',
+  bgBottom: '#5C7865',
+
+  // Тёплая «дымка» как мягкое латунное свечение
+  fogPink:  'rgba(196,154,58,0.16)',
+
+  // Кнопки/градиенты: латунь ↔ глухой зелёный, с медным акцентом
+  gradPinkA:  '#C49A3A',
+  gradPinkB:  '#3B5A48',
+  gradGreenA: '#4D6D5B',
+  gradGreenB: '#D07F2E',
+
+  // Обводки/тени
+  strokeLight: 'rgba(239,226,192,0.38)',
+  strokeDark:  'rgba(0,0,0,0.30)',
+
+  // HUD
+  hudFill:  0x0b1611,
+  hudText:  '#EDE2C6',
+
+  // Карты
+  cardDimAlpha: 0.40
+};
+
 window.GameScene = class GameScene extends Phaser.Scene {
   constructor(){ super('GameScene'); }
 
   preload(){
-    this.cameras.main.setBackgroundColor('#0f0f12');
-    // Рубашка (assets/back_card02.png)
+    // Карты
     this.load.image('back', 'assets/back_card02.png');
-    // Лицевые карты
     ALL_CARD_KEYS.forEach(k => this.load.image(k, `assets/cards/${k}.png`));
   }
 
   create(){
-    // Состояния
+    // Состояние
     this.levelButtons  = [];
     this.cards         = [];
     this.opened        = [];
@@ -46,26 +80,28 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.hud = null;
     this.mistakeCount  = 0;
     this.mistakeText   = null;
-    this.exitBtn       = null;
 
-    this.levelPage     = 0;     // страница меню (для пагинации)
-    this._wheelHandler = null;  // ссылка на обработчик колесика для корректного off()
+    this.levelPage     = 0;
+    this._wheelHandler = null;
+    this.bgImage       = null;
 
-    // Если какие-то текстуры не загрузились — сделаем плейсхолдеры
+    // Счётчик для уникальных имён текстур
+    this._texId = 0;
+
+    // Плейсхолдеры, фон и меню
     this.makePlaceholdersIfNeeded();
-
-    // Показать меню уровней
+    this.ensureGradientBackground();
     this.showLevelSelect();
 
-    // На ресайз: перерисовать меню или перезапустить текущий уровень (для корректной раскладки)
+    // Ресайз
     this.scale.on('resize', () => {
+      this.ensureGradientBackground();
       if (!this.currentLevel) this.showLevelSelect(this.levelPage);
       else this.startGame(this.currentLevel);
     }, this);
   }
 
-  // ---------- ВСПОМОГАТЕЛЬНОЕ ----------
-
+  // ---------- SIZE UTILS ----------
   getSceneWH(){
     const s = this.scale;
     const cam = this.cameras?.main;
@@ -74,58 +110,236 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return { W: Math.floor(W), H: Math.floor(H) };
   }
 
+  // ---------- BACKGROUND ----------
+  ensureGradientBackground(){
+    const { W, H } = this.getSceneWH();
+    const key = 'bg-grad';
+    if (this.textures.exists(key)) {
+      const src = this.textures.get(key).getSourceImage();
+      if (src.width !== W || src.height !== H) this.textures.remove(key);
+    }
+    if (!this.textures.exists(key)) {
+      const tex = this.textures.createCanvas(key, W, H);
+      const ctx = tex.getContext();
+
+      // Вертикальный зелёный градиент
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0.00, THEME.bgTop);
+      g.addColorStop(0.55, THEME.bgMid);
+      g.addColorStop(1.00, THEME.bgBottom);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      // Тёплая дымка сверху-справа
+      const fog = ctx.createRadialGradient(W*0.7, H*0.1, 10, W*0.7, H*0.1, Math.max(W,H)*0.8);
+      fog.addColorStop(0, THEME.fogPink);
+      fog.addColorStop(1, 'rgba(255,77,157,0.0)');
+      ctx.fillStyle = fog;
+      ctx.fillRect(0, 0, W, H);
+
+      // Виньетка
+      const v = ctx.createRadialGradient(W/2, H*0.6, Math.min(W,H)*0.1, W/2, H*0.6, Math.max(W,H));
+      v.addColorStop(0, 'rgba(255,255,255,0)');
+      v.addColorStop(1, 'rgba(0,0,0,0.26)');
+      ctx.fillStyle = v;
+      ctx.fillRect(0,0,W,H);
+
+      tex.refresh();
+    }
+    if (this.bgImage) this.bgImage.destroy();
+    this.bgImage = this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-1000);
+    this.bgImage.setDisplaySize(W, H);
+  }
+
+  // ---------- CANVAS SHAPES ----------
+  _uid(pref){ return `${pref}_${Date.now()}_${this._texId++}`; }
+
+  _roundRect(ctx, x, y, w, h, r){
+    const rr = Math.max(0, Math.min(r, Math.min(w,h)/2));
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y,   x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x,   y+h, rr);
+    ctx.arcTo(x,   y+h, x,   y,   rr);
+    ctx.arcTo(x,   y,   x+w, y,   rr);
+    ctx.closePath();
+  }
+
+  // Создать объёмную закруглённую кнопку (текстура)
+  makeButtonTexture(w, h, radius, colTop, colBot, withGloss=true){
+    const key = this._uid('btn');
+    const tex = this.textures.createCanvas(key, w, h);
+    const ctx = tex.getContext();
+
+    // Тень
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = Math.max(8, Math.round(Math.min(w,h)*0.1));
+    ctx.shadowOffsetY = Math.round(h*0.08);
+
+    // Градиент кнопки
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, colTop);
+    g.addColorStop(1, colBot);
+    ctx.fillStyle = g;
+
+    this._roundRect(ctx, 8, 8, w-16, h-16, radius);
+    ctx.fill();
+    ctx.restore();
+
+    // Внутренняя обводка
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = THEME.strokeLight;
+    this._roundRect(ctx, 8, 8, w-16, h-16, radius);
+    ctx.stroke();
+
+    // Блик
+    if (withGloss){
+      const gh = Math.max(10, Math.round(h*0.42));
+      const gloss = ctx.createLinearGradient(0, 10, 0, gh);
+      gloss.addColorStop(0, 'rgba(255,255,255,0.45)');
+      gloss.addColorStop(1, 'rgba(255,255,255,0.0)');
+      ctx.fillStyle = gloss;
+      this._roundRect(ctx, 12, 12, w-24, gh-6, radius*0.7);
+      ctx.fill();
+    }
+
+    tex.refresh();
+    return key;
+  }
+
+  // Создать круглую иконку-кнопку
+  makeCircleIconTexture(size, colTop, colBot){
+    const key = this._uid('icn');
+    const tex = this.textures.createCanvas(key, size, size);
+    const ctx = tex.getContext();
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = Math.round(size*0.12);
+    ctx.shadowOffsetY = Math.round(size*0.08);
+
+    const g = ctx.createLinearGradient(0, 0, 0, size);
+    g.addColorStop(0, colTop);
+    g.addColorStop(1, colBot);
+    ctx.fillStyle = g;
+
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2 - 6, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = THEME.strokeLight;
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2 - 6, 0, Math.PI*2);
+    ctx.stroke();
+
+    tex.refresh();
+    return key;
+  }
+
+  // Удобный фабрикатор «контейнер-кнопки» (текст поверх текстуры)
+  // ВАЖНО: интерактив вешаем на IMG (не на контейнер!), чтобы хит-область масштабировалась.
+  makeTextButton(x, y, w, h, label, colTop, colBot, onClick){
+    const key = this.makeButtonTexture(w, h, Math.min(20, h/2), colTop, colBot, true);
+    const img = this.add.image(0, 0, key).setOrigin(0.5);
+    const txt = this.add.text(0, 0, label, {
+      fontFamily: THEME.font, fontSize: Math.round(h*0.42)+'px',
+      color:'#0F1A14', fontStyle:'600'
+    }).setOrigin(0.5);
+
+    const cont = this.add.container(x, y, [img, txt]);
+    cont.setSize(w, h);
+
+    // интерактив на img
+    img.setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => onClick && onClick())
+      .on('pointerover', () => this.tweens.add({ targets: cont, scale: 1.04, duration: 120 }))
+      .on('pointerout',  () => this.tweens.add({ targets: cont, scale: 1.00, duration: 120 }));
+
+    return cont;
+  }
+
+  makeIconButton(x, y, size, iconText, colTop, colBot, onClick){
+    const key = this.makeCircleIconTexture(size, colTop, colBot);
+    const img = this.add.image(0,0,key).setOrigin(0.5);
+    const txt = this.add.text(0,0,iconText,{
+      fontFamily: THEME.font, fontSize: Math.round(size*0.5)+'px', color:'#0F1A14', fontStyle:'800'
+    }).setOrigin(0.5);
+
+    const cont = this.add.container(x,y,[img,txt]);
+    cont.setSize(size,size);
+
+    // интерактив на img (масштабируется вместе с контейнером)
+    img.setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => onClick && onClick())
+      .on('pointerover', () => this.tweens.add({ targets: cont, scale: 1.06, duration: 120 }))
+      .on('pointerout',  () => this.tweens.add({ targets: cont, scale: 1.00, duration: 120 }));
+
+    return cont;
+  }
+
+  // ---------- PLACEHOLDERS FOR CARDS ----------
   makePlaceholdersIfNeeded(){
-    // Рубашка
+    // Рубашка (если нет)
     if (!this.textures.exists('back')){
       const g = this.add.graphics();
-      g.fillStyle(0x2a2e3f, 1).fillRoundedRect(0,0,220,320,18);
-      g.lineStyle(6,0xffffff,1).strokeRoundedRect(0,0,220,320,18);
+      g.fillStyle(0x143225, 1) // тёмный изумруд
+       .fillRoundedRect(0,0,220,320,20);
+      g.lineStyle(8, 0xC49A3A, 0.9) // латунная кромка
+       .strokeRoundedRect(0,0,220,320,20);
       g.generateTexture('back', 220, 320);
       g.destroy();
     }
-    // Лицевые
+
+    // Лица (если нет ассетов)
     ALL_CARD_KEYS.forEach((k) => {
       if (this.textures.exists(k)) return;
       const g = this.add.graphics();
-      g.fillStyle(0x33415c,1).fillRoundedRect(0,0,220,320,18);
-      g.lineStyle(6,0x88aaff,1).strokeRoundedRect(0,0,220,320,18);
-      const t = this.add.text(110,160,k.toUpperCase(),{ fontFamily:'Arial', fontSize:'48px', color:'#fff' }).setOrigin(0.5);
+      g.fillStyle(0x23483B, 1) // глубокий зелёный
+       .fillRoundedRect(0,0,220,320,20);
+      g.lineStyle(8, 0xD07F2E, 0.95) // медная окантовка
+       .strokeRoundedRect(0,0,220,320,20);
+
+      const t = this.add.text(110,160,k.toUpperCase(),{
+        fontFamily: THEME.font,
+        fontSize: '48px',
+        color: '#EDE2C6',
+        fontStyle: '800'
+      }).setOrigin(0.5);
+
       g.generateTexture(k,220,320);
-      t.destroy(); g.destroy();
+      t.destroy();
+      g.destroy();
     });
   }
 
-  // ---------- МЕНЮ УРОВНЕЙ (3×3, PAGINATION) ----------
-
+  // ---------- LEVEL SELECT (3×3 + пагинация) ----------
   showLevelSelect(page = 0){
     this.clearLevelButtons();
+    this.ensureGradientBackground();
 
     const { W, H } = this.getSceneWH();
-
     this.levelPage = page;
+
     const COLS = 3, ROWS = 3, PER_PAGE = COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(LEVELS.length / PER_PAGE));
 
-    const title = this.add.text(W/2, H*0.16, 'Память: Найди пару', {
-      fontFamily: 'Arial',
-      fontSize: Math.round(H*0.06)+'px',
-      color: '#ffffff'
+    // Заголовок
+    const title = this.add.text(W/2, H*0.14, 'Память: Найди пару', {
+      fontFamily: THEME.font, fontSize: Math.round(H*0.075)+'px',
+      color: '#EDE2C6', fontStyle:'800'
     }).setOrigin(0.5);
     this.levelButtons.push(title);
 
-    // Область сетки под кнопки
-    const topY = H*0.28;
-    const bottomY = H*0.80;
-
+    // Сетка кнопок уровней
+    const topY = H*0.24, bottomY = H*0.78;
     const areaH = bottomY - topY;
-    const areaW = Math.min(W*0.9, 1000);
+    const areaW = Math.min(W*0.92, 1080);
     const cellH = areaH / ROWS;
     const cellW = areaW / COLS;
-
-    const padX = Math.min(16, Math.round(cellW * 0.06));
-    const padY = Math.min(12, Math.round(cellH * 0.08));
-    const btnFont = Math.max(18, Math.round(Math.min(cellH, cellW) * 0.28));
-
     const gridLeft = (W - areaW) / 2;
     const gridTop  = topY;
 
@@ -134,78 +348,53 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const pageLevels = LEVELS.slice(startIdx, endIdx);
 
     pageLevels.forEach((lvl, i) => {
-      const r = (i / COLS) | 0;
-      const c = i % COLS;
+      const r = (i / COLS) | 0, c = i % COLS;
       const x = gridLeft + c * cellW + cellW/2;
       const y = gridTop  + r * cellH + cellH/2;
+      const w = Math.min(320, cellW*0.9);
+      const h = Math.min(90,  cellH*0.6);
 
-      const btn = this.add.text(x, y, lvl.label, {
-        fontFamily: 'Arial',
-        fontSize: btnFont+'px',
-        color: '#ffffff',
-        backgroundColor: '#333',
-        padding: { left: padX, right: padX, top: padY, bottom: padY }
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#555' }));
-      btn.on('pointerout',  () => btn.setStyle({ backgroundColor: '#333' }));
-      btn.on('pointerdown', () => {
-        this.clearLevelButtons();
-        this.startGame(lvl);
-      });
-
+      const btn = this.makeTextButton(
+        x, y, w, h, lvl.label,
+        THEME.gradPinkA, THEME.gradGreenA,
+        () => { this.clearLevelButtons(); this.startGame(lvl); }
+      );
       this.levelButtons.push(btn);
     });
 
-    // Пагинация
-    const pagFont = Math.max(18, Math.round(H * 0.04));
-    const yNav = H * 0.88;
+    // Навигация страниц
+    const yNav = H*0.86;
+    const size = Math.max(54, Math.round(H*0.065));
 
     const prevActive = this.levelPage > 0;
     const nextActive = this.levelPage < PAGES - 1;
 
-    const prev = this.add.text(W*0.25, yNav, '← Пред.', {
-      fontFamily: 'Arial',
-      fontSize: pagFont+'px',
-      color: (prevActive ? '#fff' : '#777'),
-      backgroundColor: (prevActive ? '#333' : '#222'),
-      padding: { left: 12, right: 12, top: 8, bottom: 8 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: prevActive });
-    if (prevActive){
-      prev.on('pointerover', () => prev.setStyle({ backgroundColor: '#555' }));
-      prev.on('pointerout',  () => prev.setStyle({ backgroundColor: '#333' }));
-      prev.on('pointerdown', () => this.showLevelSelect(this.levelPage - 1));
-    }
-    this.levelButtons.push(prev);
+    const prevBtn = this.makeIconButton(
+      W*0.30, yNav, size,
+      '‹', THEME.gradPinkB, THEME.gradPinkA,
+      () => { if (prevActive) this.showLevelSelect(this.levelPage - 1); }
+    );
+    prevBtn.setAlpha(prevActive?1:0.45);
+    this.levelButtons.push(prevBtn);
 
-    const indicator = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
-      fontFamily: 'Arial',
-      fontSize: pagFont+'px',
-      color: '#aaa'
+    const pageTxt = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
+      fontFamily: THEME.font, fontSize: Math.round(size*0.48)+'px', color:'#e9fffb', fontStyle:'600'
     }).setOrigin(0.5);
-    this.levelButtons.push(indicator);
+    this.levelButtons.push(pageTxt);
 
-    const next = this.add.text(W*0.75, yNav, 'След. →', {
-      fontFamily: 'Arial',
-      fontSize: pagFont+'px',
-      color: (nextActive ? '#fff' : '#777'),
-      backgroundColor: (nextActive ? '#333' : '#222'),
-      padding: { left: 12, right: 12, top: 8, bottom: 8 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: nextActive });
-    if (nextActive){
-      next.on('pointerover', () => next.setStyle({ backgroundColor: '#555' }));
-      next.on('pointerout',  () => next.setStyle({ backgroundColor: '#333' }));
-      next.on('pointerdown', () => this.showLevelSelect(this.levelPage + 1));
-    }
-    this.levelButtons.push(next);
+    const nextBtn = this.makeIconButton(
+      W*0.70, yNav, size,
+      '›', THEME.gradGreenB, THEME.gradGreenA,
+      () => { if (nextActive) this.showLevelSelect(this.levelPage + 1); }
+    );
+    nextBtn.setAlpha(nextActive?1:0.45);
+    this.levelButtons.push(nextBtn);
 
-    // Колёсико — одна подписка
-    if (this._wheelHandler) {
-      this.input.off('wheel', this._wheelHandler);
-    }
+    // Колёсико
+    if (this._wheelHandler) this.input.off('wheel', this._wheelHandler);
     this._wheelHandler = (_p, _objs, _dx, dy) => {
-      if (dy > 0 && this.levelPage < PAGES - 1) this.showLevelSelect(this.levelPage + 1);
-      else if (dy < 0 && this.levelPage > 0)    this.showLevelSelect(this.levelPage - 1);
+      if (dy > 0 && nextActive) this.showLevelSelect(this.levelPage + 1);
+      else if (dy < 0 && prevActive) this.showLevelSelect(this.levelPage - 1);
     };
     this.input.on('wheel', this._wheelHandler);
   }
@@ -220,32 +409,35 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.levelButtons = [];
   }
 
-  // ---------- ИГРА ----------
-
+  // ---------- HUD ----------
   drawHUD(){
     this.clearHUD();
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(90, Math.round(H*0.1));
 
+    // Фон HUD с лёгкой прозрачностью
     this.hud = this.add.graphics().setDepth(5);
-    this.hud.fillStyle(0x222333,1).fillRect(0,0,W,hudH);
+    this.hud.fillStyle(THEME.hudFill, 0.9).fillRect(0,0,W,hudH);
 
-    this.mistakeText = this.add.text(20, Math.round(hudH/2), 'Ошибок: 0', {
-      fontFamily:'Arial', fontSize: Math.round(hudH*0.5)+'px', color:'#fff'
+    // «Ошибок»
+    this.mistakeText = this.add.text(24, Math.round(hudH/2), 'Ошибок: 0', {
+      fontFamily: THEME.font, fontSize: Math.round(hudH*0.48)+'px', color: THEME.hudText, fontStyle:'600'
     }).setOrigin(0,0.5).setDepth(6);
 
-    this.exitBtn = this.add.text(W-20, Math.round(hudH/2), 'В меню', {
-      fontFamily:'Arial', fontSize: Math.round(hudH*0.45)+'px', color:'#fff',
-      backgroundColor:'#333', padding:{left:10,right:10,top:6,bottom:6}
-    }).setOrigin(1,0.5).setInteractive({useHandCursor:true}).setDepth(6);
-
-    this.exitBtn.on('pointerover',()=>this.exitBtn.setStyle({backgroundColor:'#555'}));
-    this.exitBtn.on('pointerout', ()=>this.exitBtn.setStyle({backgroundColor:'#333'}));
-    this.exitBtn.on('pointerdown',()=>{
-      this.children.removeAll();
-      this.cards=[]; this.opened=[]; this.canClick=false; this.currentLevel=null;
-      this.showLevelSelect(this.levelPage);
-    });
+    // Домой (иконка)
+    const size = Math.round(hudH*0.78);
+    const homeBtn = this.makeIconButton(
+      W - (size/2 + 14), Math.round(hudH/2), size,
+      '⌂', THEME.gradPinkA, THEME.gradGreenA,
+      () => {
+        this.children.removeAll();
+        this.ensureGradientBackground();
+        this.cards=[]; this.opened=[]; this.canClick=false; this.currentLevel=null;
+        this.showLevelSelect(this.levelPage);
+      }
+    );
+    homeBtn.setDepth(7);
+    this.exitBtn = homeBtn;
   }
 
   clearHUD(){
@@ -255,11 +447,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.hud = this.mistakeText = this.exitBtn = null;
   }
 
+  // ---------- GAME ----------
   startGame(level){
     this.currentLevel = level;
     this.mistakeCount = 0;
 
-    this.children.removeAll(); // очистим сцену
+    this.children.removeAll();  // очистим сцену (удалит и фон)
+    this.ensureGradientBackground();
     this.cards = [];
     this.opened = [];
     this.canClick = false;
@@ -282,7 +476,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(90, Math.round(H*0.1));
 
-    // Размеры эталонной карты — из текстуры "back"
+    // Размер карты
     const backTex = this.textures.get('back');
     const backImg = backTex?.getSourceImage?.();
     const cardOrigW = backImg?.width  || 220;
@@ -306,10 +500,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const boardH = cardH*level.rows + gap*(level.rows-1);
 
     const startX = (W - boardW)/2 + cardW/2;
-    // поле фиксированно ниже HUD на outerPad
-    const startY = hudH + outerPad + cardH / 2;
+    const startY = hudH + outerPad + cardH/2;
 
-    // Создадим карты (сначала лицом)
+    // Создаём карты (сначала лицом)
     let i = 0;
     for (let r=0; r<level.rows; r++){
       for (let c=0; c<level.cols; c++){
@@ -321,12 +514,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
         card.setScale(cardScale).setDepth(20);
         card.setData({ key, opened:false, matched:false });
 
+        // Небольшая тень при наведении
+        card.on('pointerover', () => this.tweens.add({ targets: card, scale: cardScale*1.03, duration: 120 }));
+        card.on('pointerout',  () => this.tweens.add({ targets: card, scale: cardScale*1.00, duration: 120 }));
+
         card.on('pointerdown', () => this.onCardClick(card));
         this.cards.push(card);
       }
     }
 
-    // Показать 5 сек и перевернуть на «рубашку»
+    // Запоминание: 5 секунд лицом, затем переворот
     this.canClick = false;
     this.time.delayedCall(5000, () => {
       this.cards.forEach(card => card.setTexture('back'));
@@ -336,7 +533,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   onCardClick(card){
     if (!this.canClick) return;
-    if (card.getData('opened') || card.getData('matched')) return; // уже открыта/сопоставлена — игнор
+    if (card.getData('opened') || card.getData('matched')) return;
 
     card.setTexture(card.getData('key'));
     card.setData('opened', true);
@@ -347,10 +544,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this.time.delayedCall(500, () => {
         const [a,b] = this.opened;
         if (a.getData('key') === b.getData('key')){
-          // Совпали: помечаем и БЛОКИРУЕМ дальнейшие клики
-          a.setData('matched', true).setAlpha(0.35).disableInteractive(); // [NEW]
-          b.setData('matched', true).setAlpha(0.35).disableInteractive(); // [NEW]
-          // дополнительно на всякий случай снимаем "opened"
+          a.setData('matched', true).setAlpha(THEME.cardDimAlpha).disableInteractive();
+          b.setData('matched', true).setAlpha(THEME.cardDimAlpha).disableInteractive();
           a.setData('opened', false);
           b.setData('opened', false);
         } else {
@@ -368,35 +563,37 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   showWin(){
-    // Блокируем любые дальнейшие клики по картам после победы
-    this.canClick = false;                                     // [NEW]
-    this.cards.forEach(c => c.disableInteractive());           // [NEW]
+    this.canClick = false;
+    this.cards.forEach(c => c.disableInteractive());
 
-    this.clearHUD();
     const { W, H } = this.getSceneWH();
 
-    this.add.text(W/2, H*0.20, 'Победа!', {
-      fontFamily:'Arial', fontSize: Math.round(H*0.08)+'px', color:'#fff'
+    // Заголовок
+    this.add.text(W/2, H*0.22, 'Победа!', {
+      fontFamily: THEME.font, fontSize: Math.round(H*0.09)+'px',
+      color:'#ffffff', fontStyle:'800'
     }).setOrigin(0.5);
 
-    // Итоговое число ошибок
-    this.add.text(W/2, H*0.30, `Ошибок за игру: ${this.mistakeCount}`, { // [NEW]
-      fontFamily:'Arial', fontSize: Math.round(H*0.045)+'px', color:'#ddd'
+    // Итоги
+    this.add.text(W/2, H*0.32, `Ошибок за игру: ${this.mistakeCount}`, {
+      fontFamily: THEME.font, fontSize: Math.round(H*0.045)+'px',
+      color:'#eafff7', fontStyle:'600'
     }).setOrigin(0.5);
 
-    const btn = this.add.text(W/2, H*0.40, 'Сыграть ещё', {
-      fontFamily:'Arial', fontSize: Math.round(H*0.05)+'px',
-      color:'#fff', backgroundColor:'#333',
-      padding:{left:14,right:14,top:10,bottom:10}
-    }).setOrigin(0.5).setInteractive({useHandCursor:true});
-
-    btn.on('pointerover',()=>btn.setStyle({backgroundColor:'#555'}));
-    btn.on('pointerout', ()=>btn.setStyle({backgroundColor:'#333'}));
-    btn.on('pointerdown',()=>{
-      this.children.removeAll();
-      this.cards = []; this.opened = []; this.canClick = false; this.currentLevel = null;
-      this.showLevelSelect(this.levelPage);
-    });
+    // Кнопка «сыграть ещё»
+    const btn = this.makeTextButton(
+      W/2, H*0.44,
+      Math.min(380, W*0.6), Math.min(80, H*0.12),
+      '🔄  Сыграть ещё',
+      THEME.gradGreenB, THEME.gradPinkB,
+      () => {
+        this.children.removeAll();
+        this.ensureGradientBackground();
+        this.cards = []; this.opened = []; this.canClick = false; this.currentLevel = null;
+        this.showLevelSelect(this.levelPage);
+      }
+    );
+    btn.setDepth(10);
   }
 
   redrawHUD(){
