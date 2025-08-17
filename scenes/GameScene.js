@@ -227,17 +227,17 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(90, Math.round(H*0.1));
 
-    this.hud = this.add.graphics();
-    this.hud.fillStyle(0x222333,1).fillRect(0,0,W,hudH).setDepth(50);
+    this.hud = this.add.graphics().setDepth(5);
+    this.hud.fillStyle(0x222333,1).fillRect(0,0,W,hudH);
 
     this.mistakeText = this.add.text(20, Math.round(hudH/2), 'Ошибок: 0', {
       fontFamily:'Arial', fontSize: Math.round(hudH*0.5)+'px', color:'#fff'
-    }).setOrigin(0,0.5).setDepth(100);
+    }).setOrigin(0,0.5).setDepth(6);
 
     this.exitBtn = this.add.text(W-20, Math.round(hudH/2), 'В меню', {
       fontFamily:'Arial', fontSize: Math.round(hudH*0.45)+'px', color:'#fff',
       backgroundColor:'#333', padding:{left:10,right:10,top:6,bottom:6}
-    }).setOrigin(1,0.5).setInteractive({useHandCursor:true}).setDepth(100);
+    }).setOrigin(1,0.5).setInteractive({useHandCursor:true}).setDepth(6);
 
     this.exitBtn.on('pointerover',()=>this.exitBtn.setStyle({backgroundColor:'#555'}));
     this.exitBtn.on('pointerout', ()=>this.exitBtn.setStyle({backgroundColor:'#333'}));
@@ -306,7 +306,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const boardH = cardH*level.rows + gap*(level.rows-1);
 
     const startX = (W - boardW)/2 + cardW/2;
-    const startY = hudH + (H - hudH - boardH)/2 + cardH/2;
+    // поле фиксированно ниже HUD на outerPad
+    const startY = hudH + outerPad + cardH / 2;
 
     // Создадим карты (сначала лицом)
     let i = 0;
@@ -317,7 +318,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
         const y = startY + r*(cardH + gap);
 
         const card = this.add.image(x,y,key).setInteractive({useHandCursor:true});
-        card.setScale(cardScale).setDepth(10);
+        card.setScale(cardScale).setDepth(20);
         card.setData({ key, opened:false, matched:false });
 
         card.on('pointerdown', () => this.onCardClick(card));
@@ -325,9 +326,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
-    // Показать 1.2 сек и перевернуть на «рубашку»
+    // Показать 5 сек и перевернуть на «рубашку»
     this.canClick = false;
-    this.time.delayedCall(1200, () => {
+    this.time.delayedCall(5000, () => {
       this.cards.forEach(card => card.setTexture('back'));
       this.canClick = true;
     });
@@ -335,7 +336,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   onCardClick(card){
     if (!this.canClick) return;
-    if (card.getData('opened') || card.getData('matched')) return;
+    if (card.getData('opened') || card.getData('matched')) return; // уже открыта/сопоставлена — игнор
 
     card.setTexture(card.getData('key'));
     card.setData('opened', true);
@@ -346,8 +347,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this.time.delayedCall(500, () => {
         const [a,b] = this.opened;
         if (a.getData('key') === b.getData('key')){
-          a.setData('matched', true).setAlpha(0.35).disableInteractive();
-          b.setData('matched', true).setAlpha(0.35).disableInteractive();
+          // Совпали: помечаем и БЛОКИРУЕМ дальнейшие клики
+          a.setData('matched', true).setAlpha(0.35).disableInteractive(); // [NEW]
+          b.setData('matched', true).setAlpha(0.35).disableInteractive(); // [NEW]
+          // дополнительно на всякий случай снимаем "opened"
+          a.setData('opened', false);
+          b.setData('opened', false);
         } else {
           this.mistakeCount++;
           if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
@@ -363,14 +368,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   showWin(){
+    // Блокируем любые дальнейшие клики по картам после победы
+    this.canClick = false;                                     // [NEW]
+    this.cards.forEach(c => c.disableInteractive());           // [NEW]
+
     this.clearHUD();
     const { W, H } = this.getSceneWH();
 
-    this.add.text(W/2, H*0.22, 'Победа!', {
+    this.add.text(W/2, H*0.20, 'Победа!', {
       fontFamily:'Arial', fontSize: Math.round(H*0.08)+'px', color:'#fff'
     }).setOrigin(0.5);
 
-    const btn = this.add.text(W/2, H*0.35, 'Сыграть ещё', {
+    // Итоговое число ошибок
+    this.add.text(W/2, H*0.30, `Ошибок за игру: ${this.mistakeCount}`, { // [NEW]
+      fontFamily:'Arial', fontSize: Math.round(H*0.045)+'px', color:'#ddd'
+    }).setOrigin(0.5);
+
+    const btn = this.add.text(W/2, H*0.40, 'Сыграть ещё', {
       fontFamily:'Arial', fontSize: Math.round(H*0.05)+'px',
       color:'#fff', backgroundColor:'#333',
       padding:{left:14,right:14,top:10,bottom:10}
