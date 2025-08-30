@@ -35,18 +35,18 @@ const LEVELS = [
 const THEME = {
   font: 'Poppins, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
 
-  // Фон: глубокий изумруд → еловый → серо-оливковый (без розовой дымки)
+  // Фон
   bgTop:    '#06120E',
   bgMid:    '#1C2F27',
   bgBottom: '#495D53',
 
-  // Кнопки/градиенты (строго, без глянца)
-  gradA1:   '#B88A2E', // латунь (светлее)
-  gradA2:   '#3C4F45', // тёмный зелёный
-  gradB1:   '#41584C', // вторичный верх
-  gradB2:   '#C87420', // медь (низ)
+  // Кнопки/градиенты (для рисуемых — оставлено на будущее)
+  gradA1:   '#B88A2E',
+  gradA2:   '#3C4F45',
+  gradB1:   '#41584C',
+  gradB2:   '#C87420',
 
-  // Обводки/тени (уменно)
+  // Обводки/тени
   strokeLight: 'rgba(230,220,190,0.34)',
   strokeDark:  'rgba(0,0,0,0.28)',
 
@@ -67,17 +67,14 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // ------- HiDPI helpers -------
   getDPR(){
-    // Не слишком агрессивно, чтобы не раздувать память на старых устройствах
     const dpr = Math.min(2.0, Math.max(1, (window.devicePixelRatio || 1)));
     return dpr;
   }
 
-  // Универсальный способ создать CanvasTexture с учётом DPR
   _createHiDPICanvasTexture(key, w, h, drawFn){
     const DPR = this.getDPR();
     const tex = this.textures.createCanvas(key, Math.max(2, Math.round(w*DPR)), Math.max(2, Math.round(h*DPR)));
     const ctx = tex.getContext();
-    // Нормируем систему координат к логическим w×h
     ctx.save();
     ctx.scale(DPR, DPR);
     drawFn(ctx, w, h);
@@ -90,6 +87,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Карты
     this.load.image('back', 'assets/back_card02.png');
     ALL_CARD_KEYS.forEach(k => this.load.image(k, `assets/cards/${k}.png`));
+
+    // Фон для кнопок из папки assets (GameScene.js лежит в scenes — путь остаётся 'assets/...').
+    this.load.image('button01', 'assets/button01.png');
   }
 
   create(){
@@ -145,7 +145,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
     if (!this.textures.exists(key)) {
       this._createHiDPICanvasTexture(key, W, H, (ctx, w, h) => {
-        // Вертикальный строгий градиент
         const g = ctx.createLinearGradient(0, 0, 0, h);
         g.addColorStop(0.00, THEME.bgTop);
         g.addColorStop(0.60, THEME.bgMid);
@@ -153,7 +152,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, h);
 
-        // Лёгкая виньетка по краям (строго, без цветной дымки)
         const v = ctx.createRadialGradient(w/2, h*0.6, Math.min(w,h)*0.15, w/2, h*0.6, Math.max(w,h));
         v.addColorStop(0, 'rgba(255,255,255,0.0)');
         v.addColorStop(1, 'rgba(0,0,0,0.22)');
@@ -163,7 +161,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
     if (this.bgImage) this.bgImage.destroy();
     this.bgImage = this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-1000);
-    this.bgImage.setDisplaySize(W, H); // логический размер, картинка — HiDPI
+    this.bgImage.setDisplaySize(W, H);
   }
 
   // ---------- CANVAS SHAPES ----------
@@ -180,18 +178,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
     ctx.closePath();
   }
 
-  // Строгая кнопка (урезанные скругления, без глянца)
+  // Рисуемые кнопки/иконки — оставлены (вдруг пригодятся в других местах)
   makeButtonTexture(w, h, radius, colTop, colBot){
     const key = this._uid('btn');
 
     this._createHiDPICanvasTexture(key, w, h, (ctx, W, H) => {
-      // Умеренная тень
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.28)';
       ctx.shadowBlur = Math.max(6, Math.round(Math.min(W,H)*0.10));
       ctx.shadowOffsetY = Math.round(H*0.08);
 
-      // Градиент кнопки (без блика)
       const g = ctx.createLinearGradient(0, 0, 0, H);
       g.addColorStop(0, colTop);
       g.addColorStop(1, colBot);
@@ -202,7 +198,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
       ctx.fill();
       ctx.restore();
 
-      // Внутренняя обводка
       ctx.lineWidth = 2;
       ctx.strokeStyle = THEME.strokeLight;
       this._roundRect(ctx, pad, pad, W-pad*2, H-pad*2, Math.min(14, H/3));
@@ -212,7 +207,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return key;
   }
 
-  // Круглая иконка (строже, без блика)
   makeCircleIconTexture(size, colTop, colBot){
     const key = this._uid('icn');
 
@@ -243,11 +237,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return key;
   }
 
-  // Контейнер-кнопка (текст поверх текстуры)
   makeTextButton(x, y, w, h, label, colTop, colBot, onClick){
     const key = this.makeButtonTexture(w, h, Math.min(14, h/3), colTop, colBot);
     const img = this.add.image(0, 0, key).setOrigin(0.5);
-    img.setDisplaySize(w, h); // важно для HiDPI
+    img.setDisplaySize(w, h);
 
     const txt = this.add.text(0, 0, label, {
       fontFamily: THEME.font,
@@ -270,7 +263,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   makeIconButton(x, y, size, iconText, colTop, colBot, onClick){
     const key = this.makeCircleIconTexture(size, colTop, colBot);
     const img = this.add.image(0,0,key).setOrigin(0.5);
-    img.setDisplaySize(size, size); // важно для HiDPI
+    img.setDisplaySize(size, size);
 
     const txt = this.add.text(0,0,iconText,{
       fontFamily: THEME.font,
@@ -290,25 +283,45 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return cont;
   }
 
+  // === НОВОЕ: Кнопка с фоном-картинкой button01.png ===
+  makeImageButton(x, y, w, h, label, onClick){
+    const img = this.add.image(0, 0, 'button01').setOrigin(0.5);
+    img.setDisplaySize(w, h);
+
+    const txt = this.add.text(0, 0, label, {
+      fontFamily: THEME.font,
+      fontSize: this._pxClamp(h*0.22, 14, 28) + 'px',
+      color:'#FFFFFF',
+      fontStyle:'600',
+      align: 'center'
+    }).setOrigin(0.5);
+
+    const cont = this.add.container(x, y, [img, txt]);
+    cont.setSize(w, h);
+
+    img.setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => onClick && onClick())
+      .on('pointerover', () => this.tweens.add({ targets: cont, scale: 1.03, duration: 110 }))
+      .on('pointerout',  () => this.tweens.add({ targets: cont, scale: 1.00, duration: 110 }));
+
+    return cont;
+  }
+
   // ---------- PLACEHOLDERS FOR CARDS ----------
   makePlaceholdersIfNeeded(){
     // Рубашка (если нет)
     if (!this.textures.exists('back')){
       const key = 'back';
-      // генерируем HiDPI рубашку 220×320
       const W = 220, H = 320;
       this._createHiDPICanvasTexture(key, W, H, (ctx, w, h) => {
-        // Основа
         ctx.fillStyle = '#173528';
         this._roundRect(ctx, 0, 0, w, h, 18);
         ctx.fill();
-        // Обводка
         ctx.lineWidth = 8;
         ctx.strokeStyle = '#B88A2E';
         this._roundRect(ctx, 0, 0, w, h, 18);
         ctx.stroke();
 
-        // Набивка строгим паттерном
         ctx.save();
         ctx.globalAlpha = 0.18;
         ctx.strokeStyle = '#FFFFFF';
@@ -387,9 +400,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const w = Math.min(320, cellW*0.9);
       const h = Math.min(86,  cellH*0.56);
 
-      const btn = this.makeTextButton(
+      // Кнопка уровня с фоном из assets/button01.png
+      const btn = this.makeImageButton(
         x, y, w, h, lvl.label,
-        THEME.gradA1, THEME.gradB1,
         () => { this.clearLevelButtons(); this.startGame(lvl); }
       );
       this.levelButtons.push(btn);
@@ -521,7 +534,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const cardOrigW = backImg?.width  || 220;
     const cardOrigH = backImg?.height || 320;
 
-    // Паддинги и зазоры (чуть плотнее — строгая сетка)
+    // Паддинги и зазоры
     const outerPad = Math.max(10, Math.round(Math.min(W,H)*0.018));
     const gap      = Math.max(6, Math.round(Math.min(W,H)*0.010));
 
@@ -553,7 +566,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
         card.setScale(cardScale).setDepth(20);
         card.setData({ key, opened:false, matched:false });
 
-        // Ховер-эффект (чуть мягче)
+        // Ховер-эффект
         card.on('pointerover', () => this.tweens.add({ targets: card, scale: cardScale*1.02, duration: 100 }));
         card.on('pointerout',  () => this.tweens.add({ targets: card, scale: cardScale*1.00, duration: 100 }));
 
@@ -562,7 +575,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
-    // Запоминание: 4 секунды лицом, затем переворот (строже/динамичнее)
+    // Запоминание: 4 секунды лицом, затем переворот
     this.canClick = false;
     this.time.delayedCall(4000, () => {
       this.cards.forEach(card => card.setTexture('back'));
@@ -623,12 +636,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
       fontStyle:'600'
     }).setOrigin(0.5);
 
-    // Кнопка «сыграть ещё»
-    const btn = this.makeTextButton(
+    // Кнопка «сыграть ещё» — с фоном-картинкой
+    const btn = this.makeImageButton(
       W/2, H*0.44,
       Math.min(380, W*0.6), Math.min(80, H*0.12),
       '🔄  Сыграть ещё',
-      THEME.gradB2, THEME.gradB1,
       () => {
         this.children.removeAll();
         this.ensureGradientBackground();
