@@ -22,7 +22,8 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
   // Невидимая кликабельная зона по центру
   const zone = scene.add.zone(0, 0, w, h).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-  const cont = scene.add.container(x, y, children: [img, txt, zone]);
+ const cont = scene.add.container(x, y, [img, txt, zone]); // ✅
+
   cont.setSize(w, h);
 
   // Слушаем именно ZONE
