@@ -1,35 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Найди пару</title>
+  <meta charset="utf-8" />
+  <title>Find the Pair</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- чтобы не было 404 по favicon -->
-  <link rel="icon" href="./assets/icon-192.png" type="image/png">
-  <!-- (опц.) PWA-манифест -->
-  <link rel="manifest" href="./manifest.json">
-
-  <link href="https://fonts.googleapis.com/css2?family=Chewy&display=swap" rel="stylesheet">
- <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
-
+  <!-- Шрифт (как в теме) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 
   <style>
-    html, body { margin:0; padding:0; height:100%; background:#1d2330; overflow:hidden; }
-    #game-container { width:100vw; height:100vh; }
+    html, body { height: 100%; margin: 0; background:#000; }
+    #game { width: 100%; height: 100%; }
   </style>
-
-  <!-- Phaser (UMD, без npm/import) -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
-  <div id="game-container"></div>
+  <div id="game"></div>
 
-  <!-- Сцена кладёт класс в window.GameScene -->
-  <script src="./scenes/GameScene.js"></script>
+  <!-- Phaser -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 
-  <!-- Запуск (БЕЗ type="module") -->
-  <script src="./main.js"></script>
+  <script>
+  // === inline Buttons.js (временный фикс пути) ===
+  window.makeImageButton = function(scene, x, y, w, h, label, onClick){
+    const img = scene.add.image(0, 0, 'button01').setOrigin(0.5);
+    img.setDisplaySize(w, h);
+
+    const txt = scene.add.text(0, 0, label, {
+      fontFamily: window.THEME.font,
+      fontSize: Math.round(h*0.22) + 'px',
+      color:'#FFFFFF',
+      fontStyle:'600',
+      align:'center'
+    }).setOrigin(0.5);
+
+    const cont = scene.add.container(x, y, [img, txt]);
+    cont.setSize(w, h);
+
+    cont.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-w/2, -h/2, w, h),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true
+    });
+
+    cont.on('pointerdown', () => onClick && onClick());
+    cont.on('pointerover', () => scene.tweens.add({ targets: cont, scale: 1.03, duration: 110 }));
+    cont.on('pointerout',  () => scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }));
+
+    return cont;
+  };
+
+  window.makeIconButton = function(scene, x, y, size, iconText, onClick){
+    const bg = scene.add.circle(0,0, size/2, 0x000000, 0);
+    bg.setStrokeStyle(2, 0xFFFFFF, 0.5);
+
+    const txt = scene.add.text(0,0,iconText,{
+      fontFamily: window.THEME.font,
+      fontSize: Math.round(size*0.34) + 'px',
+      color:'#FFFFFF',
+      fontStyle:'800'
+    }).setOrigin(0.5);
+
+    const cont = scene.add.container(x,y,[bg,txt]);
+    cont.setSize(size,size);
+
+    cont.setInteractive({
+      hitArea: new Phaser.Geom.Circle(0, 0, size/2),
+      hitAreaCallback: Phaser.Geom.Circle.Contains,
+      useHandCursor: true
+    });
+
+    cont.on('pointerdown', () => onClick && onClick());
+    cont.on('pointerover', () => scene.tweens.add({ targets: cont, scale: 1.05, duration: 110 }));
+    cont.on('pointerout',  () => scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }));
+
+    return cont;
+  };
+
+  // (не обязательно) алиасы без window.
+  var makeImageButton = window.makeImageButton;
+  var makeIconButton  = window.makeIconButton;
+</script>
+
+
+  <!-- Глобальные данные/тема (должны грузиться раньше сцен) -->
+  <script src="ui/Theme.js"></script>
+  <script src="game/Data.js"></script>
+ <!-- <script src="ui/Buttons.js"></script> -->
+
+  <!-- Сцены -->
+  <script src="scenes/PreloadScene.js"></script>
+  <script src="scenes/MenuScene.js"></script>
+  <script src="scenes/GameScene.js"></script>
+
+  <!-- Инициализация игры -->
+  <script>
+    // Быстрый самотест в консоли — удобно при ошибках
+    console.log('Phaser?', !!window.Phaser, 'THEME?', !!window.THEME, 'ALL_CARD_KEYS?', !!window.ALL_CARD_KEYS);
+    console.log('Scenes?', !!window.PreloadScene, !!window.MenuScene, !!window.GameScene);
+
+    const DPR = Math.min(2, window.devicePixelRatio || 1);
+
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game',
+      backgroundColor: '#000000',
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1280,      // базовая логическая ширина
+        height: 720       // базовая логическая высота
+      },
+      // КЛЮЧЕВОЕ: реальное рендер-разрешение канваса
+      resolution: DPR,
+      render: {
+        antialias: true,
+        pixelArt: false
+      },
+      scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
+    };
+
+    new Phaser.Game(config);
+  </script>
 </body>
 </html>
