@@ -5,11 +5,27 @@
   <title>Find the Pair</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
   <!-- Шрифт (как в теме) -->
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+  
+
+
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
+
+
+
+
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;600;800&display=swap" rel="stylesheet">
+
 
   <style>
-    html, body { height: 100%; margin: 0; background:#000; }
+    html, body { height: 100%; margin: 0; padding:0; overflow:hidden; background:#000; }
     #game { width: 100%; height: 100%; }
   </style>
 </head>
@@ -19,73 +35,91 @@
   <!-- Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 
-  <script>
-  // === inline Buttons.js (временный фикс пути) ===
-  window.makeImageButton = function(scene, x, y, w, h, label, onClick){
-    const img = scene.add.image(0, 0, 'button01').setOrigin(0.5);
-    img.setDisplaySize(w, h);
+<script>
+  // === безопасные кнопки на базе Zone ===
+  window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
+    const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
+    const hoverColor = opts.hoverColor || color;
+    const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
+    const fs         = Math.round(h * (window.THEME?.btnFontFactor ?? 0.24));
+
+    // визуал
+    const img = scene.add.image(0, 0, 'button01')
+      .setOrigin(0.5)
+      .setDisplaySize(w, h)
+      .setScrollFactor(0);
 
     const txt = scene.add.text(0, 0, label, {
-      fontFamily: window.THEME.font,
-      fontSize: Math.round(h*0.22) + 'px',
-      color:'#FFFFFF',
-      fontStyle:'600',
-      align:'center'
-    }).setOrigin(0.5);
+      fontFamily, fontSize: `${fs}px`, fontStyle: (window.THEME?.buttonStyle || 'bold'), color
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    const cont = scene.add.container(x, y, [img, txt]);
-    cont.setSize(w, h);
+    // хит-зона (именно она интерактивна)
+    const zone = scene.add.zone(0, 0, w, h)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
 
-    cont.setInteractive({
-      hitArea: new Phaser.Geom.Rectangle(-w/2, -h/2, w, h),
-      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
-      useHandCursor: true
-    });
+    // (опционально) подсветка зоны для дебага
+    const debugRect = opts.debugFill
+      ? scene.add.rectangle(0, 0, w, h, 0x00ff00, 0.15).setOrigin(0.5).setStrokeStyle(2, 0x00ff00, 0.9).setScrollFactor(0)
+      : null;
 
-    cont.on('pointerdown', () => onClick && onClick());
-    cont.on('pointerover', () => scene.tweens.add({ targets: cont, scale: 1.03, duration: 110 }));
-    cont.on('pointerout',  () => scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }));
+    const contChildren = debugRect ? [img, txt, debugRect, zone] : [img, txt, zone];
+    const cont = scene.add.container(Math.round(x), Math.round(y), contChildren);
+    cont.setSize(w, h); // логический размер контейнера
 
+    // hover/click
+    zone.on('pointerdown', () => onClick && onClick());
+    zone.on('pointerover', () => { txt.setColor(hoverColor); scene.tweens.add({ targets: cont, scale: 1.03, duration: 110 }); });
+    zone.on('pointerout',  () => { txt.setColor(color);      scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); });
+
+    // ссылки (удобно для отладки)
+    cont.bg = img; cont.label = txt; cont.zone = zone; cont.debugRect = debugRect;
     return cont;
   };
 
-  window.makeIconButton = function(scene, x, y, size, iconText, onClick){
-    const bg = scene.add.circle(0,0, size/2, 0x000000, 0);
+  window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}){
+    const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
+    const hoverColor = opts.hoverColor || color;
+    const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
+    const ts         = Math.round(size * (opts.fontFactor ?? 0.34));
+
+    const bg  = scene.add.circle(0, 0, size/2, 0x000000, 0).setScrollFactor(0);
     bg.setStrokeStyle(2, 0xFFFFFF, 0.5);
 
-    const txt = scene.add.text(0,0,iconText,{
-      fontFamily: window.THEME.font,
-      fontSize: Math.round(size*0.34) + 'px',
-      color:'#FFFFFF',
-      fontStyle:'800'
-    }).setOrigin(0.5);
+    const txt = scene.add.text(0, 0, iconText, {
+      fontFamily, fontSize: `${ts}px`, fontStyle: (window.THEME?.buttonStyle || 'bold'), color
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    const cont = scene.add.container(x,y,[bg,txt]);
-    cont.setSize(size,size);
+    const zone = scene.add.zone(0, 0, size, size)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
 
-    cont.setInteractive({
-      hitArea: new Phaser.Geom.Circle(0, 0, size/2),
-      hitAreaCallback: Phaser.Geom.Circle.Contains,
-      useHandCursor: true
-    });
+    const cont = scene.add.container(Math.round(x), Math.round(y), [bg, txt, zone]);
+    cont.setSize(size, size);
 
-    cont.on('pointerdown', () => onClick && onClick());
-    cont.on('pointerover', () => scene.tweens.add({ targets: cont, scale: 1.05, duration: 110 }));
-    cont.on('pointerout',  () => scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }));
+    zone.on('pointerdown', () => onClick && onClick());
+    zone.on('pointerover', () => { txt.setColor(hoverColor); scene.tweens.add({ targets: cont, scale: 1.05, duration: 110 }); });
+    zone.on('pointerout',  () => { txt.setColor(color);      scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); });
 
+    cont.label = txt; cont.zone = zone;
     return cont;
   };
 
-  // (не обязательно) алиасы без window.
+  // алиасы (необязательно)
   var makeImageButton = window.makeImageButton;
   var makeIconButton  = window.makeIconButton;
 </script>
+
 
 
   <!-- Глобальные данные/тема (должны грузиться раньше сцен) -->
   <script src="ui/Theme.js"></script>
   <script src="game/Data.js"></script>
  <!-- <script src="ui/Buttons.js"></script> -->
+
+<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 
   <!-- Сцены -->
   <script src="scenes/PreloadScene.js"></script>
@@ -107,8 +141,8 @@
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1280,      // базовая логическая ширина
-        height: 720       // базовая логическая высота
+        width: 1500,      // базовая логическая ширина
+        height: 1500       // базовая логическая высота
       },
       // КЛЮЧЕВОЕ: реальное рендер-разрешение канваса
       resolution: DPR,
