@@ -1,10 +1,25 @@
 // scenes/MenuScene.js
 window.MenuScene = class MenuScene extends Phaser.Scene {
+
+    
+
   constructor(){ super('MenuScene'); }
+
+
+
+
+
 
   init(data){ this.levelPage = data?.page || 0; }
 
   create(){
+      // Синхронизация координат ввода с канвасом
+    if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
+
+    this.scale.on('resize', () => {
+    if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
+  });
+
     this.levelButtons = [];
     this._wheelHandler = null;
 
@@ -19,8 +34,8 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
   getSceneWH(){
     const s = this.scale, cam = this.cameras?.main;
-    const W = (s && (s.width ?? s.gameSize?.width))  || cam?.width  || this.sys.game.config.width  || 800;
-    const H = (s && (s.height ?? s.gameSize?.height)) || cam?.height || this.sys.game.config.height || 600;
+    const W = (s && (s.width ?? s.gameSize?.width))  || cam?.width  || this.sys.game.config.width  || 1500;
+    const H = (s && (s.height ?? s.gameSize?.height)) || cam?.height || this.sys.game.config.height || 1500;
     return { W: Math.floor(W), H: Math.floor(H) };
   }
 
@@ -98,10 +113,25 @@ ensureGradientBackground(){
 
     const COLS=3, ROWS=3, PER_PAGE=COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(LEVELS.length / PER_PAGE));
-    const title = this.add.text(W/2, H*0.13, 'Память: Найди пару', {
-      fontFamily: THEME.font, fontSize: Math.round(Math.min(Math.max(H*0.072,20),40)) + 'px',
-      color:'#E8E1C9', fontStyle:'800', align:'center'
-    }).setOrigin(0.5);
+
+// было (пример):
+// const title = this.add.text(W/2, H*0.13, 'Память: Найди пару', { ... })
+
+// стало:
+const titlePx = Math.round(Phaser.Math.Clamp(H * (THEME.titleSizeFactor || 0.08), 22, 56));
+const title = this.add.text(W/2, H*0.13, 'Сколько пар играть?', {
+  fontFamily: THEME.fontTitle || THEME.font,
+  fontSize:   `${titlePx}px`,
+  fontStyle:  THEME.titleStyle || 'bold',
+  color:      THEME.titleColor || '#E8E1C9',
+  align: 'center'
+}).setOrigin(0.5);
+
+// аккуратный обвод и тень для читаемости (по желанию)
+    title.setStroke('#0A1410', Math.max(1, Math.round(titlePx * 0.06)));
+    title.setShadow(0, Math.max(1, Math.round(titlePx * 0.10)), '#000000', Math.round(titlePx * 0.18), false, true);
+
+
     this.levelButtons.push(title);
 
     const topY = H*0.22, bottomY = H*0.78;

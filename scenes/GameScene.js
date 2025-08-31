@@ -24,6 +24,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
   preload(){ /* ассеты грузит PreloadScene */ }
 
   create(){
+    // Синхронизация координат ввода с канвасом
+  if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
+
+      this.scale.on('resize', () => {
+    if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
+  });
+
     // Состояние
     this.levelButtons  = [];
     this.cards         = [];
@@ -57,6 +64,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
       if (this.currentLevel) this.startGame(this.currentLevel);
       else this.scene.start('MenuScene', { page: this.levelPage });
     }, this);
+
+
+
   }
 
   // ---------- SIZE UTILS ----------
