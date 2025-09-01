@@ -1,4 +1,4 @@
-//---ui/Buttons.js - путь отдельного файла
+//---ui/Buttons.js - путь отдельного файл
 
 // Без инлайна. Зона клика = zone, визуал = img + text.
 // Никаких числовых '700' в fontStyle (только 'bold', 'italic' и т.п.)
@@ -26,8 +26,10 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     .setInteractive({ useHandCursor: true })
     .setScrollFactor(0);
 
+
   const children = [img, txt, zone];
   const cont = scene.add.container(Math.round(x), Math.round(y), children);
+
   cont.setSize(w, h);
 
   zone.on('pointerdown', () => onClick && onClick());
