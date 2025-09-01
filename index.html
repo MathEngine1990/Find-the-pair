@@ -6,18 +6,18 @@
   <meta charset="utf-8" />
   <title>Find the Pair</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="game"></div>
 
   <!-- Локальный Phaser (важно: до сцен) -->
-  <script src="lib/phaser.min.js?v=11"></script>
+  <script src="lib/phaser.min.js"></script>
 
   <!-- Глобальные данные/тема и UI (важно: Buttons.js до сцен) -->
-  <script src="ui/Theme.js?v=11"></script>
-  <script src="game/Data.js?v=11"></script>
-  <script src="ui/Button.js?v=11"></script>
+  <script src="ui/Theme.js"></script>
+  <script src="game/Data.js"></script>
+  <script src="ui/Button.js"></script>
 
   <!-- Быстрый чек: реально ли загрузился Buttons.js -->
   <script>
@@ -37,9 +37,9 @@
   </script>
 
   <!-- Сцены -->
-  <script src="scenes/PreloadScene.js?v=11"></script>
-  <script src="scenes/MenuScene.js?v=11"></script>
-  <script src="scenes/GameScene.js?v=11"></script>
+  <script src="scenes/PreloadScene.js"></script>
+  <script src="scenes/MenuScene.js"></script>
+  <script src="scenes/GameScene.js"></script>
 
   <!-- Инициализация игры (важно: parent совпадает с id="game") -->
   <script>
@@ -58,10 +58,11 @@
       render: { antialias: true, pixelArt: false },
       scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
     };
-    new Phaser.Game(config);
+    //new Phaser.Game(config);
   </script>
 
   <!-- VK bridge подгрузи в main-vk.js, если нужно, но не мешай запуску игры -->
-  <!-- <script src="main-vk.js?v=11"></script> -->
+  <!-- <script src="main-vk.js"></script> -->
+  <script src="main.js"></script>
 </body>
 </html>
