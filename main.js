@@ -31,8 +31,8 @@
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: 1500,
-      height: 1500
+      width: 720,
+      height: 1080
     },
     resolution: DPR,
     render: { antialias: true, pixelArt: false },
