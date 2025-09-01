@@ -1,19 +1,19 @@
-// ui/Theme.js
+//---ui/Theme.js - путь отдельного файла
 window.THEME = {
-  font: 'Roboto, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  buttonColor: '#f200ff',
+  // используем локальные шрифты
+  font: 'Geologica, RobotoLocal, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
 
-  // НОВОЕ: отдельные настройки
-  fontTitle:  'Geologica, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontButton: 'Geologica, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  titleStyle:  'bold',   // 'bold' / 'normal' (в Phaser нет числовых 600/800)
+  // отдельные настройки
+  fontTitle:  'Geologica, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontButton: 'Geologica, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  titleStyle:  'bold',    // 'bold' / 'normal' (в Phaser нет 600/800 как числа)
   buttonStyle: 'bold',
   titleColor:  '#E8E1C9',
   buttonTextColor: '#98d4a7',
-  titleSizeFactor: 0.080,     // доля от высоты экрана
-  btnFontFactor:   0.24,      // доля от высоты кнопки
+  titleSizeFactor: 0.080,
+  btnFontFactor:   0.24,
 
-  // фон/градиенты/прочее как было:
+  // тема
   bgTop:'#06120E', bgMid:'#1C2F27', bgBottom:'#495D53',
   gradA1:'#B88A2E', gradA2:'#3C4F45', gradB1:'#41584C', gradB2:'#C87420',
   strokeLight:'rgba(230,220,190,0.34)', strokeDark:'rgba(0,0,0,0.28)',
