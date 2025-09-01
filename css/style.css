@@ -1,2 +1,22 @@
+//---css/style.css - путь отдельного файла
+
 html, body { margin:0; padding:0; height:100%; background:#1d2330; overflow:hidden; }
-#game-container { width:100vw; height:100vh; }
+#game { width:100vw; height:100vh; }
+
+/* Локальные шрифты (если есть woff2 — лучше использовать его).
+   Важно: пути из css/ к assets/ начинаются с ../ */
+@font-face {
+  font-family: 'Geologica';
+  src: url('../assets/fonts/Geologica-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Geologica';
+  src: url('../assets/fonts/Geologica-ExtraBold.ttf') format('truetype');
+  font-weight: 800; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'RobotoLocal';
+  src: url('../assets/fonts/Roboto-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}

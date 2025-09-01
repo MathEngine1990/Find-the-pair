@@ -1,4 +1,5 @@
-// scenes/GameScene.js
+//---scenes/GameScene.js - путь отдельного файла
+
 window.GameScene = class GameScene extends Phaser.Scene {
   constructor(){ super('GameScene'); }
 
@@ -7,7 +8,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.levelPage    = data?.page  || 0;
   }
 
-  // ------- HELPERS -------
   _pxClamp(px, minPx, maxPx){ return Math.round(Phaser.Math.Clamp(px, minPx, maxPx)); }
   _pxByH(fraction, minPx, maxPx){ const { H } = this.getSceneWH(); return this._pxClamp(H * fraction, minPx, maxPx); }
   getDPR(){ return Math.min(2.0, Math.max(1, (window.devicePixelRatio || 1))); }
@@ -21,17 +21,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return tex;
   }
 
-  preload(){ /* ассеты грузит PreloadScene */ }
+  preload(){}
 
   create(){
-    // Синхронизация координат ввода с канвасом
-  if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
-
-      this.scale.on('resize', () => {
     if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
-  });
+    this.scale.on('resize', () => { if (this.scale && this.scale.updateBounds) this.scale.updateBounds(); });
 
-    // Состояние
     this.levelButtons  = [];
     this.cards         = [];
     this.opened        = [];
@@ -45,31 +40,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.bgImage       = null;
     this._texId        = 0;
 
-    // Плейсхолдеры, фон
     this.makePlaceholdersIfNeeded();
     this.ensureGradientBackground();
 
-    // Если сцена запущена без выбранного уровня — уходим в меню
     if (!this.currentLevel){
       this.scene.start('MenuScene', { page: this.levelPage });
       return;
     }
 
-    // Иначе стартуем игру
     this.startGame(this.currentLevel);
 
-    // Ресайз
     this.scale.on('resize', () => {
       this.ensureGradientBackground();
       if (this.currentLevel) this.startGame(this.currentLevel);
       else this.scene.start('MenuScene', { page: this.levelPage });
-    }, this);
-
-
-
+    });
   }
 
-  // ---------- SIZE UTILS ----------
   getSceneWH(){
     const s = this.scale, cam = this.cameras?.main;
     const W = (s && (s.width ?? s.gameSize?.width))  || cam?.width  || this.sys.game.config.width  || 800;
@@ -77,73 +64,50 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return { W: Math.floor(W), H: Math.floor(H) };
   }
 
-  // ---------- BACKGROUND ----------
-// scenes/GameScene.js (замени ensureGradientBackground целиком)
-ensureGradientBackground(){
-  const { W, H } = this.getSceneWH();
+  ensureGradientBackground(){
+    const { W, H } = this.getSceneWH();
 
-  if (this.textures.exists('bg_game')) {
-    if (this.bgImage) this.bgImage.destroy();
+    if (this.textures.exists('bg_game')) {
+      this.bgImage && this.bgImage.destroy();
+      const img = this.add.image(W/2, H/2, 'bg_game').setOrigin(0.5).setDepth(-1000);
+      const src = this.textures.get('bg_game').getSourceImage();
+      const scale = Math.max(W / src.width, H / src.height);
+      img.setDisplaySize(src.width * scale, src.height * scale);
+      this.bgImage = img;
 
-    const img = this.add.image(W/2, H/2, 'bg_game')
-      .setOrigin(0.5)
-      .setDepth(-1000);
-
-    // cover
-    const src = this.textures.get('bg_game').getSourceImage();
-    const iw = src.width, ih = src.height;
-    const scale = Math.max(W / iw, H / ih);
-    img.setDisplaySize(iw * scale, ih * scale);
-
-    this.bgImage = img;
-
-    // едва заметная виньетка — не мешает картам
-    const g = this.add.graphics().setDepth(-999);
-    g.fillStyle(0x000000, 0.18);
-    g.fillRect(0,0,W,H);
-    this._bgOverlay && this._bgOverlay.destroy();
-    this._bgOverlay = g;
-
-    return;
-  }
-
-  // --- ФОЛЛБЭК: прежний градиент с HiDPI ---
-  const key = 'bg-grad';
-  const DPR = Math.min(2.0, Math.max(1, (window.devicePixelRatio || 1)));
-
-  if (this.textures.exists(key)) {
-    const src = this.textures.get(key).getSourceImage();
-    if (src.width !== Math.round(W*DPR) || src.height !== Math.round(H*DPR)) {
-      this.textures.remove(key);
+      this._bgOverlay && this._bgOverlay.destroy();
+      this._bgOverlay = this.add.graphics().setDepth(-999).fillStyle(0x000000, 0.18).fillRect(0,0,W,H);
+      return;
     }
+
+    const key = 'bg-grad';
+    const DPR = this.getDPR();
+
+    if (this.textures.exists(key)) {
+      const src = this.textures.get(key).getSourceImage();
+      if (src.width !== Math.round(W*DPR) || src.height !== Math.round(H*DPR)) this.textures.remove(key);
+    }
+    if (!this.textures.exists(key)) {
+      this._createHiDPICanvasTexture(key, W, H, (ctx, w, h) => {
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0.00, THEME.bgTop);
+        g.addColorStop(0.60, THEME.bgMid);
+        g.addColorStop(1.00, THEME.bgBottom);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+        const v = ctx.createRadialGradient(w/2, h*0.6, Math.min(w,h)*0.15, w/2, h*0.6, Math.max(w,h));
+        v.addColorStop(0, 'rgba(255,255,255,0.0)');
+        v.addColorStop(1, 'rgba(0,0,0,0.22)');
+        ctx.fillStyle = v; ctx.fillRect(0,0,w,h);
+      });
+    }
+    this.bgImage && this.bgImage.destroy();
+    this.bgImage = this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-1000).setDisplaySize(W, H);
+
+    this._bgOverlay && this._bgOverlay.destroy();
+    this._bgOverlay = this.add.graphics().setDepth(-999).fillStyle(0x000000, 0.18).fillRect(0,0,W,H);
   }
-  if (!this.textures.exists(key)) {
-    this._createHiDPICanvasTexture(key, W, H, (ctx, w, h) => {
-      const g = ctx.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0.00, THEME.bgTop);
-      g.addColorStop(0.60, THEME.bgMid);
-      g.addColorStop(1.00, THEME.bgBottom);
-      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
-      const v = ctx.createRadialGradient(w/2, h*0.6, Math.min(w,h)*0.15, w/2, h*0.6, Math.max(w,h));
-      v.addColorStop(0, 'rgba(255,255,255,0.0)');
-      v.addColorStop(1, 'rgba(0,0,0,0.22)');
-      ctx.fillStyle = v; ctx.fillRect(0,0,w,h);
-    });
-  }
-  if (this.bgImage) this.bgImage.destroy();
-  this.bgImage = this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-1000);
-  this.bgImage.setDisplaySize(W, H);
-
-  // (опц.) виньетка
-  this._bgOverlay && this._bgOverlay.destroy();
-  this._bgOverlay = this.add.graphics().setDepth(-999);
-  this._bgOverlay.fillStyle(0x000000, 0.18);
-  this._bgOverlay.fillRect(0,0,W,H);
-}
-
-
-  // ---------- PLACEHOLDERS FOR CARDS ----------
   _roundRect(ctx, x, y, w, h, r){
     const rr = Math.max(0, Math.min(r, Math.min(w,h)/2));
     ctx.beginPath();
@@ -178,7 +142,6 @@ ensureGradientBackground(){
     });
   }
 
-  // ---------- HUD ----------
   drawHUD(){
     this.clearHUD();
     const { W, H } = this.getSceneWH();
@@ -208,7 +171,6 @@ ensureGradientBackground(){
     this.hud = this.mistakeText = this.exitBtn = null;
   }
 
-  // ---------- GAME ----------
   startGame(level){
     this.currentLevel = level;
     this.mistakeCount = 0;

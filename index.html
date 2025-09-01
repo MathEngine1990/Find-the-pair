@@ -1,139 +1,49 @@
+ <!-- index.html- путь отдельного файла -->
+
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <title>Find the Pair</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-
-  <!-- Шрифт (как в теме) -->
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
-  
-
-
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
-
-
-
-
-<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;600;800&display=swap" rel="stylesheet">
-
-
-  <style>
-    html, body { height: 100%; margin: 0; padding:0; overflow:hidden; background:#000; }
-    #game { width: 100%; height: 100%; }
-  </style>
+  <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
   <div id="game"></div>
 
-  <!-- Phaser -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+  <!-- Локальный Phaser (важно: до сцен) -->
+  <script src="lib/phaser.min.js?v=11"></script>
 
-<script>
-  // === безопасные кнопки на базе Zone ===
-  window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
-    const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
-    const hoverColor = opts.hoverColor || color;
-    const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
-    const fs         = Math.round(h * (window.THEME?.btnFontFactor ?? 0.24));
+  <!-- Глобальные данные/тема и UI (важно: Buttons.js до сцен) -->
+  <script src="ui/Theme.js?v=11"></script>
+  <script src="game/Data.js?v=11"></script>
+  <script src="ui/Button.js?v=11"></script>
 
-    // визуал
-    const img = scene.add.image(0, 0, 'button01')
-      .setOrigin(0.5)
-      .setDisplaySize(w, h)
-      .setScrollFactor(0);
-
-    const txt = scene.add.text(0, 0, label, {
-      fontFamily, fontSize: `${fs}px`, fontStyle: (window.THEME?.buttonStyle || 'bold'), color
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    // хит-зона (именно она интерактивна)
-    const zone = scene.add.zone(0, 0, w, h)
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setInteractive({ useHandCursor: true });
-
-    // (опционально) подсветка зоны для дебага
-    const debugRect = opts.debugFill
-      ? scene.add.rectangle(0, 0, w, h, 0x00ff00, 0.15).setOrigin(0.5).setStrokeStyle(2, 0x00ff00, 0.9).setScrollFactor(0)
-      : null;
-
-    const contChildren = debugRect ? [img, txt, debugRect, zone] : [img, txt, zone];
-    const cont = scene.add.container(Math.round(x), Math.round(y), contChildren);
-    cont.setSize(w, h); // логический размер контейнера
-
-    // hover/click
-    zone.on('pointerdown', () => onClick && onClick());
-    zone.on('pointerover', () => { txt.setColor(hoverColor); scene.tweens.add({ targets: cont, scale: 1.03, duration: 110 }); });
-    zone.on('pointerout',  () => { txt.setColor(color);      scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); });
-
-    // ссылки (удобно для отладки)
-    cont.bg = img; cont.label = txt; cont.zone = zone; cont.debugRect = debugRect;
-    return cont;
-  };
-
-  window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}){
-    const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
-    const hoverColor = opts.hoverColor || color;
-    const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
-    const ts         = Math.round(size * (opts.fontFactor ?? 0.34));
-
-    const bg  = scene.add.circle(0, 0, size/2, 0x000000, 0).setScrollFactor(0);
-    bg.setStrokeStyle(2, 0xFFFFFF, 0.5);
-
-    const txt = scene.add.text(0, 0, iconText, {
-      fontFamily, fontSize: `${ts}px`, fontStyle: (window.THEME?.buttonStyle || 'bold'), color
-    }).setOrigin(0.5).setScrollFactor(0);
-
-    const zone = scene.add.zone(0, 0, size, size)
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setInteractive({ useHandCursor: true });
-
-    const cont = scene.add.container(Math.round(x), Math.round(y), [bg, txt, zone]);
-    cont.setSize(size, size);
-
-    zone.on('pointerdown', () => onClick && onClick());
-    zone.on('pointerover', () => { txt.setColor(hoverColor); scene.tweens.add({ targets: cont, scale: 1.05, duration: 110 }); });
-    zone.on('pointerout',  () => { txt.setColor(color);      scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); });
-
-    cont.label = txt; cont.zone = zone;
-    return cont;
-  };
-
-  // алиасы (необязательно)
-  var makeImageButton = window.makeImageButton;
-  var makeIconButton  = window.makeIconButton;
-</script>
-
-
-
-  <!-- Глобальные данные/тема (должны грузиться раньше сцен) -->
-  <script src="ui/Theme.js"></script>
-  <script src="game/Data.js"></script>
- <!-- <script src="ui/Buttons.js"></script> -->
-
-<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+  <!-- Быстрый чек: реально ли загрузился Buttons.js -->
+  <script>
+    console.log('Buttons loaded?', typeof window.makeImageButton);
+    if (typeof window.makeImageButton !== 'function') {
+      console.warn('ui/Buttons.js НЕ загрузился — возможно 404/неверный путь. Включаю временный стаб.');
+      window.makeImageButton = function(scene,x,y,w,h,label,onClick){
+        const t = scene.add.text(x,y,label,{fontFamily:'sans-serif',fontSize:'18px',color:'#fff'}).setOrigin(0.5);
+        const z = scene.add.zone(x,y,w,h).setOrigin(0.5).setInteractive({useHandCursor:true});
+        z.on('pointerdown',()=>onClick&&onClick());
+        const c = scene.add.container(0,0,[t,z]); c.setSize(w,h); return c;
+      };
+      window.makeIconButton = function(scene,x,y,size,icon,onClick){
+        return window.makeImageButton(scene,x,y,size,size,icon,onClick);
+      };
+    }
+  </script>
 
   <!-- Сцены -->
-  <script src="scenes/PreloadScene.js"></script>
-  <script src="scenes/MenuScene.js"></script>
-  <script src="scenes/GameScene.js"></script>
+  <script src="scenes/PreloadScene.js?v=11"></script>
+  <script src="scenes/MenuScene.js?v=11"></script>
+  <script src="scenes/GameScene.js?v=11"></script>
 
-  <!-- Инициализация игры -->
+  <!-- Инициализация игры (важно: parent совпадает с id="game") -->
   <script>
-    // Быстрый самотест в консоли — удобно при ошибках
-    console.log('Phaser?', !!window.Phaser, 'THEME?', !!window.THEME, 'ALL_CARD_KEYS?', !!window.ALL_CARD_KEYS);
-    console.log('Scenes?', !!window.PreloadScene, !!window.MenuScene, !!window.GameScene);
-
     const DPR = Math.min(2, window.devicePixelRatio || 1);
-
     const config = {
       type: Phaser.AUTO,
       parent: 'game',
@@ -141,19 +51,17 @@
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1500,      // базовая логическая ширина
-        height: 1500       // базовая логическая высота
+        width: 1500,
+        height: 1500
       },
-      // КЛЮЧЕВОЕ: реальное рендер-разрешение канваса
       resolution: DPR,
-      render: {
-        antialias: true,
-        pixelArt: false
-      },
+      render: { antialias: true, pixelArt: false },
       scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
     };
-
     new Phaser.Game(config);
   </script>
+
+  <!-- VK bridge подгрузи в main-vk.js, если нужно, но не мешай запуску игры -->
+  <!-- <script src="main-vk.js?v=11"></script> -->
 </body>
 </html>
