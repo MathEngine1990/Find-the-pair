@@ -233,7 +233,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
 
     this.canClick = false;
-    this.time.delayedCall(4000, () => {
+    this.time.delayedCall(5000, () => {
       this.cards.forEach(card => card.setTexture('back'));
       this.canClick = true;
     });
