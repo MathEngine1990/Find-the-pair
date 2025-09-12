@@ -172,6 +172,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   startGame(level){
+    this.gameMetrics = {
+    startTime: Date.now(),
+    attempts: 0,
+    errors: 0,
+    pairs: level.cols * level.rows / 2
+    
     this.currentLevel = level;
     this.mistakeCount = 0;
 
@@ -240,6 +246,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   onCardClick(card){
+      if (!this.canClick) return;
+      this.gameMetrics.attempts++;
+    
     if (!this.canClick) return;
     if (card.getData('opened') || card.getData('matched')) return;
 
