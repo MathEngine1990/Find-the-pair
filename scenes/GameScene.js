@@ -1,4 +1,4 @@
-//---scenes/GameScene.js - ИСПРАВЛЕННАЯ ПОЛНАЯ ВЕРСИЯ
+//---scenes/GameScene.js - ПОЛНАЯ ВЕРСИЯ С ПРОГРЕССОМ И ЗВЁЗДОЧКАМИ
 
 window.GameScene = class GameScene extends Phaser.Scene {
   
@@ -32,16 +32,19 @@ window.GameScene = class GameScene extends Phaser.Scene {
       matchedCards: [],     // Найденные пары
       gameStarted: false,   // Флаг начатой игры
       canResize: true,      // Можно ли делать resize
-      isMemorizationPhase: false // Фаза запоминания (5 сек)
+      isMemorizationPhase: false, // Фаза запоминания (5 сек)
+      currentSeed: null     // Текущий seed для детерминированности
     };
     
     // Seed для детерминированной генерации
     this.gameSeed = this.generateSeed();
+    this.gameState.currentSeed = this.gameSeed;
 
     console.log('🎮 GameScene init:', {
       isVK: this.isVKEnvironment,
       hasVKUser: !!this.vkUserData,
-      hasVKAchievements: !!this.vkAchievementManager
+      hasVKAchievements: !!this.vkAchievementManager,
+      seed: this.gameSeed
     });
   }
 
@@ -123,6 +126,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.bgImage = null;
     this._texId = 0;
 
+    // ДОБАВЛЕНО: Таймеры для управления
+    this.memorizeTimer = null;
+    this.flipTimer = null;
+
     this.makePlaceholdersIfNeeded();
     this.ensureGradientBackground();
 
@@ -156,6 +163,57 @@ window.GameScene = class GameScene extends Phaser.Scene {
         this.startGame(this.currentLevel);
       }
     });
+    
+    this.events.once('shutdown', this.cleanup, this);
+    this.events.once('destroy', this.cleanup, this);
+  }
+
+  // ДОБАВЛЕНО: Полная очистка при завершении сцены
+  cleanup() {
+    console.log('GameScene cleanup started');
+    
+    // Очистка всех таймеров
+    if (this.memorizeTimer) {
+      this.memorizeTimer.destroy();
+      this.memorizeTimer = null;
+    }
+    
+    if (this.flipTimer) {
+      this.flipTimer.destroy();
+      this.flipTimer = null;
+    }
+    
+    if (this.gameTimer) {
+      this.gameTimer.destroy();
+      this.gameTimer = null;
+    }
+
+    // Очистка слушателей карт
+    if (this.cards) {
+      this.cards.forEach(card => {
+        if (card && card.removeAllListeners) {
+          card.removeAllListeners();
+        }
+      });
+      this.cards = [];
+    }
+
+    // Очистка слушателей кнопок
+    if (this.exitBtn && this.exitBtn.zone) {
+      this.exitBtn.zone.removeAllListeners();
+    }
+
+    // Очистка resize слушателя
+    this.scale.off('resize');
+
+    // Очистка переменных
+    this.opened = [];
+    this.currentLevel = null;
+    this.gameMetrics = null;
+    this._lastClickTime = null;
+    this._processingCards = false;
+    
+    console.log('GameScene cleanup completed');
   }
 
   // ДОБАВЛЕНО: Сохранение состояния игры
@@ -247,6 +305,17 @@ window.GameScene = class GameScene extends Phaser.Scene {
   stopAllActiveProcesses() {
     // Останавливаем таймер
     this.stopGameTimer();
+    
+    // Останавливаем таймеры запоминания
+    if (this.memorizeTimer) {
+      this.memorizeTimer.destroy();
+      this.memorizeTimer = null;
+    }
+    
+    if (this.flipTimer) {
+      this.flipTimer.destroy();
+      this.flipTimer = null;
+    }
     
     // Отменяем все активные задержки
     if (this.time && this.time.delayedCall) {
@@ -401,7 +470,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   startGame(level) {
-    console.log('Starting game with level:', level);
+    console.log('🚀 Starting game with level:', level);
     
     if (!level || !level.cols || !level.rows) {
       console.error('Invalid level data:', level);
@@ -422,7 +491,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Расширенные метрики игры
     this.gameMetrics = {
-      startTime: Date.now(),
+      startTime: null, // Стартует после показа карт
       attempts: 0,
       errors: 0,
       pairs: Math.floor(total / 2),
@@ -432,9 +501,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     };  
 
     // ИСПРАВЛЕНО: Детерминированная генерация колоды только если её еще нет
-    if (!this.gameState.deck) {
+    if (!this.gameState.deck || this.gameState.currentSeed !== this.gameSeed) {
       const pairs = Math.floor(total / 2);
-      const shuffledKeys = this.shuffleWithSeed([...ALL_CARD_KEYS], this.gameSeed);
+      const shuffledKeys = this.shuffleWithSeed([...window.ALL_CARD_KEYS], this.gameSeed);
       const base = Array.from({length: pairs}, (_, i) => 
         shuffledKeys[i % shuffledKeys.length]);
       
@@ -443,6 +512,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
         base.concat(base), 
         this.gameSeed + 1000 // Другой seed для финального перемешивания
       );
+      
+      this.gameState.currentSeed = this.gameSeed;
       
       console.log('Generated deterministic deck with seed:', this.gameSeed);
     }
@@ -456,11 +527,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.canClick = false;
     this.gameState.gameStarted = false;
     this.gameState.isMemorizationPhase = true;
+    this.gameState.canResize = false; // Блокируем resize на время показа
 
     this.drawHUD();
     this.createCardLayout(this.gameState.deck);
 
-    // 5-секундный показ карт для запоминания
+    // ДОБАВЛЕНО: 5-секундный показ карт для запоминания
     this.showCardsForMemorization();
   }
 
@@ -491,7 +563,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
         const x = offsetX + col * (cardW + 8) + cardW/2;
         const y = offsetY + row * (cardH + 8) + cardH/2;
         
-        const card = this.add.image(x, y, key)
+        const card = this.add.image(x, y, key) // НАЧИНАЕМ ЛИЦОМ!
           .setDisplaySize(cardW, cardH)
           .setData('key', key)
           .setData('opened', false)
@@ -504,26 +576,95 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // 5-секундный показ карт для запоминания
+  // ДОБАВЛЕНО: 5-секундный показ карт для запоминания
   showCardsForMemorization() {
-    console.log('Showing cards for memorization...');
+    console.log('🧠 Showing cards for memorization (5 seconds)...');
+    
+    const { W, H } = this.getSceneWH();
     
     // Блокируем resize во время показа карт
     this.gameState.canResize = false;
     this.gameState.isMemorizationPhase = true;
     
-    // Показываем все карты лицом
+    // Показываем все карты лицом (они уже такие после createCardLayout)
     this.cards.forEach(card => {
       card.setTexture(card.getData('key'));
-      card.disableInteractive();
+      card.disableInteractive(); // Отключаем клики на время запоминания
     });
 
-    // Через 5 секунд переворачиваем и начинаем игру
-    this.time.delayedCall(5000, () => {
-      console.log('Starting actual game...');
-      
+    // Показываем уведомление
+    const notification = this.add.text(W/2, H*0.15, 'Запомните карты!', {
+      fontFamily: THEME.font,
+      fontSize: this._pxByH(0.05, 24, 32) + 'px',
+      color: '#FFD700',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1000);
+
+    // Обратный отсчёт
+    let countdown = 5;
+    const countdownText = this.add.text(W/2, H*0.22, countdown.toString(), {
+      fontFamily: THEME.font,
+      fontSize: this._pxByH(0.08, 36, 48) + 'px',
+      color: '#FF4444',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1000);
+
+    // Таймер обратного отсчёта
+    this.memorizeTimer = this.time.addEvent({
+      delay: 1000,
+      repeat: 4,
+      callback: () => {
+        countdown--;
+        if (countdown > 0) {
+          countdownText.setText(countdown.toString());
+          // Анимация пульсации
+          this.tweens.add({
+            targets: countdownText,
+            scale: 1.3,
+            duration: 200,
+            yoyo: true,
+            ease: 'Power2'
+          });
+        } else {
+          // Скрываем интерфейс обратного отсчёта
+          notification.destroy();
+          countdownText.destroy();
+          
+          // Переворачиваем все карты
+          this.flipAllCardsAndStartGame();
+        }
+      }
+    });
+  }
+
+  // ДОБАВЛЕНО: Переворот карт и начало игры
+  flipAllCardsAndStartGame() {
+    console.log('🔄 Flipping all cards and starting game...');
+    
+    // Анимированное переворачивание карт
+    this.cards.forEach((card, index) => {
+      this.tweens.add({
+        targets: card,
+        scaleX: 0,
+        duration: 200,
+        delay: index * 30, // каскадный эффект
+        ease: 'Power2.easeIn',
+        onComplete: () => {
+          card.setTexture('back');
+          this.tweens.add({
+            targets: card,
+            scaleX: 1,
+            duration: 200,
+            ease: 'Power2.easeOut'
+          });
+        }
+      });
+    });
+
+    // Финальная настройка после переворота
+    this.flipTimer = this.time.delayedCall(1000, () => {
+      // Включаем интерактивность карт
       this.cards.forEach(card => {
-        card.setTexture('back');
         card.setInteractive({ useHandCursor: true });
       });
       
@@ -532,8 +673,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this.gameState.isMemorizationPhase = false;
       this.gameState.canResize = true; // Разблокируем resize после начала игры
       
-      // Запускаем таймер только после показа карт
+      // ВАЖНО: Запускаем таймер игры только после показа карт
+      this.gameMetrics.startTime = Date.now();
       this.startGameTimer();
+      
+      console.log('✅ Game fully started, timer running, clicks enabled');
     });
   }
 
@@ -541,9 +685,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
     if (!this.canClick || this._processingCards) return;
     if (card.getData('opened') || card.getData('matched')) return;
 
-    // Защита от быстрых кликов
-    if (this._lastClickTime && Date.now() - this._lastClickTime < 300) return;
-    this._lastClickTime = Date.now();
+    // УЛУЧШЕННАЯ защита от быстрых кликов
+    const now = Date.now();
+    if (this._lastClickTime && now - this._lastClickTime < 250) {
+      console.log('Click ignored - too fast');
+      return;
+    }
+    this._lastClickTime = now;
+    
+    // Блокируем дальнейшие клики на время обработки
+    this._processingCards = true;
     
     this.gameMetrics.attempts++;
 
@@ -553,9 +704,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     if (this.opened.length === 2) {
       this.canClick = false;
-      this._processingCards = true;
       
-      this.time.delayedCall(450, () => {
+      // ИСПРАВЛЕНО: Используем delayedCall вместо setTimeout
+      const checkTimer = this.time.delayedCall(450, () => {
         const [a, b] = this.opened;
         if (a.getData('key') === b.getData('key')) {
           // Трекинг времени матчей
@@ -586,10 +737,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
           this.showWin();
         }
       });
+      
+      // Сохраняем ссылку на таймер для возможной очистки
+      this.gameTimer = checkTimer;
+    } else {
+      // Если открыта только одна карта
+      this._processingCards = false;
     }
   }
 
-  // УЛУЧШЕНО: Экран победы с подробной статистикой
+  // УЛУЧШЕНО: Экран победы с системой прогресса и звёздочками
   showWin() {
     this.canClick = false;
     this.gameState.gameStarted = false; // Игра завершена
@@ -600,17 +757,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const accuracy = this.gameMetrics.attempts > 0 ? 
       Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
 
+    // ДОБАВЛЕНО: Сохранение прогресса с системой звёздочек
+    const levelIndex = window.LEVELS.findIndex(l => l === this.currentLevel);
+    const progressResult = this.saveProgress(levelIndex, gameTime, this.gameMetrics.attempts, this.gameMetrics.errors);
+
     // Проверка достижений
     this.checkAchievements(gameTime, this.gameMetrics.errors, this.currentLevel);
 
     // Отправляем статистику завершенной игры в VK
     this.sendVKGameStats(gameTime, accuracy);
 
-    console.log('Game finished:', {
+    console.log('🏆 Game finished:', {
       time: gameTime,
       attempts: this.gameMetrics.attempts,
       errors: this.gameMetrics.errors,
-      accuracy: accuracy
+      accuracy: accuracy,
+      stars: progressResult.stars,
+      improved: progressResult.improved
     });
 
     const { W, H } = this.getSceneWH();
@@ -622,7 +785,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Красивое окно результатов
     const panelW = Math.min(500, W * 0.9);
-    const panelH = Math.min(400, H * 0.7);
+    const panelH = Math.min(450, H * 0.8);
     const panelX = W/2;
     const panelY = H/2;
 
@@ -633,46 +796,47 @@ window.GameScene = class GameScene extends Phaser.Scene {
     panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
 
     // Заголовок
-    this.add.text(panelX, panelY - panelH/2 + 60, '🎉 ПОБЕДА! 🎉', {
+    this.add.text(panelX, panelY - panelH/2 + 50, '🎉 ПОБЕДА! 🎉', {
       fontFamily: THEME.font, 
       fontSize: this._pxByH(0.06, 24, 42) + 'px', 
       color: '#F39C12', 
       fontStyle: '800'
     }).setOrigin(0.5).setDepth(102);
 
+    // ДОБАВЛЕНО: Отображение звёздочек
+    this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
+
     // Детальная статистика
-    const statsY = panelY - panelH/2 + 120;
-    const lineHeight = 35;
+    const statsY = panelY - panelH/2 + 160;
+    const lineHeight = 30;
     
     this.add.text(panelX, statsY, `⏱️ Время: ${this.formatTime(gameTime)}`, {
-      fontFamily: THEME.font, fontSize: '20px', color: '#4ECDC4', fontStyle: '600'
+      fontFamily: THEME.font, fontSize: '18px', color: '#4ECDC4', fontStyle: '600'
     }).setOrigin(0.5).setDepth(102);
 
     this.add.text(panelX, statsY + lineHeight, `🎯 Попыток: ${this.gameMetrics.attempts}`, {
-      fontFamily: THEME.font, fontSize: '18px', color: '#E8E1C9', fontStyle: '500'
+      fontFamily: THEME.font, fontSize: '16px', color: '#E8E1C9', fontStyle: '500'
     }).setOrigin(0.5).setDepth(102);
 
     this.add.text(panelX, statsY + lineHeight * 2, `❌ Ошибок: ${this.mistakeCount}`, {
-      fontFamily: THEME.font, fontSize: '18px', color: '#E74C3C', fontStyle: '500'
+      fontFamily: THEME.font, fontSize: '16px', color: '#E74C3C', fontStyle: '500'
     }).setOrigin(0.5).setDepth(102);
 
     this.add.text(panelX, statsY + lineHeight * 3, `📊 Точность: ${accuracy}%`, {
-      fontFamily: THEME.font, fontSize: '18px', color: '#2ECC71', fontStyle: '500'
+      fontFamily: THEME.font, fontSize: '16px', color: '#2ECC71', fontStyle: '500'
     }).setOrigin(0.5).setDepth(102);
 
-    // Оценка производительности
-    let rating = '⭐';
-    if (accuracy >= 90 && gameTime <= 60) rating = '⭐⭐⭐';
-    else if (accuracy >= 80 && gameTime <= 90) rating = '⭐⭐';
-    
-    this.add.text(panelX, statsY + lineHeight * 4.5, `Рейтинг: ${rating}`, {
-      fontFamily: THEME.font, fontSize: '20px', color: '#F39C12', fontStyle: '700'
-    }).setOrigin(0.5).setDepth(102);
+    // ДОБАВЛЕНО: Показываем улучшение результата
+    if (progressResult.improved) {
+      this.add.text(panelX, statsY + lineHeight * 4, '🆕 Новый рекорд!', {
+        fontFamily: THEME.font, fontSize: '18px', color: '#F39C12', fontStyle: '700'
+      }).setOrigin(0.5).setDepth(102);
+    }
 
     // Кнопки
-    const btnY = panelY + panelH/2 - 80;
-    const btnW = Math.min(180, panelW * 0.35);
-    const btnH = 50;
+    const btnY = panelY + panelH/2 - 60;
+    const btnW = Math.min(160, panelW * 0.35);
+    const btnH = 45;
 
     // Кнопка "Ещё раз"
     const playAgainBtn = window.makeImageButton(
@@ -692,6 +856,131 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     );
     menuBtn.setDepth(102);
+  }
+
+  // ДОБАВЛЕНО: Система сохранения прогресса с звёздочками
+  saveProgress(levelIndex, gameTime, attempts, errors) {
+    const accuracy = attempts > 0 ? (attempts - errors) / attempts : 0;
+    
+    // Расчёт звёздочек (1-3 звезды)
+    let stars = 1; // минимум 1 звезда за прохождение
+    
+    if (accuracy >= 0.9 && gameTime <= 60) stars = 3;      // отлично
+    else if (accuracy >= 0.8 && gameTime <= 90) stars = 2; // хорошо
+    
+    // Получаем текущий прогресс
+    const progress = this.getProgress();
+    
+    // Обновляем только если результат лучше
+    const current = progress[levelIndex];
+    const improved = !current || stars > current.stars || 
+      (stars === current.stars && gameTime < current.bestTime);
+    
+    if (improved) {
+      progress[levelIndex] = {
+        stars,
+        bestTime: gameTime,
+        bestAccuracy: Math.round(accuracy * 100),
+        attempts,
+        errors,
+        completedAt: Date.now()
+      };
+      
+      // Сохраняем прогресс
+      try {
+        localStorage.setItem('findpair_progress', JSON.stringify(progress));
+        
+        // Также синхронизируем с VK если доступно
+        if (this.isVKEnvironment && window.VKHelpers) {
+          window.VKHelpers.setStorageData('findpair_progress', progress)
+            .catch(err => console.warn('VK sync failed:', err));
+        }
+      } catch (e) {
+        console.warn('Failed to save progress:', e);
+      }
+    }
+    
+    return { stars, improved, currentBest: progress[levelIndex] };
+  }
+
+  // ДОБАВЛЕНО: Получение прогресса
+  getProgress() {
+    try {
+      const saved = localStorage.getItem('findpair_progress');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.warn('Error loading progress:', e);
+      return {};
+    }
+  }
+
+  // ДОБАВЛЕНО: Анимация звёздочек
+  showStarsAnimation(x, y, progressResult) {
+    const { stars, improved } = progressResult;
+    const starSize = 32;
+    const starSpacing = 50;
+    
+    for (let i = 1; i <= 3; i++) {
+      const starX = x + (i - 2) * starSpacing;
+      const filled = i <= stars;
+      const star = this.add.text(starX, y, filled ? '★' : '☆', {
+        fontSize: `${starSize}px`,
+        color: filled ? '#FFD700' : '#666666'
+      }).setOrigin(0.5).setDepth(102);
+      
+      if (filled && improved) {
+        // Анимация новых звёздочек
+        star.setScale(0);
+        this.tweens.add({
+          targets: star,
+          scale: 1.3,
+          duration: 400,
+          delay: i * 200,
+          ease: 'Back.easeOut',
+          yoyo: true,
+          repeat: 0,
+          onComplete: () => {
+            star.setScale(1);
+            // Добавляем блеск
+            this.createStarSparkle(starX, y);
+          }
+        });
+      }
+    }
+    
+    // Текст с количеством звёзд
+    const starsText = `${stars}/3 ⭐`;
+    this.add.text(x, y + 40, starsText, {
+      fontFamily: THEME.font,
+      fontSize: '16px',
+      color: '#F39C12',
+      fontStyle: '600'
+    }).setOrigin(0.5).setDepth(102);
+  }
+
+  // ДОБАВЛЕНО: Эффект блеска звёзд
+  createStarSparkle(x, y) {
+    const sparkles = ['✨', '⭐', '💫'];
+    
+    for (let i = 0; i < 3; i++) {
+      const sparkle = this.add.text(x, y, sparkles[i % sparkles.length], {
+        fontSize: '16px'
+      }).setOrigin(0.5).setDepth(103);
+      
+      const angle = (i / 3) * Math.PI * 2;
+      const distance = 30;
+      
+      this.tweens.add({
+        targets: sparkle,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        alpha: 0,
+        scale: 1.5,
+        duration: 600,
+        ease: 'Power2',
+        onComplete: () => sparkle.destroy()
+      });
+    }
   }
 
   // Перезапуск уровня
@@ -786,18 +1075,18 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // ДОБАВЛЕНО: VK обработка достижений
   async handleVKAchievements(newAchievements) {
-    if (!this.isVKEnvironment || !window.VKSafe.isAvailable()) return;
+    if (!this.isVKEnvironment || !window.VKSafe || !window.VKSafe.send) return;
     
     try {
       // Тактильная обратная связь при получении достижения
-      if (window.VKSafe.supports('VKWebAppTapticNotificationOccurred')) {
+      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppTapticNotificationOccurred')) {
         await window.VKSafe.send('VKWebAppTapticNotificationOccurred', {
           type: 'success'
         });
       }
       
       // Отправляем статистику во VK
-      if (window.VKSafe.supports('VKWebAppStorageSet')) {
+      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppStorageSet')) {
         const stats = {
           totalGames: this.sessionStats.gamesPlayed,
           totalAchievements: Object.values(this.achievements).filter(Boolean).length,
@@ -830,7 +1119,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const message = `${userName} получил достижение "${achievement.title}" в игре "Find the Pair"! 🏆\n\n${achievement.description}`;
       
       // Показываем диалог поста на стену
-      if (window.VKSafe.supports('VKWebAppShowWallPostBox')) {
+      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppShowWallPostBox')) {
         await window.VKSafe.send('VKWebAppShowWallPostBox', {
           message: message,
           attachments: window.location.href
@@ -926,7 +1215,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   // ДОБАВЛЕНО: Эффекты частиц для достижений
   createAchievementParticles(x, y) {
     // Простая анимация "звездочек" для достижений
-    const colors = [0xF39C12, 0xE74C3C, 0x4ECDC4, 0x2ECC71];
+    const emojis = ['✨', '⭐', '🎉', '💫'];
     
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
@@ -934,26 +1223,26 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const particleX = x + Math.cos(angle) * distance;
       const particleY = y + Math.sin(angle) * distance;
       
-      const star = this.add.text(x, y, '✨', {
+      const particle = this.add.text(x, y, emojis[i % emojis.length], {
         fontSize: '16px'
       }).setDepth(202);
       
       this.tweens.add({
-        targets: star,
+        targets: particle,
         x: particleX,
         y: particleY,
         alpha: 0,
         scale: 1.5,
         duration: 800,
         ease: 'Power2',
-        onComplete: () => star.destroy()
+        onComplete: () => particle.destroy()
       });
     }
   }
 
   // ДОБАВЛЕНО: Отправка статистики в VK
   async sendVKGameStats(gameTime, accuracy) {
-    if (!this.isVKEnvironment || !window.VKSafe.isAvailable()) return;
+    if (!this.isVKEnvironment || !window.VKSafe || !window.VKSafe.send) return;
     
     try {
       // Сохраняем статистику игры в VK Storage
@@ -973,7 +1262,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
         userId: window.VK_LAUNCH_PARAMS?.user_id
       };
       
-      if (window.VKSafe.supports('VKWebAppStorageSet')) {
+      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppStorageSet')) {
         await window.VKSafe.send('VKWebAppStorageSet', {
           key: `game_result_${Date.now()}`,
           value: JSON.stringify(gameStats)
@@ -1060,7 +1349,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     ctx.fillText('?', 60, 85);
     tex.refresh();
     
-    ALL_CARD_KEYS.forEach(key => {
+    window.ALL_CARD_KEYS.forEach(key => {
       if (!this.textures.exists(key)) {
         const cardTex = this.textures.createCanvas(key, 120, 160);
         const cardCtx = cardTex.getContext();
@@ -1092,6 +1381,7 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
       if (scene) {
         scene.gameSeed = seed;
         scene.gameState.deck = null; // Сбрасываем колоду для пересоздания
+        scene.gameState.currentSeed = null;
         console.log('Seed set to:', seed);
       }
     },
@@ -1115,6 +1405,27 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
       if (scene && scene.vkAchievementManager) {
         scene.vkAchievementManager.unlockAchievement(id);
       }
+    },
+    getProgress: () => {
+      const scene = window.game?.scene?.getScene('GameScene');
+      if (scene) {
+        const progress = scene.getProgress();
+        console.table(progress);
+        return progress;
+      }
+    },
+    clearProgress: () => {
+      localStorage.removeItem('findpair_progress');
+      console.log('Progress cleared');
+    },
+    setStars: (levelIndex, stars) => {
+      const scene = window.game?.scene?.getScene('GameScene');
+      if (scene) {
+        const progress = scene.getProgress();
+        progress[levelIndex] = { stars, bestTime: 30, bestAccuracy: 100, attempts: 10, errors: 0, completedAt: Date.now() };
+        localStorage.setItem('findpair_progress', JSON.stringify(progress));
+        console.log(`Level ${levelIndex} set to ${stars} stars`);
+      }
     }
   };
   
@@ -1125,4 +1436,7 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
   console.log('devGameScene.getCurrentSeed() - получить текущий seed');
   console.log('devGameScene.forceResize() - принудительно протестировать resize');
   console.log('devGameScene.testVKAchievement("first_win") - протестировать VK достижение');
+  console.log('devGameScene.getProgress() - показать прогресс');
+  console.log('devGameScene.clearProgress() - очистить прогресс');
+  console.log('devGameScene.setStars(0, 3) - установить звёзды для уровня');
 }
