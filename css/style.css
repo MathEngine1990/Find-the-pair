@@ -1,4 +1,4 @@
-/* ИСПРАВЛЕНО: Стили для высокого качества отображения */
+/* ИСПРАВЛЕНО: Стили для ультра-высокого разрешения */
 html, body { 
   margin: 0; 
   padding: 0; 
@@ -19,7 +19,7 @@ html, body {
 }
 
 #game { 
-  /* ИСПРАВЛЕНО: Позиционирование для FIT режима */
+  /* ИСПРАВЛЕНО: Оптимальное позиционирование для ультра-разрешения */
   width: 100vw; 
   height: 100vh; 
   display: flex;
@@ -31,16 +31,23 @@ html, body {
   box-sizing: border-box;
 }
 
-/* КРИТИЧНО: Стили для canvas высокого качества */
+/* КРИТИЧНО: Стили для canvas ультра-высокого качества */
 canvas {
-  /* ИСПРАВЛЕНО: Оптимальная отрисовка для всех браузеров */
+  /* ИСПРАВЛЕНО: Максимальное качество рендеринга */
   image-rendering: auto !important;
+  image-rendering: high-quality;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: optimize-contrast;
   
-  /* Четкие края без размытия */
+  /* Суперчеткие края без размытия */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  
+  /* ДОБАВЛЕНО: Дополнительные настройки для четкости */
+  transform: translateZ(0); /* Принудительное использование GPU */
+  -webkit-transform: translateZ(0);
   
   /* Предотвращаем touch события */
   touch-action: manipulation;
@@ -49,4 +56,32 @@ canvas {
   display: block;
   max-width: 100%;
   max-height: 100vh;
+  
+  /* ДОБАВЛЕНО: Фильтры для максимальной четкости */
+  filter: contrast(1.02) brightness(1.01);
+  -webkit-filter: contrast(1.02) brightness(1.01);
+}
+
+/* ДОБАВЛЕНО: Специальные стили для высоких DPI экранов */
+@media 
+  (-webkit-min-device-pixel-ratio: 2), 
+  (min-resolution: 192dpi),
+  (min-resolution: 2dppx) {
+  
+  canvas {
+    /* Дополнительные настройки для Retina */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
+/* ДОБАВЛЕНО: Стили для 4K дисплеев */
+@media (min-width: 3840px), (min-height: 2160px) {
+  canvas {
+    /* Максимальные настройки качества для 4K */
+    image-rendering: high-quality;
+    filter: contrast(1.03) brightness(1.02) saturate(1.01);
+  }
 }

@@ -1,64 +1,72 @@
-// ИСПРАВЛЕНО: Чистая инициализация игры без конфликтов переменных
+// ИСПРАВЛЕНО: Поддержка сверхвысокого разрешения
 
-// Функция для определения оптимальных размеров игры
-function getOptimalGameSize() {
+// Функция для определения оптимального разрешения игры
+function getUltraHighResolution() {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
   
-  // Определяем тип устройства
+  // Определяем тип устройства и подбираем соответствующее разрешение
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const is4K = viewportWidth >= 3840 || viewportHeight >= 2160;
   
-  let gameWidth, gameHeight;
+  let baseWidth, baseHeight;
   
-  if (isMobile) {
-    // Мобильные: используем полный экран с минимальными ограничениями
-    gameWidth = Math.max(viewportWidth, 360);
-    gameHeight = Math.max(viewportHeight, 640);
+  if (is4K) {
+    // 4K дисплеи: максимальное разрешение
+    baseWidth = 3840;
+    baseHeight = 2160;
+  } else if (!isMobile && !isTablet) {
+    // Десктоп: очень высокое разрешение
+    baseWidth = 2560;
+    baseHeight = 1440;
   } else if (isTablet) {
-    // Планшеты: ограничиваем максимальные размеры
-    gameWidth = Math.min(viewportWidth, 1024);
-    gameHeight = Math.min(viewportHeight, 768);
+    // Планшеты: высокое разрешение
+    baseWidth = 2048;
+    baseHeight = 1536;
   } else {
-    // Десктоп: используем оптимальное соотношение сторон
-    const aspectRatio = 16 / 9;
-    if (viewportWidth / viewportHeight > aspectRatio) {
-      gameHeight = Math.min(viewportHeight, 1080);
-      gameWidth = gameHeight * aspectRatio;
-    } else {
-      gameWidth = Math.min(viewportWidth, 1920);
-      gameHeight = gameWidth / aspectRatio;
-    }
+    // Мобильные: адаптивное высокое разрешение
+    baseWidth = Math.max(viewportWidth * dpr, 1920);
+    baseHeight = Math.max(viewportHeight * dpr, 1080);
   }
   
   return {
-    width: Math.floor(gameWidth),
-    height: Math.floor(gameHeight)
+    width: Math.floor(baseWidth),
+    height: Math.floor(baseHeight)
   };
 }
 
-// Проверяем, что конфигурация готова
-if (!window.gameConfig) {
+// Проверяем и обновляем конфигурацию для ультра-разрешения
+if (window.gameConfig) {
+  const ultraRes = getUltraHighResolution();
+  
+  // Обновляем разрешение только если текущее меньше оптимального
+  if (window.gameConfig.scale.width < ultraRes.width) {
+    window.gameConfig.scale.width = ultraRes.width;
+    window.gameConfig.scale.height = ultraRes.height;
+    
+    console.log(`Ultra resolution set: ${ultraRes.width}x${ultraRes.height}`);
+  }
+  
+  // ДОБАВЛЕНО: Дополнительные настройки для ультра-качества
+  window.gameConfig.render = {
+    ...window.gameConfig.render,
+    antialias: true,
+    roundPixels: false,
+    powerPreference: 'high-performance',
+    premultipliedAlpha: true,
+    failIfMajorPerformanceCaveat: false // Разрешаем даже если производительность может пострадать
+  };
+} else {
   console.error('Game config not found!');
-  window.gameConfig = {
-    type: Phaser.AUTO,
-    parent: 'game',
-    backgroundColor: '#1d2330',
-    scale: {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: 1080,
-      height: 720
-    },
-    resolution: Math.min(3, window.devicePixelRatio || 1),
-    render: { antialias: true, pixelArt: false },
-    scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
-    physics: { default: false }
-  };
 }
 
-// Создаем игру с базовой конфигурацией
-const game = new Phaser.Game(window.gameConfig);
+// Создаем игру с ультра-конфигурацией
+const game = new Phaser.Game(window.gameConfig || {});
+
+// Сохраняем ссылку глобально
+window.game = game;
 
 // Сохраняем ссылку глобально
 window.game = game;
