@@ -1,19 +1,17 @@
-// utils/vk-safe.js
-export class VKSafe {
-  static async send(method, params = {}) {
-    if (!window.vkBridge) {
-      throw new Error('VK Bridge not available');
-    }
-    
-    try {
-      return await window.vkBridge.send(method, params);
-    } catch (error) {
-      console.warn(`VK Bridge error for ${method}:`, error);
-      throw error;
-    }
+// 2. Безопасный вызов уведомлений (utils/vk-safe.js)
+static async requestNotifications() {
+  if (!this.isAvailable() || !window.vkBridge.supports('VKWebAppAllowNotifications')) {
+    console.warn('VKWebAppAllowNotifications not supported');
+    return false;
   }
   
-  static isAvailable() {
-    return window.vkBridge && window.vkBridge.supports;
+  try {
+    await this.send('VKWebAppAllowNotifications');
+    return true;
+  } catch (error) {
+    if (error.error_data?.error_code === 15) {
+      console.warn('Notifications permission denied - app not approved');
+    }
+    return false;
   }
 }
