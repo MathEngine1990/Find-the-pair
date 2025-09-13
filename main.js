@@ -1,222 +1,175 @@
-//---main.js - ПОЛНАЯ VK ИНТЕГРАЦИЯ
+// ИСПРАВЛЕНО: Адаптивная инициализация игры с правильным масштабированием
 
-(function () {
-  // Определяем запуск во ВК
-  const isVK = /(^|[?&])vk_(app_id|user_id|ts|aref|ref|platform)=/i.test(location.search);
+// Функция для определения оптимальных размеров игры
+function getOptimalGameSize() {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   
-  // Глобальные переменные для VK данных
-  window.VK_USER_DATA = null;
-  window.VK_LAUNCH_PARAMS = null;
-
-  if (isVK) {
-    console.log('🎮 VK Mini App detected, initializing VK Bridge...');
-    
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js';
-    s.onload = () => {
-      try {
-        if (window.vkBridge?.supports?.('VKWebAppInit')) {
-          // 1. ИНИЦИАЛИЗАЦИЯ VK BRIDGE
-          VKSafe.send('VKWebAppInit').then(() => {
-            console.log('✅ VK Bridge initialized successfully');
-            
-            // 2. ПАРСИНГ LAUNCH ПАРАМЕТРОВ
-            const params = new URLSearchParams(location.search);
-            window.VK_LAUNCH_PARAMS = {
-              user_id: params.get('vk_user_id'),
-              app_id: params.get('vk_app_id'),
-              platform: params.get('vk_platform') || 'web',
-              is_app_user: params.get('vk_is_app_user') === '1',
-              language: params.get('vk_language') || 'ru',
-              sign: params.get('sign') // для валидации
-            };
-            
-            console.log('📋 VK Launch params:', window.VK_LAUNCH_PARAMS);
-            
-            // 3. НАСТРОЙКА ВНЕШНЕГО ВИДА
-            VKSafe.send('VKWebAppSetViewSettings', { 
-              status_bar_style: 'light', 
-              action_bar_color: '#1d2330',
-              navigation_bar_color: '#1d2330'
-            }).catch(() => {});
-            
-            // 4. ОТКЛЮЧЕНИЕ СВАЙПА НАЗАД
-            VKSafe.send('VKWebAppDisableSwipeBack').catch(() => {});
-            
-            // 5. ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
-            VKSafe.send('VKWebAppGetUserInfo').then((userData) => {
-              window.VK_USER_DATA = userData;
-              console.log('👤 User data received:', userData);
-              initGame();
-            }).catch((error) => {
-              console.warn('⚠️ Cannot get user info:', error);
-              initGame(); // Запускаем без данных пользователя
-            });
-            
-          }).catch((error) => {
-            console.error('❌ VK Bridge init failed:', error);
-            initGame();
-          });
-          
-          // 6. ПОДПИСКА НА СОБЫТИЯ VK BRIDGE
-          vkBridge.subscribe((e) => {
-            console.log('📡 VK Bridge event:', e.detail?.type);
-            
-            switch (e.detail?.type) {
-              case 'VKWebAppViewHide':
-                // Пауза игры при сворачивании
-                if (window.game?.scene?.isPaused !== undefined) {
-                  window.game.scene.pause('GameScene');
-                  console.log('⏸️ Game paused (app hidden)');
-                }
-                break;
-                
-              case 'VKWebAppViewRestore':
-                // Восстановление игры
-                if (window.game?.scene?.isPaused !== undefined) {
-                  window.game.scene.resume('GameScene');
-                  console.log('▶️ Game resumed (app restored)');
-                }
-                break;
-                
-              case 'VKWebAppUpdateConfig':
-                // Обновление темы приложения
-                console.log('🎨 VK theme updated:', e.detail?.data);
-                break;
-            }
-          });
-          
-        } else {
-          console.warn('⚠️ VK Bridge not supported');
-          initGame();
-        }
-      } catch(e) {
-        console.error('❌ VK Bridge setup failed:', e);
-        initGame();
-      }
-    };
-    
-    s.onerror = () => {
-  console.warn('⚠️ VK Bridge недоступен, запуск в standalone режиме');
-  window.VK_LAUNCH_PARAMS = null;
-  initGame();
-};
-    
-    document.head.appendChild(s);
+  // Определяем тип устройства
+  const isMobile = viewportWidth < 768;
+  const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
+  const isDesktop = viewportWidth >= 1024;
+  
+  let gameWidth, gameHeight;
+  
+  if (isMobile) {
+    // Мобильные: используем полный экран с минимальными ограничениями
+    gameWidth = Math.max(viewportWidth, 360);
+    gameHeight = Math.max(viewportHeight, 640);
+  } else if (isTablet) {
+    // Планшеты: ограничиваем максимальные размеры
+    gameWidth = Math.min(viewportWidth, 1024);
+    gameHeight = Math.min(viewportHeight, 768);
   } else {
-    // Не ВК - запускаем сразу
-    console.log('🖥️ Not VK environment, starting game directly');
-    initGame();
-  }
-
-  // ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ ИГРЫ
-  function initGame() {
-    if (!window.Phaser) {
-      console.error('❌ Phaser не найден. Проверьте /lib/phaser.min.js');
-      return;
-    }
-
-    console.log('🚀 Initializing Phaser game...');
-
-    const DPR = Math.min(2, window.devicePixelRatio || 1);
-
-    const config = {
-      type: Phaser.AUTO,
-      parent: 'game',
-      backgroundColor: '#000000',
-      scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 720,
-        height: 1080
-      },
-      resolution: DPR,
-      render: { antialias: true, pixelArt: false },
-      scene: [ window.PreloadScene, window.MenuScene, window.GameScene ]
-    };
-
-    // Ожидание загрузки шрифтов
-    const startPhaser = () => {
-      try {
-        window.game = new Phaser.Game(config);
-        console.log('✅ Phaser game started successfully');
-        
-        // Добавляем обработчик ошибок для игры
-        window.game.events.on('error', (error) => {
-          console.error('🎮 Game error:', error);
-        });
-        
-      } catch (error) {
-        console.error('❌ Failed to start Phaser game:', error);
-      }
-    };
-    
-    if (document.fonts && document.fonts.ready) {
-      Promise.race([
-        document.fonts.ready, 
-        new Promise(resolve => setTimeout(resolve, 1000))
-      ]).finally(() => {
-        console.log('📝 Fonts loaded, starting game');
-        startPhaser();
-      });
+    // Десктоп: используем оптимальное соотношение сторон
+    const aspectRatio = 16 / 9;
+    if (viewportWidth / viewportHeight > aspectRatio) {
+      gameHeight = Math.min(viewportHeight, 1080);
+      gameWidth = gameHeight * aspectRatio;
     } else {
-      startPhaser();
+      gameWidth = Math.min(viewportWidth, 1920);
+      gameHeight = gameWidth / aspectRatio;
     }
   }
-
-  // ФУНКЦИИ ДЛЯ ВЗАИМОДЕЙСТВИЯ С VK
-  window.VK_UTILS = {
-    // Отправка события достижения
-    sendAchievement: function(achievement) {
-      if (window.vkBridge && isVK) {
-        VKSafe.send('VKWebAppTapticNotificationOccurred', { type: 'success' });
-        console.log('🏆 Achievement sent:', achievement);
-      }
-    },
-    
-    // Поделиться результатом
-    shareResult: function(level, time, errors) {
-      if (window.vkBridge && isVK) {
-        const message = `Прошел уровень ${level} за ${time}с с ${errors} ошибками в игре "Память: Найди пару"! 🧠🎯`;
-        VKSafe.send('VKWebAppShare', { link: location.href });
-        console.log('📤 Share result:', message);
-      }
-    },
-    
-    // Показать рекламу (для будущей монетизации)
-    showAd: function(type = 'interstitial') {
-      if (window.vkBridge && isVK) {
-        return VKSafe.send('VKWebAppShowNativeAds', { ad_format: type });
-      }
-      return Promise.reject('No VK Bridge');
-    },
-    
-    // Сохранение в облако VK
-    saveToCloud: function(key, data) {
-      if (window.vkBridge && isVK) {
-        return VKSafe.send('VKWebAppStorageSet', { 
-          key: key, 
-          value: JSON.stringify(data) 
-        });
-      }
-      // Fallback на localStorage
-      localStorage.setItem(key, JSON.stringify(data));
-      return Promise.resolve();
-    },
-    
-    // Загрузка из облака VK
-    loadFromCloud: function(key) {
-      if (window.vkBridge && isVK) {
-        return VKSafe.send('VKWebAppStorageGet', { keys: [key] })
-          .then(result => {
-            const value = result.keys?.[0]?.value;
-            return value ? JSON.parse(value) : null;
-          });
-      }
-      // Fallback на localStorage
-      const value = localStorage.getItem(key);
-      return Promise.resolve(value ? JSON.parse(value) : null);
-    }
+  
+  return {
+    width: Math.floor(gameWidth),
+    height: Math.floor(gameHeight)
   };
+}
 
-})();
+// ИСПРАВЛЕНО: Инициализация с адаптивными размерами
+const gameSize = getOptimalGameSize();
+console.log('Game size:', gameSize); // DEBUG
+
+// ИСПРАВЛЕНО: Определяем DPR с учетом производительности
+const DPR = Math.min(
+  window.devicePixelRatio || 1,
+  2 // Ограничиваем максимальный DPR для производительности
+);
+
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game',
+  backgroundColor: '#1d2330',
+  scale: {
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: RESIZE вместо FIT
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    
+    // ИСПРАВЛЕНО: Адаптивные размеры вместо фиксированных
+    width: gameSize.width,
+    height: gameSize.height,
+    
+    // ДОБАВЛЕНО: Минимальные и максимальные размеры
+    min: {
+      width: 360,
+      height: 640
+    },
+    max: {
+      width: 1920,
+      height: 1080
+    }
+  },
+  resolution: DPR,
+  render: { 
+    antialias: true, 
+    pixelArt: false,
+    roundPixels: true, // Четкость на всех экранах
+    powerPreference: 'high-performance' // Для лучшей производительности
+  },
+  scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
+  
+  // ОПТИМИЗАЦИЯ: Отключаем неиспользуемые системы
+  physics: {
+    default: false // Memory game не нуждается в физике
+  },
+  
+  // ДОБАВЛЕНО: Улучшенная обработка input
+  input: {
+    activePointers: 1, // Только один активный указатель
+    smoothFactor: 0,   // Отключаем сглаживание для быстрого отклика
+    windowEvents: false // Не обрабатываем события окна
+  },
+  
+  // ДОБАВЛЕНО: Настройки производительности
+  fps: {
+    target: 60,
+    forceSetTimeOut: false
+  },
+  
+  // ИСПРАВЛЕНО: Настройки DOM
+  dom: {
+    createContainer: false // Не создаем DOM контейнер
+  }
+};
+
+// Создаем игру
+const game = new Phaser.Game(config);
+
+// ДОБАВЛЕНО: Сохраняем ссылку на игру глобально для доступа из обработчиков
+window.game = game;
+
+// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Обработчик изменения размеров
+function handleResize() {
+  if (!game || !game.scale) return;
+  
+  const newSize = getOptimalGameSize();
+  
+  // Проверяем, нужно ли изменять размеры
+  if (Math.abs(game.scale.gameSize.width - newSize.width) > 10 ||
+      Math.abs(game.scale.gameSize.height - newSize.height) > 10) {
+    
+    console.log('Resizing game to:', newSize); // DEBUG
+    game.scale.resize(newSize.width, newSize.height);
+  }
+}
+
+// ИСПРАВЛЕНО: Обработчики событий изменения размеров
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  // Дебаунсинг для производительности
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(handleResize, 100);
+});
+
+// ДОБАВЛЕНО: Обработчик изменения ориентации (для мобильных)
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    handleResize();
+  }, 200); // Задержка для корректного определения новых размеров
+});
+
+// ДОБАВЛЕНО: Обработчик события загрузки игры
+game.events.once('ready', () => {
+  console.log('Game initialized with size:', game.scale.gameSize); // DEBUG
+  
+  // ИСПРАВЛЕНО: Убеждаемся что размеры корректны
+  handleResize();
+});
+
+// ДОБАВЛЕНО: Обработка ошибок
+game.events.on('boot', () => {
+  console.log('Game booted successfully');
+});
+
+window.addEventListener('error', (e) => {
+  console.error('Game error:', e);
+});
+
+// ДОБАВЛЕНО: Предотвращаем случайные action на мобильных
+document.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchstart', (e) => {
+  // Разрешаем только single touch
+  if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// ДОБАВЛЕНО: Скрываем адресную строку на мобильных (iOS/Android)
+setTimeout(() => {
+  window.scrollTo(0, 1);
+}, 100);
