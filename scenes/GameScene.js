@@ -1,15 +1,23 @@
-//---scenes/GameScene.js - ИСПРАВЛЕННАЯ версия с фиксом resize + система времени и достижений
+//---scenes/GameScene.js - ИСПРАВЛЕННАЯ ПОЛНАЯ ВЕРСИЯ
 
 window.GameScene = class GameScene extends Phaser.Scene {
   
-  constructor(){ super('GameScene'); }
+  constructor() { 
+    super('GameScene'); 
+  }
 
-  init(data){
+  init(data) {
     this.currentLevel = data?.level || null;
     this.levelPage = data?.page || 0;
     
-    // Система достижений
+    // VK данные из PreloadScene
+    this.vkUserData = data?.userData || window.VK_USER_DATA;
+    this.isVKEnvironment = data?.isVK || !!window.VK_LAUNCH_PARAMS;
+    
+    // Система достижений (локальная + VK)
     this.achievements = this.getAchievements();
+    this.vkAchievementManager = window.VKAchievementManager || null;
+    
     this.sessionStats = {
       gamesPlayed: 0,
       totalTime: 0,
@@ -29,6 +37,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     // Seed для детерминированной генерации
     this.gameSeed = this.generateSeed();
+
+    console.log('🎮 GameScene init:', {
+      isVK: this.isVKEnvironment,
+      hasVKUser: !!this.vkUserData,
+      hasVKAchievements: !!this.vkAchievementManager
+    });
   }
 
   // ДОБАВЛЕНО: Генерация детерминированного seed
@@ -64,11 +78,20 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return result;
   }
 
-  _pxClamp(px, minPx, maxPx){ return Math.round(Phaser.Math.Clamp(px, minPx, maxPx)); }
-  _pxByH(fraction, minPx, maxPx){ const { H } = this.getSceneWH(); return this._pxClamp(H * fraction, minPx, maxPx); }
-  getDPR(){ return Math.min(2.0, Math.max(1, (window.devicePixelRatio || 1))); }
+  _pxClamp(px, minPx, maxPx) { 
+    return Math.round(Phaser.Math.Clamp(px, minPx, maxPx)); 
+  }
+  
+  _pxByH(fraction, minPx, maxPx) { 
+    const { H } = this.getSceneWH(); 
+    return this._pxClamp(H * fraction, minPx, maxPx); 
+  }
+  
+  getDPR() { 
+    return Math.min(2.0, Math.max(1, (window.devicePixelRatio || 1))); 
+  }
 
-  _createHiDPICanvasTexture(key, w, h, drawFn){
+  _createHiDPICanvasTexture(key, w, h, drawFn) {
     const DPR = this.getDPR();
     const tex = this.textures.createCanvas(key, Math.max(2, Math.round(w*DPR)), Math.max(2, Math.round(h*DPR)));
     const ctx = tex.getContext();
@@ -77,9 +100,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return tex;
   }
 
-  preload(){}
+  preload() {}
 
-  create(){
+  create() {
     if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
 
     this.levelButtons = [];
@@ -103,7 +126,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.makePlaceholdersIfNeeded();
     this.ensureGradientBackground();
 
-    if (!this.currentLevel){
+    if (!this.currentLevel) {
       this.scene.start('MenuScene', { page: this.levelPage });
       return;
     }
@@ -168,8 +191,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     const wasMemorizing = this.gameState.isMemorizationPhase;
     const currentTime = this.currentTimeSeconds;
+    const wasGameStarted = this.gameState.gameStarted;
 
-    // Очищаем визуальные элементы
+    // ИСПРАВЛЕНО: Останавливаем все активные процессы перед очисткой
+    this.stopAllActiveProcesses();
+    
+    // Очищаем визуальные элементы безопасно
     this.clearVisualElements();
     
     // Перерисовываем карты с тем же deck
@@ -191,38 +218,65 @@ window.GameScene = class GameScene extends Phaser.Scene {
         // Восстанавливаем интерактивность
         if (currentOpenedState[index].matched) {
           card.setAlpha(THEME.cardDimAlpha).disableInteractive();
-        } else if (!wasMemorizing) {
+        } else if (!wasMemorizing && wasGameStarted) {
           card.setInteractive({ useHandCursor: true });
         }
       }
     });
     
+    // Восстанавливаем состояние игры
+    this.gameState.gameStarted = wasGameStarted;
+    this.gameState.isMemorizationPhase = wasMemorizing;
+    
     // Перерисовываем HUD
     this.drawHUD();
     
     // Восстанавливаем таймер
-    if (this.gameState.gameStarted && !wasMemorizing) {
+    if (wasGameStarted && !wasMemorizing) {
       this.currentTimeSeconds = currentTime;
       if (this.timeText) {
         this.timeText.setText(this.formatTime(this.currentTimeSeconds));
       }
-      if (!this.gameTimer) {
-        this.startGameTimer();
-      }
+      this.startGameTimer();
     }
     
     console.log('Layout redrawn, game state preserved');
   }
 
-  // ДОБАВЛЕНО: Очистка визуальных элементов
+  // ДОБАВЛЕНО: Остановка всех активных процессов
+  stopAllActiveProcesses() {
+    // Останавливаем таймер
+    this.stopGameTimer();
+    
+    // Отменяем все активные задержки
+    if (this.time && this.time.delayedCall) {
+      this.time.removeAllEvents();
+    }
+    
+    // Сбрасываем флаги обработки
+    this.canClick = false;
+    this._processingCards = false;
+    
+    // Очищаем массив открытых карт
+    this.opened = [];
+  }
+
+  // ДОБАВЛЕНО: Безопасная очистка визуальных элементов
   clearVisualElements() {
-    this.cards.forEach(card => card.destroy());
+    // ИСПРАВЛЕНО: Безопасное уничтожение карт
+    if (this.cards && Array.isArray(this.cards)) {
+      this.cards.forEach(card => {
+        if (card && card.scene) { // Проверяем что объект еще существует
+          card.destroy();
+        }
+      });
+    }
     this.cards = [];
     
     this.clearHUD();
   }
 
-  getSceneWH(){
+  getSceneWH() {
     const s = this.scale, cam = this.cameras?.main;
     const W = (s && (s.width ?? s.gameSize?.width)) || cam?.width || this.sys.game.config.width || 800;
     const H = (s && (s.height ?? s.gameSize?.height)) || cam?.height || this.sys.game.config.height || 600;
@@ -231,18 +285,37 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // Система достижений
   getAchievements() {
+    // Если есть VK менеджер достижений, используем его
+    if (this.vkAchievementManager) {
+      return this.vkAchievementManager.achievements;
+    }
+    
+    // Иначе используем localStorage
     const saved = localStorage.getItem('findpair_achievements');
     return saved ? JSON.parse(saved) : {
-      firstWin: false,
-      perfectGame: false,
-      speedRunner: false, // выиграл за < 30 сек
-      persistent: false,  // сыграл 10 игр подряд
-      expert: false       // прошел сложный уровень
+      first_win: false,
+      perfect_game: false,
+      speed_runner: false,
+      persistent: false,
+      expert: false
     };
   }
 
-  saveAchievements() {
-    localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+  async saveAchievements() {
+    try {
+      if (this.vkAchievementManager) {
+        // Сохраняем через VK менеджер
+        this.vkAchievementManager.achievements = this.achievements;
+        await this.vkAchievementManager.saveAchievements();
+      } else {
+        // Локальное сохранение
+        localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to save achievements:', error);
+      // Fallback к localStorage
+      localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+    }
   }
 
   // Форматирование времени
@@ -253,7 +326,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   // УЛУЧШЕНО: Обновление HUD с таймером
-  drawHUD(){
+  drawHUD() {
     this.clearHUD();
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(100, Math.round(H * 0.12));
@@ -290,23 +363,29 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.exitBtn = homeBtn;
   }
 
-  clearHUD(){
-    if (this.hud) this.hud.destroy();
-    if (this.mistakeText) this.mistakeText.destroy();
-    if (this.timeText) this.timeText.destroy();
-    if (this.exitBtn) this.exitBtn.destroy();
+  clearHUD() {
+    // ИСПРАВЛЕНО: Безопасное удаление UI элементов
+    if (this.hud && this.hud.scene) this.hud.destroy();
+    if (this.mistakeText && this.mistakeText.scene) this.mistakeText.destroy();
+    if (this.timeText && this.timeText.scene) this.timeText.destroy();
+    if (this.exitBtn && this.exitBtn.scene) this.exitBtn.destroy();
     this.hud = this.mistakeText = this.timeText = this.exitBtn = null;
   }
 
   // Управление таймером
   startGameTimer() {
-    if (this.gameTimer) return; // Предотвращаем дублирование таймеров
+    // ИСПРАВЛЕНО: Предотвращаем создание множественных таймеров
+    if (this.gameTimer) {
+      this.gameTimer.destroy();
+      this.gameTimer = null;
+    }
     
     this.gameTimer = this.time.addEvent({
       delay: 1000,
       callback: () => {
         this.currentTimeSeconds++;
-        if (this.timeText) {
+        // ИСПРАВЛЕНО: Проверяем существование элемента перед обновлением
+        if (this.timeText && this.timeText.scene) {
           this.timeText.setText(this.formatTime(this.currentTimeSeconds));
         }
       },
@@ -321,7 +400,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  startGame(level){
+  startGame(level) {
     console.log('Starting game with level:', level);
     
     if (!level || !level.cols || !level.rows) {
@@ -368,6 +447,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
       console.log('Generated deterministic deck with seed:', this.gameSeed);
     }
 
+    // ИСПРАВЛЕНО: Останавливаем все процессы перед очисткой
+    this.stopAllActiveProcesses();
     this.clearVisualElements();
     this.ensureGradientBackground();
     
@@ -456,7 +537,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 
-  onCardClick(card){
+  onCardClick(card) {
     if (!this.canClick || this._processingCards) return;
     if (card.getData('opened') || card.getData('matched')) return;
 
@@ -470,13 +551,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
     card.setData('opened', true);
     this.opened.push(card);
 
-    if (this.opened.length === 2){
+    if (this.opened.length === 2) {
       this.canClick = false;
       this._processingCards = true;
       
       this.time.delayedCall(450, () => {
         const [a, b] = this.opened;
-        if (a.getData('key') === b.getData('key')){
+        if (a.getData('key') === b.getData('key')) {
           // Трекинг времени матчей
           const matchTime = (Date.now() - this.gameMetrics.startTime) / 1000;
           this.gameMetrics.matchTimes.push(matchTime);
@@ -509,7 +590,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   // УЛУЧШЕНО: Экран победы с подробной статистикой
-  showWin(){
+  showWin() {
     this.canClick = false;
     this.gameState.gameStarted = false; // Игра завершена
     this.stopGameTimer(); // Останавливаем таймер
@@ -521,6 +602,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Проверка достижений
     this.checkAchievements(gameTime, this.gameMetrics.errors, this.currentLevel);
+
+    // Отправляем статистику завершенной игры в VK
+    this.sendVKGameStats(gameTime, accuracy);
 
     console.log('Game finished:', {
       time: gameTime,
@@ -618,73 +702,289 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.startGame(this.currentLevel);
   }
 
-  // Проверка достижений
-  checkAchievements(gameTime, errors, level) {
+  // Проверка достижений с VK интеграцией
+  async checkAchievements(gameTime, errors, level) {
     let newAchievements = [];
     
-    if (!this.achievements.firstWin) {
-      this.achievements.firstWin = true;
-      newAchievements.push('Первая победа!');
+    // Первая победа
+    if (!this.achievements.first_win) {
+      this.achievements.first_win = true;
+      newAchievements.push({
+        id: 'first_win',
+        title: 'Первая победа!',
+        description: 'Найдите все пары в первый раз'
+      });
     }
     
-    if (errors === 0 && !this.achievements.perfectGame) {
-      this.achievements.perfectGame = true;
-      newAchievements.push('Идеальная игра!');
+    // Идеальная игра (без ошибок)
+    if (errors === 0 && !this.achievements.perfect_game) {
+      this.achievements.perfect_game = true;
+      newAchievements.push({
+        id: 'perfect_game',
+        title: 'Идеальная игра!',
+        description: 'Пройдите уровень без ошибок'
+      });
     }
     
-    if (gameTime < 30 && !this.achievements.speedRunner) {
-      this.achievements.speedRunner = true;
-      newAchievements.push('Скоростной бегун!');
+    // Скоростное прохождение
+    if (gameTime < 30 && !this.achievements.speed_runner) {
+      this.achievements.speed_runner = true;
+      newAchievements.push({
+        id: 'speed_runner',
+        title: 'Скоростной бегун!',
+        description: 'Пройдите уровень за 30 секунд'
+      });
     }
     
+    // Эксперт (сложный уровень)
     const totalPairs = level.cols * level.rows / 2;
     if (totalPairs >= 9 && !this.achievements.expert) {
       this.achievements.expert = true;
-      newAchievements.push('Эксперт памяти!');
+      newAchievements.push({
+        id: 'expert',
+        title: 'Эксперт памяти!',
+        description: 'Пройдите сложный уровень'
+      });
     }
     
+    // Упорство (много игр подряд)
     this.sessionStats.gamesPlayed++;
     if (this.sessionStats.gamesPlayed >= 5 && !this.achievements.persistent) {
       this.achievements.persistent = true;
-      newAchievements.push('Упорство!');
+      newAchievements.push({
+        id: 'persistent',
+        title: 'Упорство!',
+        description: 'Сыграйте 5 игр подряд'
+      });
     }
     
+    // Сохраняем достижения
     if (newAchievements.length > 0) {
-      this.saveAchievements();
+      await this.saveAchievements();
+      
+      // Разблокируем достижения в VK (если доступно)
+      if (this.vkAchievementManager) {
+        for (const achievement of newAchievements) {
+          try {
+            const unlocked = await this.vkAchievementManager.unlockAchievement(achievement.id);
+            if (unlocked) {
+              console.log('🏆 VK Achievement unlocked:', achievement.title);
+            }
+          } catch (error) {
+            console.warn('⚠️ VK achievement unlock failed:', error);
+          }
+        }
+      }
+      
+      // Показываем уведомления о достижениях
       this.showAchievements(newAchievements);
+      
+      // VK специфичные действия
+      await this.handleVKAchievements(newAchievements);
     }
   }
 
-  // Показ достижений
+  // ДОБАВЛЕНО: VK обработка достижений
+  async handleVKAchievements(newAchievements) {
+    if (!this.isVKEnvironment || !window.VKSafe.isAvailable()) return;
+    
+    try {
+      // Тактильная обратная связь при получении достижения
+      if (window.VKSafe.supports('VKWebAppTapticNotificationOccurred')) {
+        await window.VKSafe.send('VKWebAppTapticNotificationOccurred', {
+          type: 'success'
+        });
+      }
+      
+      // Отправляем статистику во VK
+      if (window.VKSafe.supports('VKWebAppStorageSet')) {
+        const stats = {
+          totalGames: this.sessionStats.gamesPlayed,
+          totalAchievements: Object.values(this.achievements).filter(Boolean).length,
+          lastPlayed: Date.now()
+        };
+        
+        await window.VKSafe.send('VKWebAppStorageSet', {
+          key: 'game_stats',
+          value: JSON.stringify(stats)
+        });
+      }
+      
+      // Предлагаем поделиться особыми достижениями
+      const specialAchievements = ['first_win', 'perfect_game', 'speed_runner'];
+      const hasSpecial = newAchievements.some(a => specialAchievements.includes(a.id));
+      
+      if (hasSpecial && Math.random() < 0.3) { // 30% шанс предложить поделиться
+        this.showVKShareDialog(newAchievements[0]);
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ VK achievement handling failed:', error);
+    }
+  }
+
+  // ДОБАВЛЕНО: VK диалог поделиться
+  async showVKShareDialog(achievement) {
+    try {
+      const userName = this.vkUserData?.first_name || 'Игрок';
+      const message = `${userName} получил достижение "${achievement.title}" в игре "Find the Pair"! 🏆\n\n${achievement.description}`;
+      
+      // Показываем диалог поста на стену
+      if (window.VKSafe.supports('VKWebAppShowWallPostBox')) {
+        await window.VKSafe.send('VKWebAppShowWallPostBox', {
+          message: message,
+          attachments: window.location.href
+        });
+      }
+    } catch (error) {
+      // Пользователь отменил или нет разрешений
+      console.log('VK sharing cancelled');
+    }
+  }
+
+  // Показ достижений с красивой анимацией
   showAchievements(achievements) {
     const { W, H } = this.getSceneWH();
     
     achievements.forEach((achievement, index) => {
-      const achievementText = this.add.text(W/2, 100 + index * 40, `🏆 ${achievement}`, {
-        fontFamily: THEME.font, 
-        fontSize: '18px', 
-        color: '#F39C12', 
-        fontStyle: '600',
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        padding: { x: 20, y: 10 }
-      }).setOrigin(0.5).setDepth(200);
-
+      // Создаем более красивое уведомление
+      const bgWidth = 320;
+      const bgHeight = 80;
+      const x = W / 2;
+      const y = 100 + index * 100;
+      
+      // Фон достижения
+      const achievementBg = this.add.graphics().setDepth(200);
+      achievementBg.fillStyle(0x2C3E50, 0.95);
+      achievementBg.lineStyle(3, 0xF39C12, 0.8);
+      achievementBg.fillRoundedRect(x - bgWidth/2, y - bgHeight/2, bgWidth, bgHeight, 10);
+      achievementBg.strokeRoundedRect(x - bgWidth/2, y - bgHeight/2, bgWidth, bgHeight, 10);
+      
+      // Иконка достижения
+      const achievementIcon = this.add.text(x - bgWidth/2 + 25, y, '🏆', {
+        fontSize: '32px'
+      }).setOrigin(0.5).setDepth(201);
+      
+      // Заголовок достижения
+      const achievementTitle = this.add.text(x - bgWidth/2 + 60, y - 10, achievement.title, {
+        fontFamily: THEME.font,
+        fontSize: '18px',
+        color: '#F39C12',
+        fontStyle: '700'
+      }).setOrigin(0, 0.5).setDepth(201);
+      
+      // Описание достижения
+      const achievementDesc = this.add.text(x - bgWidth/2 + 60, y + 15, achievement.description, {
+        fontFamily: THEME.font,
+        fontSize: '14px',
+        color: '#E8E1C9',
+        fontStyle: '500'
+      }).setOrigin(0, 0.5).setDepth(201);
+      
+      // Группируем элементы
+      const achievementGroup = this.add.container(0, 0, [
+        achievementBg, achievementIcon, achievementTitle, achievementDesc
+      ]);
+      
       // Анимация появления
-      achievementText.setAlpha(0);
+      achievementGroup.setAlpha(0);
+      achievementGroup.setScale(0.8);
+      
       this.tweens.add({
-        targets: achievementText,
+        targets: achievementGroup,
         alpha: 1,
-        y: achievementText.y - 20,
+        scale: 1,
         duration: 500,
-        delay: index * 200,
-        ease: 'Back.easeOut'
+        delay: index * 300,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          // Частицы при появлении
+          this.createAchievementParticles(x, y);
+        }
       });
 
-      // Удаляем через 3 секунды
-      this.time.delayedCall(3000 + index * 200, () => {
-        if (achievementText) achievementText.destroy();
+      // Удаляем через 4 секунды
+      this.time.delayedCall(4000 + index * 300, () => {
+        this.tweens.add({
+          targets: achievementGroup,
+          alpha: 0,
+          scale: 0.8,
+          duration: 300,
+          onComplete: () => {
+            achievementGroup.destroy();
+          }
+        });
       });
     });
+    
+    // Звук достижения (если есть)
+    if (this.sound && this.sound.get('achievement_sound')) {
+      this.sound.play('achievement_sound', { volume: 0.5 });
+    }
+  }
+
+  // ДОБАВЛЕНО: Эффекты частиц для достижений
+  createAchievementParticles(x, y) {
+    // Простая анимация "звездочек" для достижений
+    const colors = [0xF39C12, 0xE74C3C, 0x4ECDC4, 0x2ECC71];
+    
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const distance = 50;
+      const particleX = x + Math.cos(angle) * distance;
+      const particleY = y + Math.sin(angle) * distance;
+      
+      const star = this.add.text(x, y, '✨', {
+        fontSize: '16px'
+      }).setDepth(202);
+      
+      this.tweens.add({
+        targets: star,
+        x: particleX,
+        y: particleY,
+        alpha: 0,
+        scale: 1.5,
+        duration: 800,
+        ease: 'Power2',
+        onComplete: () => star.destroy()
+      });
+    }
+  }
+
+  // ДОБАВЛЕНО: Отправка статистики в VK
+  async sendVKGameStats(gameTime, accuracy) {
+    if (!this.isVKEnvironment || !window.VKSafe.isAvailable()) return;
+    
+    try {
+      // Сохраняем статистику игры в VK Storage
+      const gameStats = {
+        level: {
+          cols: this.currentLevel.cols,
+          rows: this.currentLevel.rows,
+          pairs: this.gameMetrics.pairs
+        },
+        performance: {
+          time: gameTime,
+          attempts: this.gameMetrics.attempts,
+          errors: this.gameMetrics.errors,
+          accuracy: accuracy
+        },
+        timestamp: Date.now(),
+        userId: window.VK_LAUNCH_PARAMS?.user_id
+      };
+      
+      if (window.VKSafe.supports('VKWebAppStorageSet')) {
+        await window.VKSafe.send('VKWebAppStorageSet', {
+          key: `game_result_${Date.now()}`,
+          value: JSON.stringify(gameStats)
+        });
+      }
+      
+      console.log('📊 Game stats sent to VK Storage');
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to send VK game stats:', error);
+    }
   }
 
   // Dev команды для отладки
@@ -712,8 +1012,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // Остальные методы остаются без изменений
-  ensureGradientBackground(){
+  // Остальные методы
+  ensureGradientBackground() {
     const { W, H } = this.getSceneWH();
 
     if (this.textures.exists('bg_game')) {
@@ -732,7 +1032,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const src = this.textures.get(key).getSourceImage();
       if (src.width !== Math.round(W*DPR) || src.height !== Math.round(H*DPR)) this.textures.remove(key);
     }
-    if (!this.textures.exists(key)){
+    if (!this.textures.exists(key)) {
       const tex = this.textures.createCanvas(key, Math.max(2, Math.round(W*DPR)), Math.max(2, Math.round(H*DPR)));
       const ctx = tex.getContext(); ctx.save(); ctx.scale(DPR, DPR);
       const g = ctx.createLinearGradient(0,0,0,H);
@@ -744,7 +1044,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.bgImage = this.add.image(0,0,key).setOrigin(0,0).setDepth(-1000).setDisplaySize(W,H);
   }
 
-  makePlaceholdersIfNeeded(){
+  makePlaceholdersIfNeeded() {
     if (this.textures.exists('back')) return;
     
     const tex = this.textures.createCanvas('back', 120, 160);
@@ -809,6 +1109,12 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
         scene.saveGameState();
         scene.redrawLayout();
       }
+    },
+    testVKAchievement: (id) => {
+      const scene = window.game?.scene?.getScene('GameScene');
+      if (scene && scene.vkAchievementManager) {
+        scene.vkAchievementManager.unlockAchievement(id);
+      }
     }
   };
   
@@ -818,4 +1124,5 @@ if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' |
   console.log('devGameScene.setSeed(123) - установить seed');
   console.log('devGameScene.getCurrentSeed() - получить текущий seed');
   console.log('devGameScene.forceResize() - принудительно протестировать resize');
+  console.log('devGameScene.testVKAchievement("first_win") - протестировать VK достижение');
 }
