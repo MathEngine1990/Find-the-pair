@@ -1,11 +1,13 @@
-
 {
   "name": "givepair002",
   "version": "1.0.0",
   "description": "",
   "main": "main.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -17,6 +19,14 @@
   "bugs": {
     "url": "https://github.com/MathEngine1990/Find-the-pair/issues"
   },
-  "homepage": "https://github.com/MathEngine1990/Find-the-pair#readme"
+  "homepage": "https://github.com/MathEngine1990/Find-the-pair#readme",
+  "directories": {
+    "lib": "lib"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.3",
+    "@vitejs/plugin-legacy": "^7.2.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  }
 }
-
