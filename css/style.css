@@ -85,3 +85,22 @@ canvas {
     filter: contrast(1.03) brightness(1.02) saturate(1.01);
   }
 }
+
+/* 3. VK-темы и safe area */
+:root {
+  --vk-accent: #5A9EF4;
+  --bg-primary: #FFFFFF;
+  --text-primary: #000000;
+}
+
+[data-scheme="space"] {
+  --bg-primary: #19191A;
+  --text-primary: #FFFFFF;
+}
+
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
