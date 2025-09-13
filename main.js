@@ -271,8 +271,14 @@
           break;
           
         case 'VKWebAppUpdateConfig':
-          handleConfigUpdate(eventData);
-          break;
+          document.documentElement.setAttribute('data-scheme', scheme || 'bright');
+  document.documentElement.style.setProperty('--vk-accent', accent_color || '#5A9EF4');
+  
+  // Обновляем игровую тему
+  if (window.game?.scene?.getScene('GameScene')) {
+    window.game.scene.getScene('GameScene').events.emit('theme-changed', scheme);
+  }
+  break;
           
         case 'VKWebAppGetUserInfoResult':
           if (eventData && !eventData.error) {
