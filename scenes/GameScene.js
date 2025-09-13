@@ -1,4 +1,4 @@
-//---scenes/GameScene.js - путь отдельного файла
+//---scenes/GameScene.js - ИСПРАВЛЕННАЯ версия
 
 window.GameScene = class GameScene extends Phaser.Scene {
   constructor(){ super('GameScene'); }
@@ -172,15 +172,31 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   startGame(level){
+    console.log('Starting game with level:', level); // DEBUG
+    
+    // ИСПРАВЛЕНО: Проверка корректности level
+    if (!level || !level.cols || !level.rows) {
+      console.error('Invalid level data:', level);
+      this.scene.start('MenuScene', { page: this.levelPage });
+      return;
+    }
        
     this.currentLevel = level;
     this.mistakeCount = 0;
 
+    // ИСПРАВЛЕНО: Безопасная инициализация метрик
+    const total = level.cols * level.rows;
+    if (total % 2 !== 0) {
+      console.error('Нечётное число ячеек в сетке', level);
+      this.scene.start('MenuScene', { page: this.levelPage });
+      return;
+    }
+
     this.gameMetrics = {
-    startTime: Date.now(),
-    attempts: 0,
-    errors: 0,
-    pairs: level.cols * level.rows / 2
+      startTime: Date.now(),
+      attempts: 0,
+      errors: 0,
+      pairs: Math.floor(total / 2) // ИСПРАВЛЕНО: Целое число пар
     };  
 
     this.children.removeAll();
@@ -189,9 +205,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     this.drawHUD();
 
-    const total = level.cols * level.rows;
-    if (total % 2 !== 0){ console.error('Нечётное число ячеек в сетке', level); return; }
-    const pairs = total / 2;
+    const pairs = Math.floor(total / 2);
 
     const shuffled = Phaser.Utils.Array.Shuffle(ALL_CARD_KEYS.slice());
     const base = Array.from({length:pairs}, (_,i)=> shuffled[i % shuffled.length]);
@@ -240,19 +254,22 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
+    // ИСПРАВЛЕНО: 5 секунд показа лицом
     this.canClick = false;
+    console.log('Showing cards for 5 seconds...'); // DEBUG
     this.time.delayedCall(5000, () => {
+      console.log('Hiding cards, game starts!'); // DEBUG
       this.cards.forEach(card => card.setTexture('back'));
       this.canClick = true;
     });
   }
 
   onCardClick(card){
-      if (!this.canClick) return;
-      this.gameMetrics.attempts++;
-    
     if (!this.canClick) return;
     if (card.getData('opened') || card.getData('matched')) return;
+
+    // ИСПРАВЛЕНО: Увеличиваем попытки только один раз
+    this.gameMetrics.attempts++;
 
     card.setTexture(card.getData('key'));
     card.setData('opened', true);
@@ -268,6 +285,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
           a.setData('opened', false); b.setData('opened', false);
         } else {
           this.mistakeCount++;
+          this.gameMetrics.errors++; // ДОБАВЛЕНО: Трекинг ошибок в метриках
           if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
           a.setTexture('back').setData('opened', false);
           b.setTexture('back').setData('opened', false);
@@ -284,13 +302,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.canClick = false;
     this.cards.forEach(c => c.disableInteractive());
 
+    // ДОБАВЛЕНО: Подсчет финального времени
+    const gameTime = Math.round((Date.now() - this.gameMetrics.startTime) / 1000);
+    console.log('Game finished:', {
+      time: gameTime,
+      attempts: this.gameMetrics.attempts,
+      errors: this.gameMetrics.errors,
+      accuracy: Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100)
+    });
+
     const { W, H } = this.getSceneWH();
 
     this.add.text(W/2, H*0.22, 'Победа!', {
       fontFamily: THEME.font, fontSize: this._pxByH(0.088, 22, 48) + 'px', color:'#FFFFFF', fontStyle:'800'
     }).setOrigin(0.5);
 
-    this.add.text(W/2, H*0.32, `Ошибок за игру: ${this.mistakeCount}`, {
+    // УЛУЧШЕНО: Показываем детальную статистику
+    this.add.text(W/2, H*0.32, `Время: ${gameTime}с | Попыток: ${this.gameMetrics.attempts} | Ошибок: ${this.mistakeCount}`, {
       fontFamily: THEME.font, fontSize: this._pxByH(0.044, 14, 24) + 'px', color:'#E8E1C9', fontStyle:'600'
     }).setOrigin(0.5);
 
