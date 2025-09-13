@@ -6,6 +6,7 @@
   // Глобальные переменные для VK
   window.VK_USER_DATA = null;
   window.VK_LAUNCH_PARAMS = null;
+  window.VK_PERMISSIONS = null;
   window.VK_DEBUG = window.location.search.includes('debug=1');
   
   // Отладочные функции
@@ -35,6 +36,7 @@
       <div>Platform: ${info.platform || 'N/A'}</div>
       <div>Bridge: ${info.bridgeAvailable ? '✅' : '❌'}</div>
       <div>UserData: ${info.userDataLoaded ? '✅' : '❌'}</div>
+      <div>Notifications: ${info.notificationsSupported ? '✅' : '❌'}</div>
       <div style="margin-top: 5px; font-size: 10px; opacity: 0.7;">
         Auto-close in 10s
       </div>
@@ -68,11 +70,17 @@
     inIframe: window.parent !== window
   });
 
-  // Безопасная обертка для VK Bridge
+  // Безопасная обертка для VK Bridge (ИСПРАВЛЕННАЯ)
   window.VKSafe = {
     async send(method, params = {}) {
       if (!window.vkBridge) {
         throw new Error('VK Bridge not available');
+      }
+      
+      // ПРОВЕРКА ПОДДЕРЖКИ МЕТОДА ПЕРЕД ВЫЗОВОМ
+      if (!this.supports(method)) {
+        console.warn(`⚠️ Method ${method} not supported on this platform`);
+        throw new Error(`Method ${method} not supported`);
       }
       
       debugLog(`VK Bridge call: ${method}`, params);
@@ -82,8 +90,32 @@
         debugLog(`VK Bridge response: ${method}`, result);
         return result;
       } catch (error) {
-        console.warn(`VK Bridge error for ${method}:`, error);
+        this.handleVKError(method, error);
         throw error;
+      }
+    },
+    
+    // ДЕТАЛЬНАЯ ОБРАБОТКА ОШИБОК
+    handleVKError(method, error) {
+      const { error_type, error_data } = error;
+      
+      switch (method) {
+        case 'VKWebAppAllowNotifications':
+          if (error_data?.error_code === 15) {
+            console.warn('🔔 Notifications not available: app needs moderation approval');
+          } else if (error_data?.error_code === 4) {
+            console.warn('🔔 User denied notifications permission');
+          }
+          break;
+          
+        case 'VKWebAppGetUserInfo':
+          if (error_data?.error_code === 15) {
+            console.warn('👤 User info access denied');
+          }
+          break;
+          
+        default:
+          console.warn(`VK Bridge error for ${method}:`, error);
       }
     },
     
@@ -93,6 +125,47 @@
     
     supports(method) {
       return window.vkBridge && window.vkBridge.supports && window.vkBridge.supports(method);
+    },
+    
+    // ПРОВЕРКА РАЗРЕШЕНИЙ ПЕРЕД ЗАПРОСОМ
+    async checkPermissions() {
+      const permissions = {
+        notifications: false,
+        userInfo: false,
+        storage: false,
+        share: false,
+        haptic: false
+      };
+      
+      if (this.isAvailable()) {
+        permissions.notifications = this.supports('VKWebAppAllowNotifications');
+        permissions.userInfo = this.supports('VKWebAppGetUserInfo');
+        permissions.storage = this.supports('VKWebAppStorageSet');
+        permissions.share = this.supports('VKWebAppShare');
+        permissions.haptic = this.supports('VKWebAppTapticNotificationOccurred');
+      }
+      
+      debugLog('VK Permissions check', permissions);
+      return permissions;
+    },
+    
+    // БЕЗОПАСНЫЙ ЗАПРОС УВЕДОМЛЕНИЙ
+    async requestNotifications() {
+      if (!this.supports('VKWebAppAllowNotifications')) {
+        console.warn('🔔 Notifications not supported on this platform');
+        return { success: false, reason: 'not_supported' };
+      }
+      
+      try {
+        await this.send('VKWebAppAllowNotifications');
+        console.log('✅ Notifications permission granted');
+        return { success: true };
+      } catch (error) {
+        const reason = error.error_data?.error_code === 15 ? 'app_not_approved' : 
+                      error.error_data?.error_code === 4 ? 'user_denied' : 'unknown';
+        console.warn(`🔔 Notifications denied: ${reason}`);
+        return { success: false, reason, error };
+      }
     }
   };
 
@@ -127,7 +200,7 @@
     return params;
   }
 
-  // Инициализация VK Bridge
+  // Инициализация VK Bridge (ИСПРАВЛЕННАЯ)
   async function initVKBridge() {
     debugLog('Initializing VK Bridge...');
     
@@ -140,6 +213,10 @@
       // Инициализация Bridge
       await window.VKSafe.send('VKWebAppInit');
       debugLog('VK Bridge initialized successfully');
+      
+      // ПРОВЕРКА ДОСТУПНЫХ РАЗРЕШЕНИЙ
+      window.VK_PERMISSIONS = await window.VKSafe.checkPermissions();
+      debugLog('Available permissions', window.VK_PERMISSIONS);
       
       // Парсим launch параметры с валидацией
       const vkParams = parseVKParams();
@@ -181,7 +258,7 @@
     }
   }
 
-  // Настройка интерфейса VK (с обработкой ошибок)
+  // Настройка интерфейса VK (ИСПРАВЛЕННАЯ)
   async function setupVKInterface() {
     const operations = [];
     
@@ -205,12 +282,20 @@
       });
     }
     
-    // Разрешение уведомлений (опционально)
-    if (window.VKSafe.supports('VKWebAppAllowNotifications')) {
+    // РАЗРЕШЕНИЕ УВЕДОМЛЕНИЙ - ТОЛЬКО ЕСЛИ ПОДДЕРЖИВАЕТСЯ
+    if (window.VK_PERMISSIONS?.notifications) {
       operations.push({
         name: 'AllowNotifications',
-        call: () => window.VKSafe.send('VKWebAppAllowNotifications')
+        call: async () => {
+          const result = await window.VKSafe.requestNotifications();
+          if (!result.success) {
+            debugLog('Notifications setup failed', result.reason);
+          }
+          return result;
+        }
       });
+    } else {
+      debugLog('Notifications not supported, skipping');
     }
     
     // Выполняем все операции
@@ -224,9 +309,9 @@
     debugLog('VK Interface setup results', results);
   }
 
-  // Загрузка данных пользователя с таймаутом
+  // Загрузка данных пользователя с таймаутом (ИСПРАВЛЕННАЯ)
   async function loadUserData() {
-    if (!window.VKSafe.supports('VKWebAppGetUserInfo')) {
+    if (!window.VK_PERMISSIONS?.userInfo) {
       debugLog('VKWebAppGetUserInfo not supported');
       return null;
     }
@@ -248,7 +333,7 @@
     }
   }
 
-  // Подписка на события VK с улучшенной обработкой
+  // Подписка на события VK с улучшенной обработкой (ИСПРАВЛЕННАЯ)
   function subscribeToVKEvents() {
     if (!window.vkBridge || !window.vkBridge.subscribe) {
       debugLog('VK Bridge subscribe not available');
@@ -271,14 +356,8 @@
           break;
           
         case 'VKWebAppUpdateConfig':
-          document.documentElement.setAttribute('data-scheme', scheme || 'bright');
-  document.documentElement.style.setProperty('--vk-accent', accent_color || '#5A9EF4');
-  
-  // Обновляем игровую тему
-  if (window.game?.scene?.getScene('GameScene')) {
-    window.game.scene.getScene('GameScene').events.emit('theme-changed', scheme);
-  }
-  break;
+          handleConfigUpdate(eventData);
+          break;
           
         case 'VKWebAppGetUserInfoResult':
           if (eventData && !eventData.error) {
@@ -335,13 +414,27 @@
     }
   }
 
+  // ИСПРАВЛЕННАЯ ОБРАБОТКА КОНФИГА
   function handleConfigUpdate(config) {
     debugLog('VK Config updated', config);
     
-    // Обновление темы игры на основе VK темы
-    if (config?.scheme) {
-      updateGameTheme(config.scheme);
+    const scheme = config?.scheme || 'bright';
+    const accentColor = config?.accent_color || '#5A9EF4';
+    
+    // Обновляем CSS переменные
+    document.documentElement.setAttribute('data-scheme', scheme);
+    document.documentElement.style.setProperty('--vk-accent', accentColor);
+    
+    // Обновляем игровую тему
+    if (window.game?.scene?.getScene('GameScene')) {
+      window.game.scene.getScene('GameScene').events.emit('theme-changed', {
+        scheme,
+        accentColor
+      });
     }
+    
+    // Обновление темы игры на основе VK темы
+    updateGameTheme(scheme);
     
     // Обновление языка если изменился
     if (config?.lang && window.VK_LAUNCH_PARAMS) {
@@ -429,6 +522,7 @@
           // Передаем VK данные в игру
           game.registry.set('vkUserData', window.VK_USER_DATA);
           game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
+          game.registry.set('vkPermissions', window.VK_PERMISSIONS);
           game.registry.set('isVKEnvironment', isVKEnvironment);
           game.registry.set('vkBridgeAvailable', window.VKSafe.isAvailable());
           
@@ -458,7 +552,8 @@
             userId: window.VK_LAUNCH_PARAMS?.user_id,
             platform: window.VK_LAUNCH_PARAMS?.platform,
             bridgeAvailable: window.VKSafe.isAvailable(),
-            userDataLoaded: !!window.VK_USER_DATA
+            userDataLoaded: !!window.VK_USER_DATA,
+            notificationsSupported: window.VK_PERMISSIONS?.notifications
           });
         }, 1000); // Показываем после инициализации
       }
@@ -582,13 +677,18 @@
     main();
   }
 
-  // Глобальные утилиты для VK (доступны в консоли для отладки)
+  // Глобальные утилиты для VK (ОБНОВЛЕННЫЕ)
   if (window.VK_DEBUG) {
     window.VKUtils = {
-      // Тестирование VK методов
+      // Тестирование VK методов (БЕЗОПАСНОЕ)
       async testVKMethod(method, params = {}) {
         if (!window.VKSafe.isAvailable()) {
           console.error('❌ VK Bridge not available');
+          return null;
+        }
+        
+        if (!window.VKSafe.supports(method)) {
+          console.error(`❌ Method ${method} not supported`);
           return null;
         }
         
@@ -602,13 +702,34 @@
         }
       },
 
-      // Получение информации о пользователе
+      // Получение информации о пользователе (БЕЗОПАСНОЕ)
       async getUserInfo() {
+        if (!window.VK_PERMISSIONS?.userInfo) {
+          console.warn('⚠️ User info not supported');
+          return null;
+        }
         return await this.testVKMethod('VKWebAppGetUserInfo');
       },
 
-      // Тестирование хранилища
+      // Тестирование уведомлений (БЕЗОПАСНОЕ)
+      async testNotifications() {
+        if (!window.VK_PERMISSIONS?.notifications) {
+          console.warn('⚠️ Notifications not supported on this platform');
+          return null;
+        }
+        
+        const result = await window.VKSafe.requestNotifications();
+        console.log('🔔 Notifications test result:', result);
+        return result;
+      },
+
+      // Тестирование хранилища (БЕЗОПАСНОЕ)
       async testStorage() {
+        if (!window.VK_PERMISSIONS?.storage) {
+          console.warn('⚠️ Storage not supported');
+          return null;
+        }
+        
         const testData = { 
           test: 'value', 
           timestamp: Date.now(),
@@ -640,15 +761,23 @@
         return null;
       },
 
-      // Показ уведомления
+      // Показ уведомления (БЕЗОПАСНОЕ)
       async showNotification(type = 'success') {
+        if (!window.VK_PERMISSIONS?.haptic) {
+          console.warn('⚠️ Haptic feedback not supported');
+          return null;
+        }
         return await this.testVKMethod('VKWebAppTapticNotificationOccurred', {
           type: type
         });
       },
 
-      // Тест поделиться
+      // Тест поделиться (БЕЗОПАСНОЕ)
       async testShare() {
+        if (!window.VK_PERMISSIONS?.share) {
+          console.warn('⚠️ Share not supported');
+          return null;
+        }
         return await this.testVKMethod('VKWebAppShare', {
           link: window.location.href
         });
@@ -659,6 +788,7 @@
         console.group('🎮 VK Data');
         console.log('Launch Params:', window.VK_LAUNCH_PARAMS);
         console.log('User Data:', window.VK_USER_DATA);
+        console.log('Permissions:', window.VK_PERMISSIONS);
         console.log('Bridge Available:', window.VKSafe.isAvailable());
         console.log('Environment:', isVKEnvironment);
         console.log('Debug Mode:', window.VK_DEBUG);
@@ -677,24 +807,3 @@
         
         setTimeout(() => {
           console.log('Simulating VKWebAppViewRestore...');
-          handleAppRestore();
-        }, 3000);
-        
-        setTimeout(() => {
-          console.log('Simulating VKWebAppUpdateConfig...');
-          handleConfigUpdate({ scheme: 'bright_light' });
-        }, 5000);
-      }
-    };
-
-    console.log('🔍 VK Debug utilities loaded:');
-    console.log('VKUtils.testVKMethod(method, params) - тест VK методов');
-    console.log('VKUtils.getUserInfo() - данные пользователя');
-    console.log('VKUtils.testStorage() - тест хранилища');
-    console.log('VKUtils.testShare() - тест поделиться');
-    console.log('VKUtils.showVKData() - показать VK данные');
-    console.log('VKUtils.simulateVKEvents() - симулировать события');
-    console.log('Add ?debug=1 to URL for detailed logging');
-  }
-
-})();
