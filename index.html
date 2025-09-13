@@ -3,18 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <title>Память: Найди пару</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ИСПРАВЛЕНО: Более точный viewport для мобильных + VK Meta -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <link rel="stylesheet" href="css/style.css">
   
-  <!-- ДОБАВЛЕНО: Meta теги для VK -->
+  <!-- ДОБАВЛЕНО: Meta теги для VK и соцсетей -->
   <meta property="og:title" content="Память: Найди пару" />
-  <meta property="og:description" content="Тренируйте память, находя парные карты!" />
+  <meta property="og:description" content="Тренируйте память, находя парные карты! Игра с системой прогресса и достижений." />
   <meta property="og:image" content="https://mathengine1990.github.io/Find-the-pair/assets/icon-512.png" />
   <meta property="og:type" content="game" />
+  <meta property="og:url" content="https://mathengine1990.github.io/Find-the-pair/" />
   
-  <!-- Предзагрузка критичных ресурсов -->
+  <!-- ДОБАВЛЕНО: VK специфичные meta -->
+  <meta name="vk:app_id" content="51827773" />
+  <meta name="theme-color" content="#1d2330" />
+  
+  <!-- ДОБАВЛЕНО: Предзагрузка критичных ресурсов -->
   <link rel="preload" href="lib/phaser.min.js" as="script">
   <link rel="preload" href="assets/back_card02.png" as="image">
+  <link rel="preload" href="ui/Theme.js" as="script">
+  <link rel="preload" href="game/Data.js" as="script">
 </head>
 <body>
   <div id="game"></div>
@@ -27,30 +35,33 @@
   <script src="game/Data.js"></script>
   <script src="ui/Button.js"></script>
 
-  <!-- ДОБАВЛЕНО: Проверка загрузки Button.js с улучшенным fallback -->
+  <!-- УЛУЧШЕНО: Расширенная заглушка для Button.js с вашими улучшениями -->
   <script>
-    console.log('Checking Button.js:', typeof window.makeImageButton);
+    console.log('Buttons loaded?', typeof window.makeImageButton);
     if (typeof window.makeImageButton !== 'function') {
-      console.warn('ui/Button.js НЕ загрузился — включаю улучшенный fallback');
+      console.warn('ui/Button.js НЕ загрузился — включаю улучшенную заглушку');
       
-      // Улучшенная заглушка для кнопок
+      // Улучшенная заглушка с анимациями и стилями
       window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}) {
         const container = scene.add.container(x, y);
         
-        // Фон кнопки
+        // Фон кнопки с градиентом
         const bg = scene.add.graphics()
-          .fillStyle(0x2C3E50)
+          .fillGradientStyle(0x2C3E50, 0x2C3E50, 0x34495E, 0x34495E)
           .fillRoundedRect(-w/2, -h/2, w, h, 8)
           .lineStyle(2, 0x3498DB, 0.8)
           .strokeRoundedRect(-w/2, -h/2, w, h, 8);
         
-        // Текст кнопки
+        // Текст кнопки с тенью
         const text = scene.add.text(0, 0, label, {
-          fontFamily: 'Arial, sans-serif',
-          fontSize: Math.round(h * 0.25) + 'px',
-          color: opts.color || '#FFFFFF',
-          fontStyle: 'bold'
+          fontFamily: window.THEME?.fontButton || 'Arial, sans-serif',
+          fontSize: Math.round(h * (window.THEME?.btnFontFactor || 0.25)) + 'px',
+          color: opts.color || window.THEME?.buttonTextColor || '#FFFFFF',
+          fontStyle: window.THEME?.buttonStyle || 'bold'
         }).setOrigin(0.5);
+        
+        // Тень для текста
+        text.setShadow(0, 2, '#000000', 4, false, true);
         
         // Зона клика
         const zone = scene.add.zone(0, 0, w, h)
@@ -59,19 +70,55 @@
         container.add([bg, text, zone]);
         container.setSize(w, h);
         
-        // События
-        zone.on('pointerdown', () => onClick && onClick());
-        zone.on('pointerover', () => {
-          bg.clear().fillStyle(0x34495E).fillRoundedRect(-w/2, -h/2, w, h, 8)
-            .lineStyle(2, 0x3498DB).strokeRoundedRect(-w/2, -h/2, w, h, 8);
-          scene.tweens.add({ targets: container, scale: 1.05, duration: 100 });
-        });
-        zone.on('pointerout', () => {
-          bg.clear().fillStyle(0x2C3E50).fillRoundedRect(-w/2, -h/2, w, h, 8)
-            .lineStyle(2, 0x3498DB, 0.8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
-          scene.tweens.add({ targets: container, scale: 1.0, duration: 100 });
+        // УЛУЧШЕНО: События с анимациями
+        zone.on('pointerdown', () => {
+          if (onClick) {
+            // Анимация нажатия
+            scene.tweens.add({
+              targets: container,
+              scale: 0.95,
+              duration: 100,
+              yoyo: true,
+              ease: 'Power2'
+            });
+            onClick();
+          }
         });
         
+        zone.on('pointerover', () => {
+          // Изменение фона при наведении
+          bg.clear()
+            .fillGradientStyle(0x34495E, 0x34495E, 0x3C5A78, 0x3C5A78)
+            .fillRoundedRect(-w/2, -h/2, w, h, 8)
+            .lineStyle(2, 0x52A7F7)
+            .strokeRoundedRect(-w/2, -h/2, w, h, 8);
+          
+          // Анимация масштаба
+          scene.tweens.add({ 
+            targets: container, 
+            scale: 1.05, 
+            duration: 150,
+            ease: 'Power2'
+          });
+        });
+        
+        zone.on('pointerout', () => {
+          // Возврат к исходному виду
+          bg.clear()
+            .fillGradientStyle(0x2C3E50, 0x2C3E50, 0x34495E, 0x34495E)
+            .fillRoundedRect(-w/2, -h/2, w, h, 8)
+            .lineStyle(2, 0x3498DB, 0.8)
+            .strokeRoundedRect(-w/2, -h/2, w, h, 8);
+          
+          scene.tweens.add({ 
+            targets: container, 
+            scale: 1.0, 
+            duration: 150,
+            ease: 'Power2'
+          });
+        });
+        
+        // Свойства для совместимости
         container.zone = zone;
         container.label = text;
         container.bg = bg;
@@ -79,7 +126,68 @@
       };
       
       window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}) {
-        return window.makeImageButton(scene, x, y, size, size, iconText, onClick, opts);
+        const container = scene.add.container(x, y);
+        
+        // Круглый фон
+        const bg = scene.add.graphics()
+          .fillStyle(0x2C3E50, 0.8)
+          .fillCircle(0, 0, size/2)
+          .lineStyle(2, 0x3498DB, 0.6)
+          .strokeCircle(0, 0, size/2);
+        
+        // Иконка
+        const icon = scene.add.text(0, 0, iconText, {
+          fontFamily: window.THEME?.fontButton || 'Arial, sans-serif',
+          fontSize: Math.round(size * (opts.fontFactor || 0.4)) + 'px',
+          color: opts.color || window.THEME?.buttonTextColor || '#FFFFFF',
+          fontStyle: window.THEME?.buttonStyle || 'bold'
+        }).setOrigin(0.5);
+        
+        // Зона клика
+        const zone = scene.add.zone(0, 0, size, size)
+          .setInteractive({ useHandCursor: true });
+        
+        container.add([bg, icon, zone]);
+        container.setSize(size, size);
+        
+        // События с анимациями
+        zone.on('pointerdown', () => {
+          if (onClick) {
+            scene.tweens.add({
+              targets: container,
+              scale: 0.9,
+              duration: 100,
+              yoyo: true,
+              ease: 'Power2'
+            });
+            onClick();
+          }
+        });
+        
+        zone.on('pointerover', () => {
+          bg.clear()
+            .fillStyle(0x34495E, 0.9)
+            .fillCircle(0, 0, size/2)
+            .lineStyle(2, 0x52A7F7)
+            .strokeCircle(0, 0, size/2);
+          
+          scene.tweens.add({ targets: container, scale: 1.1, duration: 150 });
+        });
+        
+        zone.on('pointerout', () => {
+          bg.clear()
+            .fillStyle(0x2C3E50, 0.8)
+            .fillCircle(0, 0, size/2)
+            .lineStyle(2, 0x3498DB, 0.6)
+            .strokeCircle(0, 0, size/2);
+          
+          scene.tweens.add({ targets: container, scale: 1.0, duration: 150 });
+        });
+        
+        container.zone = zone;
+        container.label = icon;
+        container.bg = bg;
+        return container;
       };
     }
   </script>
@@ -89,90 +197,164 @@
   <script src="scenes/MenuScene.js"></script>
   <script src="scenes/GameScene.js"></script>
 
-  <!-- ИСПРАВЛЕНО: Раскомментированный VK Bridge -->
-  <script src="main-vk.js"></script>
-  
-  <!-- Основная инициализация игры -->
+  <!-- СОХРАНЕНО: Ваши настройки сверхвысокого разрешения + добавления -->
   <script>
-    // ДОБАВЛЕНО: Проверка готовности DOM
-    function initGameWhenReady() {
-      if (!window.Phaser) {
-        console.error('❌ Phaser не найден');
-        return;
+    // ДОБАВЛЕНО: Проверка готовности всех зависимостей
+    function checkDependencies() {
+      const required = [
+        { name: 'Phaser', check: () => window.Phaser },
+        { name: 'THEME', check: () => window.THEME },
+        { name: 'ALL_CARD_KEYS', check: () => window.ALL_CARD_KEYS },
+        { name: 'LEVELS', check: () => window.LEVELS },
+        { name: 'PreloadScene', check: () => window.PreloadScene },
+        { name: 'MenuScene', check: () => window.MenuScene },
+        { name: 'GameScene', check: () => window.GameScene }
+      ];
+      
+      const missing = required.filter(dep => !dep.check());
+      
+      if (missing.length > 0) {
+        console.error('❌ Missing dependencies:', missing.map(d => d.name));
+        return false;
       }
+      
+      console.log('✅ All dependencies loaded');
+      return true;
+    }
 
-      if (!window.ALL_CARD_KEYS || !window.LEVELS) {
-        console.error('❌ Игровые данные не загружены');
-        return;
-      }
-
-      console.log('🎮 Initializing game...');
-
-      const DPR = Math.min(2, window.devicePixelRatio || 1);
-      const config = {
-        type: Phaser.AUTO,
-        parent: 'game',
-        backgroundColor: '#000000',
-        scale: {
-          mode: Phaser.Scale.FIT,
-          autoCenter: Phaser.Scale.CENTER_BOTH,
-          width: 1080,
-          height: 720
+    // Максимальный DPR для ультра-четкости (СОХРАНЕНО из вашего кода)
+    const DPR = window.devicePixelRatio || 1;
+    
+    // ДОБАВЛЕНО: Определение платформы для оптимизации
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLowEnd = navigator.hardwareConcurrency <= 2 || navigator.deviceMemory <= 2;
+    
+    // УЛУЧШЕНО: Адаптивное разрешение на основе устройства
+    let baseWidth, baseHeight;
+    
+    if (isMobile && isLowEnd) {
+      // Для слабых мобильных устройств
+      baseWidth = 1080;
+      baseHeight = 720;
+      console.log('📱 Low-end mobile detected, using standard resolution');
+    } else if (isMobile) {
+      // Для мощных мобильных устройств
+      baseWidth = 1920;
+      baseHeight = 1080;
+      console.log('📱 High-end mobile detected, using high resolution');
+    } else {
+      // Для десктопа - ваше сверхвысокое разрешение
+      baseWidth = 2560;
+      baseHeight = 1440;
+      console.log('🖥️ Desktop detected, using ultra-high resolution');
+    }
+    
+    window.gameConfig = {
+      type: Phaser.AUTO,
+      parent: 'game',
+      backgroundColor: '#1d2330',
+      scale: {
+        // FIT режим для лучшего качества (СОХРАНЕНО)
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        // Адаптивное разрешение с вашими значениями для десктопа
+        width: baseWidth,
+        height: baseHeight
+      },
+      resolution: DPR,
+      render: { 
+        antialias: true, 
+        pixelArt: false,
+        roundPixels: false, // Максимальная четкость (СОХРАНЕНО)
+        powerPreference: 'high-performance',
+        // СОХРАНЕНО: Ваши дополнительные настройки качества
+        premultipliedAlpha: true,
+        transparent: false,
+        clearBeforeRender: true,
+        // ДОБАВЛЕНО: Дополнительные оптимизации
+        batchSize: 4096,
+        maxTextures: 16
+      },
+      scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
+      physics: {
+        default: false // СОХРАНЕНО: Отключена физика
+      },
+      input: {
+        activePointers: 1,
+        smoothFactor: 0.1 // СОХРАНЕНО: Сглаживание для плавности
+      },
+      // ДОБАВЛЕНО: Настройки производительности
+      fps: {
+        target: 60,
+        forceSetTimeOut: true,
+        deltaHistory: 10
+      },
+      // ДОБАВЛЕНО: Обработчики для интеграции с VK
+      callbacks: {
+        preBoot: function(game) {
+          console.log('🚀 Game pre-boot');
+          
+          // Проверяем зависимости
+          if (!checkDependencies()) {
+            throw new Error('Missing required dependencies');
+          }
         },
-        resolution: DPR,
-        render: { 
-          antialias: true, 
-          pixelArt: false,
-          // ДОБАВЛЕНО: Оптимизации рендеринга
-          powerPreference: 'high-performance',
-          clearBeforeRender: true,
-          premultipliedAlpha: true,
-          preserveDrawingBuffer: false
-        },
-        scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
         
-        // ДОБАВЛЕНО: Оптимизации производительности
-        fps: {
-          target: 60,
-          forceSetTimeOut: true
-        },
-        
-        // ДОБАВЛЕНО: Обработка ошибок
-        callbacks: {
-          preBoot: function (game) {
-            console.log('🚀 Game pre-boot');
-          },
-          postBoot: function (game) {
-            console.log('✅ Game booted successfully');
-            window.game = game;
-            
-            // ДОБАВЛЕНО: Глобальные обработчики ошибок
-            game.events.on('pause', () => {
-              console.log('⏸️ Game paused');
-            });
-            
-            game.events.on('resume', () => {
-              console.log('▶️ Game resumed');
-            });
+        postBoot: function(game) {
+          console.log('✅ Game booted successfully', {
+            renderer: game.renderer.type === 0 ? 'Canvas' : 'WebGL',
+            resolution: DPR,
+            size: `${game.scale.width}x${game.scale.height}`,
+            deviceRatio: window.devicePixelRatio,
+            mobile: isMobile,
+            lowEnd: isLowEnd
+          });
+          
+          // Сохраняем ссылку на игру глобально
+          window.game = game;
+          
+          // ДОБАВЛЕНО: Передача VK данных в игру
+          if (window.VK_USER_DATA) {
+            game.registry.set('vkUserData', window.VK_USER_DATA);
+          }
+          if (window.VK_LAUNCH_PARAMS) {
+            game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
+          }
+          
+          // Глобальные обработчики ошибок
+          game.events.on('pause', () => console.log('⏸️ Game paused'));
+          game.events.on('resume', () => console.log('▶️ Game resumed'));
+          
+          // ДОБАВЛЕНО: Отладочная информация
+          if (window.location.search.includes('debug=1')) {
+            console.log('🔧 Debug mode enabled');
+            window.debugGameConfig = {
+              config: game.config,
+              renderer: game.renderer,
+              textures: game.textures,
+              scale: game.scale
+            };
           }
         }
-      };
+      }
+    };
 
-      // Создаём игру
-      try {
-        window.game = new Phaser.Game(config);
+    // ДОБАВЛЕНО: Обработка ошибок инициализации
+    window.addEventListener('error', (event) => {
+      console.error('🚨 JavaScript Error:', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        error: event.error
+      });
+      
+      // Показываем пользователю ошибку только при критических проблемах
+      if (event.message.includes('Phaser') || 
+          event.message.includes('WebGL') ||
+          event.message.includes('dependencies')) {
         
-        // ДОБАВЛЕНО: Обработка ошибок игры
-        window.game.events.on('ready', () => {
-          console.log('🎉 Game ready!');
-        });
-        
-      } catch (error) {
-        console.error('❌ Failed to initialize game:', error);
-        
-        // Показываем пользователю ошибку
         const gameDiv = document.getElementById('game');
-        if (gameDiv) {
+        if (gameDiv && !window.game) {
           gameDiv.innerHTML = `
             <div style="
               display: flex; 
@@ -187,101 +369,93 @@
               padding: 20px;
             ">
               <h2>😔 Ошибка загрузки игры</h2>
-              <p>Попробуйте обновить страницу</p>
+              <p>Проверьте подключение к интернету и обновите страницу</p>
               <button onclick="location.reload()" style="
-                padding: 10px 20px; 
+                padding: 12px 24px; 
                 font-size: 16px; 
                 background: #3498db; 
                 color: white; 
                 border: none; 
-                border-radius: 5px; 
+                border-radius: 8px; 
                 cursor: pointer;
-                margin-top: 15px;
-              ">🔄 Обновить</button>
+                margin-top: 20px;
+                font-weight: bold;
+              ">🔄 Обновить страницу</button>
+              <div style="
+                margin-top: 20px; 
+                font-size: 12px; 
+                opacity: 0.7;
+                max-width: 400px;
+              ">
+                Если проблема повторяется, попробуйте открыть игру в другом браузере
+              </div>
             </div>
           `;
         }
       }
-    }
-
-    // ДОБАВЛЕНО: Ожидание полной загрузки
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initGameWhenReady);
-    } else {
-      // Небольшая задержка для завершения загрузки скриптов
-      setTimeout(initGameWhenReady, 100);
-    }
-
-    // ДОБАВЛЕНО: Обработка изменения видимости страницы
-    document.addEventListener('visibilitychange', () => {
-      if (window.game) {
-        if (document.hidden) {
-          console.log('📱 Page hidden - pausing game');
-          // Пауза активной сцены
-          const activeScene = window.game.scene.getActiveScene();
-          if (activeScene && activeScene.scene.key === 'GameScene') {
-            activeScene.canClick = false;
-            activeScene._pausedByVisibility = true;
-          }
-        } else {
-          console.log('📱 Page visible - resuming game');
-          // Возобновление игры с задержкой
-          setTimeout(() => {
-            const activeScene = window.game.scene.getActiveScene();
-            if (activeScene && activeScene.scene.key === 'GameScene' && activeScene._pausedByVisibility) {
-              activeScene.canClick = true;
-              activeScene._pausedByVisibility = false;
-            }
-          }, 500);
-        }
-      }
     });
 
-    // ДОБАВЛЕНО: Очистка при выходе
+    // ДОБАВЛЕНО: Оптимизация для мобильных устройств
+    if (isMobile) {
+      // Предотвращаем масштабирование
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
+      // Предотвращаем двойное касание для масштабирования
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function(e) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
+      
+      console.log('📱 Mobile optimizations applied');
+    }
+  </script>
+
+  <!-- ИСПРАВЛЕНО: Раскомментирован main.js (VK интеграция включена) -->
+  <script src="main.js"></script>
+  
+  <!-- ДОБАВЛЕНО: Обработка изменения ориентации -->
+  <script>
+    // Обработка поворота экрана
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        if (window.game && window.game.scale) {
+          window.game.scale.refresh();
+          console.log('🔄 Screen orientation changed, game refreshed');
+        }
+      }, 500);
+    });
+    
+    // Обработка изменения размера окна
+    window.addEventListener('resize', () => {
+      if (window.game && window.game.scale) {
+        clearTimeout(window.resizeTimeout);
+        window.resizeTimeout = setTimeout(() => {
+          window.game.scale.refresh();
+          console.log('🔄 Window resized, game refreshed');
+        }, 250);
+      }
+    });
+    
+    // ДОБАВЛЕНО: Очистка при выходе со страницы
     window.addEventListener('beforeunload', () => {
-      console.log('🔄 Page unloading - cleaning up');
+      console.log('🔄 Page unloading, cleaning up...');
       if (window.game) {
         try {
           window.game.destroy(true);
           window.game = null;
         } catch (e) {
-          console.warn('Cleanup error:', e);
+          console.warn('Cleanup warning:', e);
         }
       }
     });
-
-    // ДОБАВЛЕНО: Обработчик ошибок JavaScript
-    window.addEventListener('error', (event) => {
-      console.error('🚨 JavaScript Error:', event.error);
-      
-      // Отправляем ошибку в VK если доступно
-      if (window.VKSafe && window.VKSafe.send) {
-        window.VKSafe.send('VKWebAppStorageSet', {
-          key: 'last_error',
-          value: JSON.stringify({
-            message: event.error?.message || 'Unknown error',
-            stack: event.error?.stack || 'No stack trace',
-            timestamp: Date.now()
-          })
-        }).catch(() => {
-          // Игнорируем ошибки отправки ошибок
-        });
-      }
-    });
-
-    // ДОБАВЛЕНО: Отладочная информация (только в dev)
-    if (window.location.hostname === 'localhost' || window.location.search.includes('debug=1')) {
-      console.log('🔧 Debug mode enabled');
-      window.debugInfo = {
-        phaser: !!window.Phaser,
-        cardKeys: window.ALL_CARD_KEYS?.length || 0,
-        levels: window.LEVELS?.length || 0,
-        theme: !!window.THEME,
-        vkBridge: !!window.vkBridge,
-        userAgent: navigator.userAgent
-      };
-      console.table(window.debugInfo);
-    }
   </script>
 </body>
 </html>
