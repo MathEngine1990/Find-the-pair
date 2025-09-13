@@ -1,4 +1,4 @@
-//---scenes/MenuScene.js - С СИСТЕМОЙ ПРОГРЕССА И ЗВЁЗДОЧЕК
+//---scenes/MenuScene.js - С СИСТЕМОЙ ПРОГРЕССА И ЗВЕЗДОЧЕК
 
 window.MenuScene = class MenuScene extends Phaser.Scene {
   constructor(){ super('MenuScene'); }
@@ -6,7 +6,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
   init(data){ 
     this.levelPage = data?.page || 0; 
     
-    // ДОБАВЛЕНО: Получаем VK данные если есть
+    // Получаем VK данные если есть
     this.vkUserData = data?.userData || window.VK_USER_DATA;
     this.isVKEnvironment = data?.isVK || !!window.VK_LAUNCH_PARAMS;
   }
@@ -28,12 +28,11 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       this.drawMenu(this.levelPage);
     });
 
-    // ДОБАВЛЕНО: Очистка при завершении сцены
+    // Очистка при завершении сцены
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
   }
 
-  // ДОБАВЛЕНО: Очистка ресурсов
   cleanup() {
     console.log('MenuScene cleanup started');
     
@@ -59,7 +58,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     console.log('MenuScene cleanup completed');
   }
 
-  // ДОБАВЛЕНО: Получение прогресса игрока
+  // Получение прогресса игрока
   getProgress() {
     try {
       const saved = localStorage.getItem('findpair_progress');
@@ -70,7 +69,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     }
   }
 
-  // ДОБАВЛЕНО: Получение статистики
+  // Получение статистики
   getStats() {
     const progress = this.getProgress();
     const levels = Object.keys(progress);
@@ -122,7 +121,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       const tex = this.textures.createCanvas(key, Math.max(2, Math.round(W*DPR)), Math.max(2, Math.round(H*DPR)));
       const ctx = tex.getContext(); ctx.save(); ctx.scale(DPR, DPR);
       const g = ctx.createLinearGradient(0,0,0,H);
-      g.addColorStop(0, THEME.bgTop); g.addColorStop(0.6, THEME.bgMid); g.addColorStop(1, THEME.bgBottom);
+      g.addColorStop(0, window.THEME.bgTop); g.addColorStop(0.6, window.THEME.bgMid); g.addColorStop(1, window.THEME.bgBottom);
       ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
       ctx.restore(); tex.refresh();
     }
@@ -136,7 +135,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
   clearMenu(){
     if (this._wheelHandler){ this.input.off('wheel', this._wheelHandler); this._wheelHandler = null; }
     
-    // УЛУЧШЕНО: Более тщательная очистка
+    // Улучшенная очистка
     if (this.levelButtons) {
       this.levelButtons.forEach(btn => {
         if (btn && typeof btn.destroy === 'function') {
@@ -151,12 +150,12 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     }
   }
 
-  drawMenu(page) {
+  drawMenu(page){
     this.clearMenu();
     const { W, H } = this.getSceneWH();
     this.levelPage = page;
 
-    // ДОБАВЛЕНО: Проверка первого запуска для возрастных ограничений
+    // Показ возрастных ограничений при первом запуске
     const isFirstLaunch = !localStorage.getItem('firstLaunchShown');
     if (isFirstLaunch && this.isVKEnvironment) {
       this.showAgeRating();
@@ -164,38 +163,37 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       return;
     }
 
-    const COLS = 3, ROWS = 3, PER_PAGE = COLS * ROWS;
+    const COLS=3, ROWS=3, PER_PAGE=COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
     const titlePx = Math.round(Phaser.Math.Clamp(H * (window.THEME.titleSizeFactor || 0.08), 22, 56));
     const title = this.add.text(W/2, H*0.13, 'Сколько пар играть?', {
       fontFamily: window.THEME.fontTitle || window.THEME.font,
-      fontSize: `${titlePx}px`,
-      fontStyle: window.THEME.titleStyle || 'bold',
-      color: window.THEME.titleColor || '#E8E1C9',
+      fontSize:   `${titlePx}px`,
+      fontStyle:  window.THEME.titleStyle || 'bold',
+      color:      window.THEME.titleColor || '#E8E1C9',
       align: 'center'
     }).setOrigin(0.5);
-    
     title.setStroke('#0A1410', Math.max(1, Math.round(titlePx * 0.06)));
     title.setShadow(0, Math.max(1, Math.round(titlePx * 0.10)), '#000000', Math.round(titlePx * 0.18), false, true);
     this.levelButtons.push(title);
 
-    // ДОБАВЛЕНО: Общая статистика прогресса
-    const stats = this.getStats();
-    let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels}`;
-    if (stats.totalStars > 0) {
-      statsText += ` | ⭐ ${stats.totalStars}/${stats.maxStars}`;
-    }
-    
-    // ДОБАВЛЕНО: Персонализация для VK пользователей
+    // Персонализация для VK пользователей
     if (this.vkUserData && this.vkUserData.first_name) {
-      const greeting = this.add.text(W/2, H*0.06, `Привет, ${this.vkUserData.first_name}! 👋`, {
+      const greeting = this.add.text(W/2, H*0.06, `Привет, ${this.vkUserData.first_name}!`, {
         fontFamily: window.THEME.font,
         fontSize: Math.round(titlePx * 0.5) + 'px',
         color: '#4ECDC4',
         fontStyle: '600'
       }).setOrigin(0.5);
       this.levelButtons.push(greeting);
+    }
+
+    // Общая статистика прогресса
+    const stats = this.getStats();
+    let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels}`;
+    if (stats.totalStars > 0) {
+      statsText += ` | Звезд: ${stats.totalStars}/${stats.maxStars}`;
     }
 
     const statsDisplay = this.add.text(W/2, H*0.17, statsText, {
@@ -212,26 +210,24 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const cellH = areaH / ROWS;
     const cellW = areaW / COLS;
     const gridLeft = (W - areaW) / 2;
-    const gridTop = topY;
+    const gridTop  = topY;
 
     const startIdx = this.levelPage * PER_PAGE;
-    const endIdx = Math.min(startIdx + PER_PAGE, window.LEVELS.length);
+    const endIdx   = Math.min(startIdx + PER_PAGE, window.LEVELS.length);
     const pageLevels = window.LEVELS.slice(startIdx, endIdx);
 
-    // УЛУЧШЕНО: Создание кнопок уровней с отображением прогресса
+    // Создание кнопок уровней с отображением прогресса
     pageLevels.forEach((lvl, i) => {
       const levelIndex = startIdx + i;
       const r = (i / COLS) | 0, c = i % COLS;
       const x = gridLeft + c * cellW + cellW/2;
-      const y = gridTop + r * cellH + cellH/2;
+      const y = gridTop  + r * cellH + cellH/2;
       const w = Math.min(320, cellW*0.9);
       const h = Math.min(200, cellH*0.86);
 
-      // ИЗМЕНЕНО: Создаём контейнер для кнопки + прогресса
       this.createLevelButton(x, y, w, h, lvl, levelIndex);
     });
 
-    // Навигация по страницам
     const yNav = H*0.86;
     const size = Math.max(52, Math.round(H*0.06));
     const prevActive = this.levelPage > 0;
@@ -240,24 +236,19 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const prevBtn = window.makeIconButton(this, W*0.30, yNav, size, '‹', () => {
       if (prevActive) this.drawMenu(this.levelPage - 1);
     });
-    prevBtn.setAlpha(prevActive ? 1 : 0.45); 
-    this.levelButtons.push(prevBtn);
+    prevBtn.setAlpha(prevActive?1:0.45); this.levelButtons.push(prevBtn);
 
     const pageTxt = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
-      fontFamily: window.THEME.font, 
-      fontSize: Math.round(Math.min(Math.max(size*0.30, 14), 22)) + 'px',
-      color: '#E8E1C9', 
-      fontStyle: '600'
+      fontFamily: window.THEME.font, fontSize: Math.round(Math.min(Math.max(size*0.30,14),22)) + 'px',
+      color:'#E8E1C9', fontStyle:'600'
     }).setOrigin(0.5);
     this.levelButtons.push(pageTxt);
 
     const nextBtn = window.makeIconButton(this, W*0.70, yNav, size, '›', () => {
       if (nextActive) this.drawMenu(this.levelPage + 1);
     });
-    nextBtn.setAlpha(nextActive ? 1 : 0.45); 
-    this.levelButtons.push(nextBtn);
+    nextBtn.setAlpha(nextActive?1:0.45); this.levelButtons.push(nextBtn);
 
-    // Колесо мыши для навигации
     this._wheelHandler = (_p, _objs, _dx, dy) => {
       if (dy > 0 && nextActive) this.drawMenu(this.levelPage + 1);
       else if (dy < 0 && prevActive) this.drawMenu(this.levelPage - 1);
@@ -265,7 +256,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.input.on('wheel', this._wheelHandler);
   }
 
-  // ДОБАВЛЕНО: Создание кнопки уровня с прогрессом
+  // Создание кнопки уровня с прогрессом
   createLevelButton(x, y, w, h, level, levelIndex) {
     // Контейнер для всех элементов уровня
     const levelContainer = this.add.container(x, y);
@@ -275,9 +266,9 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const levelProgress = progress[levelIndex];
 
     // Основная кнопка уровня
-    const btnY = -h*0.15; // Сдвигаем кнопку вверх, чтобы место для звёзд
+    const btnY = -h*0.15; // Сдвигаем кнопку вверх, чтобы место для звезд
     const btn = window.makeImageButton(this, 0, btnY, w, h*0.7, level.label, () => {
-      // Передаём VK данные в GameScene
+      // Передаем VK данные в GameScene
       this.scene.start('GameScene', { 
         level: level, 
         page: this.levelPage,
@@ -288,13 +279,13 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
     levelContainer.add(btn);
 
-    // ДОБАВЛЕНО: Отображение звёздочек и прогресса
+    // Отображение звездочек и прогресса
     const starsY = h*0.25;
     const starSize = Math.min(22, w*0.08);
     const starSpacing = starSize + 6;
 
     if (levelProgress) {
-      // Показываем заработанные звёздочки
+      // Показываем заработанные звездочки
       for (let star = 1; star <= 3; star++) {
         const starX = (star - 2) * starSpacing;
         const filled = star <= levelProgress.stars;
@@ -306,7 +297,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       }
 
       // Показываем лучшее время
-      const timeText = this.add.text(0, starsY + 28, `🕐 ${this.formatTime(levelProgress.bestTime)}`, {
+      const timeText = this.add.text(0, starsY + 28, `⏱ ${this.formatTime(levelProgress.bestTime)}`, {
         fontFamily: window.THEME.font,
         fontSize: Math.round(starSize * 0.55) + 'px',
         color: '#4ECDC4'
@@ -322,7 +313,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       levelContainer.add(accuracyText);
 
     } else {
-      // Уровень не пройден - показываем пустые звёздочки
+      // Уровень не пройден - показываем пустые звездочки
       for (let star = 1; star <= 3; star++) {
         const starX = (star - 2) * starSpacing;
         const starText = this.add.text(starX, starsY, '☆', {
@@ -344,14 +335,14 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.levelButtons.push(levelContainer);
   }
 
-  // ДОБАВЛЕНО: Форматирование времени
+  // Форматирование времени
   formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}с`;
   }
 
-  // ДОБАВЛЕНО: Диалог возрастных ограничений
+  // Диалог возрастных ограничений (улучшенный)
   showAgeRating() {
     const { W, H } = this.getSceneWH();
     
@@ -373,7 +364,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       .setDepth(1001);
 
     // Заголовок
-    const title = this.add.text(W/2, H/2 - modalH/3, '📋 Возрастные ограничения', {
+    const title = this.add.text(W/2, H/2 - modalH/3, 'Возрастные ограничения', {
       fontFamily: window.THEME.font,
       fontSize: '22px',
       color: '#FFFFFF',
@@ -382,7 +373,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
     // Основной текст
     const text = this.add.text(W/2, H/2 - 20, 
-      'Игра "Память: Найди пару"\nне содержит контента,\nзапрещённого для несовершеннолетних\n\n🔞 Возрастное ограничение: 0+\n\n✅ Безопасно для всей семьи', {
+      'Игра "Память: Найди пару"\nне содержит контента,\nзапрещенного для несовершеннолетних\n\n🔞 Возрастное ограничение: 0+\n\n✅ Безопасно для всей семьи', {
       fontFamily: window.THEME.font,
       fontSize: '16px',
       color: '#CCCCCC',
@@ -390,7 +381,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       lineSpacing: 8
     }).setOrigin(0.5).setDepth(1002);
 
-    // ДОБАВЛЕНО: Дополнительная информация для VK
+    // Дополнительная информация для VK
     if (this.isVKEnvironment) {
       const vkInfo = this.add.text(W/2, H/2 + modalH/3 - 80, 
         '🔒 Данные обрабатываются согласно\nполитике конфиденциальности ВКонтакте', {
@@ -412,14 +403,14 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
         title.destroy();
         text.destroy();
         okButton.destroy();
-        if (this.isVKEnvironment) vkInfo.destroy();
+        if (this.isVKEnvironment && vkInfo) vkInfo.destroy();
         this.drawMenu(this.levelPage);
       }
     );
     okButton.setDepth(1003);
   }
 
-  // ДОБАВЛЕНО: Синхронизация прогресса с VK
+  // Синхронизация прогресса с VK
   async syncProgressWithVK() {
     if (!this.isVKEnvironment || !window.VKHelpers) return false;
 
@@ -432,7 +423,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       // Получаем локальные данные
       const localProgress = this.getProgress();
       
-      // Мержим прогресс (берём лучший результат)
+      // Мержим прогресс (берем лучший результат)
       const merged = { ...vkProgress };
       
       Object.keys(localProgress).forEach(levelIndex => {
@@ -449,31 +440,11 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       await window.VKHelpers.setStorageData('findpair_progress', merged);
       localStorage.setItem('findpair_progress', JSON.stringify(merged));
       
-      console.log('📤 Progress synced with VK cloud');
+      console.log('Progress synced with VK cloud');
       return true;
     } catch (error) {
-      console.warn('⚠️ Failed to sync progress with VK:', error);
+      console.warn('Failed to sync progress with VK:', error);
       return false;
-    }
-  }
-
-  // ДОБАВЛЕНО: Показ общего рейтинга (если есть VK данные)
-  async showLeaderboard() {
-    if (!this.isVKEnvironment || !window.VKHelpers) {
-      console.log('Leaderboard not available outside VK');
-      return;
-    }
-
-    try {
-      // Получаем данные друзей (если есть разрешения)
-      const friends = await window.VKSafe.send('VKWebAppGetFriends');
-      
-      if (friends && friends.users) {
-        // Здесь можно реализовать сравнение результатов с друзьями
-        console.log('Friends data received for leaderboard');
-      }
-    } catch (error) {
-      console.warn('Cannot get friends data for leaderboard:', error);
     }
   }
 };
