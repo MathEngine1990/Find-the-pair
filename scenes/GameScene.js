@@ -1,4 +1,4 @@
-//---scenes/GameScene.js - ИСПРАВЛЕНИЕ ПРОБЛЕМЫ С КАРТОЧКАМИ
+//---scenes/GameScene.js - ИСПРАВЛЕНИЕ ПРОБЛЕМЫ С КАРТОЧКАМИ И ЭКРАНОМ ПОБЕДЫ
 
 window.GameScene = class GameScene extends Phaser.Scene {
   
@@ -34,10 +34,15 @@ window.GameScene = class GameScene extends Phaser.Scene {
       canResize: true,      
       isMemorizationPhase: false,
       currentSeed: null,
+      showingVictory: false,
       // ИСПРАВЛЕНО: Фиксированные размеры карт
       cardWidth: null,
       cardHeight: null
     };
+    
+    // Ссылки на элементы экрана победы для точной очистки
+    this.victoryElements = null;
+    this.victoryContainer = null;
     
     // Seed для детерминированной генерации
     this.gameSeed = this.generateSeed();
@@ -209,9 +214,52 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
+  // НОВЫЙ МЕТОД: Очистка экрана победы
+  clearVictoryScreen() {
+    console.log('Clearing victory screen...');
+    
+    // Очищаем через контейнер если он существует
+    if (this.victoryContainer) {
+      this.victoryContainer.destroy();
+      this.victoryContainer = null;
+    }
+    
+    // Очищаем через массив элементов если он существует
+    if (this.victoryElements && Array.isArray(this.victoryElements)) {
+      this.victoryElements.forEach(element => {
+        if (element && element.destroy) {
+          element.destroy();
+        }
+      });
+      this.victoryElements = null;
+    }
+    
+    // Дополнительная очистка всех объектов с высоким depth (экран победы)
+    const toDestroy = [];
+    this.children.list.forEach(child => {
+      if (child && child.depth >= 100) {
+        toDestroy.push(child);
+      }
+    });
+    
+    toDestroy.forEach(child => {
+      if (child && child.destroy) {
+        child.destroy();
+      }
+    });
+    
+    // Сбрасываем флаг
+    this.gameState.showingVictory = false;
+    
+    console.log('Victory screen cleared');
+  }
+
   // Полная очистка при завершении сцены
   cleanup() {
     console.log('GameScene cleanup started');
+    
+    // Очистка экрана победы
+    this.clearVictoryScreen();
     
     // Очистка всех таймеров
     if (this.memorizeTimer) {
@@ -227,6 +275,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
     if (this.gameTimer) {
       this.gameTimer.destroy();
       this.gameTimer = null;
+    }
+
+    // Очистка всех time events
+    if (this.time) {
+      this.time.removeAllEvents();
+    }
+
+    // Остановка всех активных твинов
+    if (this.tweens) {
+      this.tweens.killAll();
     }
 
     // Очистка слушателей карт
@@ -371,8 +429,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.opened = [];
   }
 
-  // Безопасная очистка визуальных элементов
+  // ОБНОВЛЕННЫЙ МЕТОД: Безопасная очистка визуальных элементов
   clearVisualElements() {
+    // Очищаем экран победы перед очисткой других элементов
+    this.clearVictoryScreen();
+    
     // Безопасное уничтожение карт
     if (this.cards && Array.isArray(this.cards)) {
       this.cards.forEach(card => {
@@ -802,10 +863,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // Экран победы с системой прогресса и звёздочками
+  // УЛУЧШЕННЫЙ МЕТОД: Экран победы с системой прогресса и звёздочками
   showWin() {
     this.canClick = false;
     this.gameState.gameStarted = false;
+    this.gameState.showingVictory = true;
     this.stopGameTimer();
     this.cards.forEach(c => c.disableInteractive());
 
@@ -831,10 +893,15 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     const { W, H } = this.getSceneWH();
 
+    // Создаем контейнер для всех элементов экрана победы
+    this.victoryContainer = this.add.container(0, 0);
+    this.victoryContainer.setDepth(100);
+
     // Полупрозрачный фон
-    const overlay = this.add.graphics().setDepth(100);
+    const overlay = this.add.graphics();
     overlay.fillStyle(0x000000, 0.8);
     overlay.fillRect(0, 0, W, H);
+    this.victoryContainer.add(overlay);
 
     // Красивое окно результатов
     const panelW = Math.min(500, W * 0.9);
@@ -842,19 +909,21 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const panelX = W/2;
     const panelY = H/2;
 
-    const panel = this.add.graphics().setDepth(101);
+    const panel = this.add.graphics();
     panel.fillStyle(0x2C3E50, 0.95);
     panel.lineStyle(3, 0x3498DB, 0.8);
     panel.fillRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
     panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
+    this.victoryContainer.add(panel);
 
     // Заголовок
-    this.add.text(panelX, panelY - panelH/2 + 50, 'ПОБЕДА!', {
+    const title = this.add.text(panelX, panelY - panelH/2 + 50, 'ПОБЕДА!', {
       fontFamily: 'Arial, sans-serif', 
       fontSize: this._pxByH(0.06, 24, 42) + 'px', 
       color: '#F39C12', 
       fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(102);
+    }).setOrigin(0.5);
+    this.victoryContainer.add(title);
 
     // Отображение звёздочек
     this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
@@ -863,27 +932,32 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const statsY = panelY - panelH/2 + 160;
     const lineHeight = 30;
     
-    this.add.text(panelX, statsY, `Время: ${this.formatTime(gameTime)}`, {
+    const timeText = this.add.text(panelX, statsY, `Время: ${this.formatTime(gameTime)}`, {
       fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#4ECDC4', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(102);
+    }).setOrigin(0.5);
+    this.victoryContainer.add(timeText);
 
-    this.add.text(panelX, statsY + lineHeight, `Попыток: ${this.gameMetrics.attempts}`, {
+    const attemptsText = this.add.text(panelX, statsY + lineHeight, `Попыток: ${this.gameMetrics.attempts}`, {
       fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#E8E1C9', fontStyle: 'normal'
-    }).setOrigin(0.5).setDepth(102);
+    }).setOrigin(0.5);
+    this.victoryContainer.add(attemptsText);
 
-    this.add.text(panelX, statsY + lineHeight * 2, `Ошибок: ${this.mistakeCount}`, {
+    const errorsText = this.add.text(panelX, statsY + lineHeight * 2, `Ошибок: ${this.mistakeCount}`, {
       fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#E74C3C', fontStyle: 'normal'
-    }).setOrigin(0.5).setDepth(102);
+    }).setOrigin(0.5);
+    this.victoryContainer.add(errorsText);
 
-    this.add.text(panelX, statsY + lineHeight * 3, `Точность: ${accuracy}%`, {
+    const accuracyText = this.add.text(panelX, statsY + lineHeight * 3, `Точность: ${accuracy}%`, {
       fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#2ECC71', fontStyle: 'normal'
-    }).setOrigin(0.5).setDepth(102);
+    }).setOrigin(0.5);
+    this.victoryContainer.add(accuracyText);
 
     // Показываем улучшение результата
     if (progressResult.improved) {
-      this.add.text(panelX, statsY + lineHeight * 4, 'Новый рекорд!', {
+      const recordText = this.add.text(panelX, statsY + lineHeight * 4, 'Новый рекорд!', {
         fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#F39C12', fontStyle: 'bold'
-      }).setOrigin(0.5).setDepth(102);
+      }).setOrigin(0.5);
+      this.victoryContainer.add(recordText);
     }
 
     // Кнопки
@@ -904,11 +978,15 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this, panelX + btnW/2 + 10, btnY, btnW, btnH,
       'Меню',
       () => {
+        this.clearVictoryScreen();
         this.gameState.gameStarted = false;
         this.scene.start('MenuScene', { page: this.levelPage });
       }
     );
     menuBtn.setDepth(102);
+
+    // Сохраняем ссылки на элементы для точной очистки
+    this.victoryElements = [playAgainBtn, menuBtn];
   }
 
   // Система сохранения прогресса с звёздочками
@@ -979,7 +1057,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const star = this.add.text(starX, y, filled ? '★' : '☆', {
         fontSize: `${starSize}px`,
         color: filled ? '#FFD700' : '#666666'
-      }).setOrigin(0.5).setDepth(102);
+      }).setOrigin(0.5);
+      
+      // Добавляем звезду в контейнер если он существует
+      if (this.victoryContainer) {
+        this.victoryContainer.add(star);
+      }
       
       if (filled && improved) {
         // Анимация новых звёздочек
@@ -1003,12 +1086,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     // Текст с количеством звёзд
     const starsText = `${stars}/3 ⭐`;
-    this.add.text(x, y + 40, starsText, {
+    const starsLabel = this.add.text(x, y + 40, starsText, {
       fontFamily: 'Arial, sans-serif',
       fontSize: '16px',
       color: '#F39C12',
       fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(102);
+    }).setOrigin(0.5);
+    
+    if (this.victoryContainer) {
+      this.victoryContainer.add(starsLabel);
+    }
   }
 
   // Эффект блеска звёзд
@@ -1036,14 +1123,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // Перезапуск уровня
+  // ОБНОВЛЕННЫЙ МЕТОД: Перезапуск уровня с правильной очисткой
   restartLevel() {
+    console.log('Restarting level...');
+    
+    // Очищаем экран победы перед перезапуском
+    this.clearVictoryScreen();
+    
     this.gameState.gameStarted = false;
     this.gameState.deck = null; // Очищаем сохраненную колоду для новой генерации
     this.gameState.cardWidth = null; // Сбрасываем фиксированные размеры
     this.gameState.cardHeight = null;
     this.gameSeed = this.generateSeed(); // Новый seed
-    this.startGame(this.currentLevel);
+    
+    // Небольшая задержка для корректной очистки
+    this.time.delayedCall(100, () => {
+      this.startGame(this.currentLevel);
+    });
   }
 
   // Проверка достижений
