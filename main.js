@@ -1,4 +1,4 @@
-// ИСПРАВЛЕНО: Адаптивная инициализация игры с правильным масштабированием
+// ИСПРАВЛЕНО: Чистая инициализация игры без конфликтов переменных
 
 // Функция для определения оптимальных размеров игры
 function getOptimalGameSize() {
@@ -8,7 +8,6 @@ function getOptimalGameSize() {
   // Определяем тип устройства
   const isMobile = viewportWidth < 768;
   const isTablet = viewportWidth >= 768 && viewportWidth < 1024;
-  const isDesktop = viewportWidth >= 1024;
   
   let gameWidth, gameHeight;
   
@@ -38,94 +37,88 @@ function getOptimalGameSize() {
   };
 }
 
-// ИСПРАВЛЕНО: Получаем базовую конфигурацию из index.html и дополняем
-const optimalSize = getOptimalGameSize();
-console.log('Optimal game size:', optimalSize); // DEBUG
-
-// Обновляем конфигурацию оптимальными размерами
-if (window.gameConfig) {
-  window.gameConfig.scale.width = optimalSize.width;
-  window.gameConfig.scale.height = optimalSize.height;
-  
-  // ДОБАВЛЕНО: Дополнительные настройки производительности
-  window.gameConfig.fps = {
-    target: 60,
-    forceSetTimeOut: false
+// Проверяем, что конфигурация готова
+if (!window.gameConfig) {
+  console.error('Game config not found!');
+  window.gameConfig = {
+    type: Phaser.AUTO,
+    parent: 'game',
+    backgroundColor: '#1d2330',
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: 1080,
+      height: 720
+    },
+    resolution: Math.min(3, window.devicePixelRatio || 1),
+    render: { antialias: true, pixelArt: false },
+    scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
+    physics: { default: false }
   };
-  
-  window.gameConfig.dom = {
-    createContainer: false
-  };
-  
-  window.gameConfig.render.powerPreference = 'high-performance';
 }
 
-// Создаем игру с обновленной конфигурацией
-const game = new Phaser.Game(window.gameConfig || {});
+// Создаем игру с базовой конфигурацией
+const game = new Phaser.Game(window.gameConfig);
 
-// ДОБАВЛЕНО: Сохраняем ссылку на игру глобально
+// Сохраняем ссылку глобально
 window.game = game;
 
-// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Обработчик изменения размеров
-function handleResize() {
+// ИСПРАВЛЕНО: Обработчик изменения размеров с уникальным именем
+let gameResizeTimer;
+function handleGameResize() {
   if (!game || !game.scale) return;
   
-  const newSize = getOptimalGameSize();
+  // FIT режим автоматически адаптируется
+  game.scale.updateBounds();
   
-  // Проверяем, нужно ли изменять размеры
-  if (Math.abs(game.scale.gameSize.width - newSize.width) > 10 ||
-      Math.abs(game.scale.gameSize.height - newSize.height) > 10) {
-    
-    console.log('Resizing game to:', newSize); // DEBUG
-    game.scale.resize(newSize.width, newSize.height);
-  }
+  console.log('Game resized:', {
+    gameSize: game.scale.gameSize,
+    displaySize: game.scale.displaySize
+  });
 }
 
-// ИСПРАВЛЕНО: Обработчики событий изменения размеров
-let resizeTimeout;
+// Обработчики событий с дебаунсингом
 window.addEventListener('resize', () => {
-  // Дебаунсинг для производительности
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(handleResize, 100);
+  clearTimeout(gameResizeTimer);
+  gameResizeTimer = setTimeout(handleGameResize, 150);
 });
 
-// ДОБАВЛЕНО: Обработчик изменения ориентации (для мобильных)
 window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    handleResize();
-  }, 200); // Задержка для корректного определения новых размеров
+  setTimeout(handleGameResize, 300);
 });
 
-// ДОБАВЛЕНО: Обработчик события загрузки игры
+// Обработчик готовности игры
 game.events.once('ready', () => {
-  console.log('Game initialized with size:', game.scale.gameSize); // DEBUG
+  console.log('Game ready with config:', {
+    resolution: game.config.resolution,
+    scaleMode: game.scale.scaleMode,
+    gameSize: game.scale.gameSize,
+    canvasSize: `${game.canvas.width}x${game.canvas.height}`
+  });
   
-  // ИСПРАВЛЕНО: Убеждаемся что размеры корректны
-  handleResize();
+  handleGameResize();
 });
 
-// ДОБАВЛЕНО: Обработка ошибок
+// Обработка загрузки
 game.events.on('boot', () => {
   console.log('Game booted successfully');
 });
 
-window.addEventListener('error', (e) => {
-  console.error('Game error:', e);
-});
-
-// ДОБАВЛЕНО: Предотвращаем случайные action на мобильных
+// Предотвращаем зум и нежелательные touch действия
 document.addEventListener('touchmove', (e) => {
   e.preventDefault();
 }, { passive: false });
 
 document.addEventListener('touchstart', (e) => {
-  // Разрешаем только single touch
   if (e.touches.length > 1) {
     e.preventDefault();
   }
 }, { passive: false });
 
-// ДОБАВЛЕНО: Скрываем адресную строку на мобильных (iOS/Android)
-setTimeout(() => {
-  window.scrollTo(0, 1);
-}, 100);
+// Скрываем адресную строку на мобильных
+if (window.innerHeight < window.innerWidth) {
+  // Альбомная ориентация
+  setTimeout(() => {
+    window.scrollTo(0, 1);
+  }, 100);
+}

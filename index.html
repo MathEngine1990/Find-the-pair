@@ -40,28 +40,29 @@
   <script src="scenes/MenuScene.js"></script>
   <script src="scenes/GameScene.js"></script>
 
-  <!-- ИСПРАВЛЕНО: Минимальная инициализация, основная логика в main.js -->
+  <!-- ИСПРАВЛЕНО: Качественная инициализация с высоким разрешением -->
   <script>
-    // Объявляем только базовую конфигурацию, детали в main.js
-    const DPR = Math.min(2, window.devicePixelRatio || 1);
+    // Определяем оптимальный DPR для качества
+    const DPR = Math.min(3, window.devicePixelRatio || 1);
     
     window.gameConfig = {
       type: Phaser.AUTO,
       parent: 'game',
-      backgroundColor: '#000000',
+      backgroundColor: '#1d2330',
       scale: {
-        // ИСПРАВЛЕНО: Используем RESIZE для полной адаптивности
-        mode: Phaser.Scale.RESIZE,
+        // ИСПРАВЛЕНО: Возвращаемся к FIT для лучшего качества
+        mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        // Временные размеры, будут обновлены в main.js
-        width: 800,
-        height: 600
+        // Базовые размеры для FIT режима
+        width: 1080,
+        height: 720
       },
       resolution: DPR,
       render: { 
         antialias: true, 
         pixelArt: false,
-        roundPixels: true
+        roundPixels: false, // Отключаем для лучшего качества
+        powerPreference: 'high-performance'
       },
       scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
       physics: {
@@ -69,7 +70,7 @@
       },
       input: {
         activePointers: 1,
-        smoothFactor: 0
+        smoothFactor: 0.2
       }
     };
   </script>
