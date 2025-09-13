@@ -807,3 +807,26 @@
         
         setTimeout(() => {
           console.log('Simulating VKWebAppViewRestore...');
+          handleAppRestore();
+        }, 3000);
+        
+        setTimeout(() => {
+          console.log('Simulating VKWebAppUpdateConfig...');
+          handleConfigUpdate({ scheme: 'bright_light', accent_color: '#5A9EF4' });
+        }, 5000);
+      }
+    };
+
+    console.log('🔍 VK Debug utilities loaded:');
+    console.log('VKUtils.testVKMethod(method, params) - тест VK методов');
+    console.log('VKUtils.getUserInfo() - данные пользователя');
+    console.log('VKUtils.testNotifications() - тест уведомлений');
+    console.log('VKUtils.testStorage() - тест хранилища');
+    console.log('VKUtils.testShare() - тест поделиться');
+    console.log('VKUtils.showNotification(type) - хаптик уведомление');
+    console.log('VKUtils.showVKData() - показать VK данные');
+    console.log('VKUtils.simulateVKEvents() - симулировать события');
+    console.log('Add ?debug=1 to URL for detailed logging');
+  }
+
+})();
