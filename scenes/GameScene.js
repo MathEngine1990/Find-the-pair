@@ -1,6 +1,74 @@
 //---scenes/GameScene.js - ИСПРАВЛЕННАЯ версия
 
+
 window.GameScene = class GameScene extends Phaser.Scene {
+
+  // В GameScene.js добавить в init:
+init(data) {
+  this.currentLevel = data?.level || null;
+  this.levelPage = data?.page || 0;
+  
+  // Система достижений
+  this.achievements = this.getAchievements();
+  this.sessionStats = {
+    gamesPlayed: 0,
+    totalTime: 0,
+    totalErrors: 0,
+    perfectGames: 0
+  };
+}
+
+  getAchievements() {
+  const saved = localStorage.getItem('findpair_achievements');
+  return saved ? JSON.parse(saved) : {
+    firstWin: false,
+    perfectGame: false,
+    speedRunner: false, // выиграл за < 30 сек
+    persistent: false,  // сыграл 10 игр
+    expert: false       // прошел сложный уровень
+  };
+}
+
+  saveAchievements() {
+  localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+}
+
+  checkAchievements(gameTime, errors, level) {
+  let newAchievements = [];
+  
+  if (!this.achievements.firstWin) {
+    this.achievements.firstWin = true;
+    newAchievements.push('Первая победа!');
+  }
+  
+  if (errors === 0 && !this.achievements.perfectGame) {
+    this.achievements.perfectGame = true;
+    newAchievements.push('Идеальная игра!');
+  }
+  
+  if (gameTime < 30 && !this.achievements.speedRunner) {
+    this.achievements.speedRunner = true;
+    newAchievements.push('Скоростной бегун!');
+  }
+  
+  if (level.difficulty === 'hard' && !this.achievements.expert) {
+    this.achievements.expert = true;
+    newAchievements.push('Эксперт памяти!');
+  }
+  
+  this.sessionStats.gamesPlayed++;
+  if (this.sessionStats.gamesPlayed >= 10 && !this.achievements.persistent) {
+    this.achievements.persistent = true;
+    newAchievements.push('Упорство!');
+  }
+  
+  if (newAchievements.length > 0) {
+    this.saveAchievements();
+    this.showAchievements(newAchievements);
+  }
+}
+
+  
   constructor(){ super('GameScene'); }
 
   init(data){
