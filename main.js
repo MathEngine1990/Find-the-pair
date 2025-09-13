@@ -17,7 +17,7 @@
       try {
         if (window.vkBridge?.supports?.('VKWebAppInit')) {
           // 1. ИНИЦИАЛИЗАЦИЯ VK BRIDGE
-          vkBridge.send('VKWebAppInit').then(() => {
+          VKSafe.send('VKWebAppInit').then(() => {
             console.log('✅ VK Bridge initialized successfully');
             
             // 2. ПАРСИНГ LAUNCH ПАРАМЕТРОВ
@@ -34,17 +34,17 @@
             console.log('📋 VK Launch params:', window.VK_LAUNCH_PARAMS);
             
             // 3. НАСТРОЙКА ВНЕШНЕГО ВИДА
-            vkBridge.send('VKWebAppSetViewSettings', { 
+            VKSafe.send('VKWebAppSetViewSettings', { 
               status_bar_style: 'light', 
               action_bar_color: '#1d2330',
               navigation_bar_color: '#1d2330'
             }).catch(() => {});
             
             // 4. ОТКЛЮЧЕНИЕ СВАЙПА НАЗАД
-            vkBridge.send('VKWebAppDisableSwipeBack').catch(() => {});
+            VKSafe.send('VKWebAppDisableSwipeBack').catch(() => {});
             
             // 5. ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
-            vkBridge.send('VKWebAppGetUserInfo').then((userData) => {
+            VKSafe.send('VKWebAppGetUserInfo').then((userData) => {
               window.VK_USER_DATA = userData;
               console.log('👤 User data received:', userData);
               initGame();
@@ -169,7 +169,7 @@
     // Отправка события достижения
     sendAchievement: function(achievement) {
       if (window.vkBridge && isVK) {
-        vkBridge.send('VKWebAppTapticNotificationOccurred', { type: 'success' });
+        VKSafe.send('VKWebAppTapticNotificationOccurred', { type: 'success' });
         console.log('🏆 Achievement sent:', achievement);
       }
     },
@@ -178,7 +178,7 @@
     shareResult: function(level, time, errors) {
       if (window.vkBridge && isVK) {
         const message = `Прошел уровень ${level} за ${time}с с ${errors} ошибками в игре "Память: Найди пару"! 🧠🎯`;
-        vkBridge.send('VKWebAppShare', { link: location.href });
+        VKSafe.send('VKWebAppShare', { link: location.href });
         console.log('📤 Share result:', message);
       }
     },
@@ -186,7 +186,7 @@
     // Показать рекламу (для будущей монетизации)
     showAd: function(type = 'interstitial') {
       if (window.vkBridge && isVK) {
-        return vkBridge.send('VKWebAppShowNativeAds', { ad_format: type });
+        return VKSafe.send('VKWebAppShowNativeAds', { ad_format: type });
       }
       return Promise.reject('No VK Bridge');
     },
@@ -194,7 +194,7 @@
     // Сохранение в облако VK
     saveToCloud: function(key, data) {
       if (window.vkBridge && isVK) {
-        return vkBridge.send('VKWebAppStorageSet', { 
+        return VKSafe.send('VKWebAppStorageSet', { 
           key: key, 
           value: JSON.stringify(data) 
         });
@@ -207,7 +207,7 @@
     // Загрузка из облака VK
     loadFromCloud: function(key) {
       if (window.vkBridge && isVK) {
-        return vkBridge.send('VKWebAppStorageGet', { keys: [key] })
+        return VKSafe.send('VKWebAppStorageGet', { keys: [key] })
           .then(result => {
             const value = result.keys?.[0]?.value;
             return value ? JSON.parse(value) : null;
