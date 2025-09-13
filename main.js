@@ -69,7 +69,16 @@
   });
 
   // Безопасная обертка для VK Bridge
+  // Безопасная обертка для VK Bridge с улучшенной обработкой ошибок
   window.VKSafe = {
+    // Список известных безопасных ошибок, которые можно игнорировать
+    SAFE_ERRORS: {
+      'VKWebAppAllowNotifications': [15], // Access denied на мобильных
+      'VKWebAppSetViewSettings': [4, 15], // Не поддерживается/access denied
+      'VKWebAppDisableSwipeBack': [4], // Не поддерживается на некоторых платформах
+      'VKWebAppTapticNotificationOccurred': [4] // Не поддерживается на desktop
+    },
+
     async send(method, params = {}) {
       if (!window.vkBridge) {
         throw new Error('VK Bridge not available');
@@ -82,8 +91,22 @@
         debugLog(`VK Bridge response: ${method}`, result);
         return result;
       } catch (error) {
-        console.warn(`VK Bridge error for ${method}:`, error);
-        throw error;
+        // Проверяем, является ли ошибка "безопасной"
+        const safeErrorCodes = this.SAFE_ERRORS[method] || [];
+        const errorCode = error.error_data?.error_code;
+        const isSafeError = safeErrorCodes.includes(errorCode);
+        
+        if (isSafeError) {
+          console.warn(`⚠️ VK ${method}: Expected limitation (code ${errorCode})`);
+          debugLog(`Safe error for ${method}`, error);
+          
+          // Возвращаем mock результат для безопасных ошибок
+          return { result: false, safe_error: true, error_code: errorCode };
+        } else {
+          // Серьезная ошибка - логируем и пробрасываем
+          console.error(`❌ VK Bridge critical error for ${method}:`, error);
+          throw error;
+        }
       }
     },
     
@@ -92,7 +115,51 @@
     },
     
     supports(method) {
-      return window.vkBridge && window.vkBridge.supports && window.vkBridge.supports(method);
+      if (!window.vkBridge || !window.vkBridge.supports) return false;
+      
+      try {
+        return window.vkBridge.supports(method);
+      } catch (e) {
+        debugLog(`Error checking support for ${method}`, e);
+        return false;
+      }
+    },
+
+    // Проверка совместимости метода с текущей платформой
+    isMethodCompatible(method) {
+      const platform = window.VK_LAUNCH_PARAMS?.platform || 'web';
+      
+      // Известные ограничения по платформам
+      const platformLimitations = {
+        'VKWebAppAllowNotifications': ['web'], // Только desktop
+        'VKWebAppTapticNotificationOccurred': ['mobile_android', 'mobile_iphone'], // Только мобильные
+        'VKWebAppDisableSwipeBack': ['mobile_android', 'mobile_iphone', 'mobile_web'] // Только мобильные
+      };
+      
+      const supportedPlatforms = platformLimitations[method];
+      if (!supportedPlatforms) return true; // Нет ограничений
+      
+      return supportedPlatforms.includes(platform);
+    },
+
+    // Безопасный вызов с проверкой совместимости
+    async safeSend(method, params = {}) {
+      if (!this.supports(method)) {
+        debugLog(`Method ${method} not supported`);
+        return { result: false, reason: 'not_supported' };
+      }
+      
+      if (!this.isMethodCompatible(method)) {
+        debugLog(`Method ${method} not compatible with platform ${window.VK_LAUNCH_PARAMS?.platform}`);
+        return { result: false, reason: 'not_compatible' };
+      }
+      
+      try {
+        return await this.send(method, params);
+      } catch (error) {
+        debugLog(`Safe send failed for ${method}`, error);
+        return { result: false, reason: 'error', error };
+      }
     }
   };
 
@@ -182,13 +249,19 @@
   }
 
   // Настройка интерфейса VK (с обработкой ошибок)
+// Настройка интерфейса VK (с правильной обработкой мобильных ограничений)
   async function setupVKInterface() {
     const operations = [];
+    const platform = window.VK_LAUNCH_PARAMS?.platform || 'web';
+    const isMobilePlatform = ['mobile_android', 'mobile_iphone', 'mobile_web'].includes(platform);
+    
+    debugLog('Setting up VK interface', { platform, isMobile: isMobilePlatform });
     
     // Настройка статус-бара и навигации
     if (window.VKSafe.supports('VKWebAppSetViewSettings')) {
       operations.push({
         name: 'SetViewSettings',
+        critical: false,
         call: () => window.VKSafe.send('VKWebAppSetViewSettings', {
           status_bar_style: 'light',
           action_bar_color: '#1d2330',
@@ -201,27 +274,63 @@
     if (window.VKSafe.supports('VKWebAppDisableSwipeBack')) {
       operations.push({
         name: 'DisableSwipeBack',
+        critical: false,
         call: () => window.VKSafe.send('VKWebAppDisableSwipeBack')
       });
     }
     
-    // Разрешение уведомлений (опционально)
+    // Разрешение уведомлений (ТОЛЬКО для desktop и при соблюдении условий)
     if (window.VKSafe.supports('VKWebAppAllowNotifications')) {
-      operations.push({
-        name: 'AllowNotifications',
-        call: () => window.VKSafe.send('VKWebAppAllowNotifications')
-      });
+      // Проверяем условия для запроса уведомлений
+      const shouldRequestNotifications = 
+        !isMobilePlatform && // Не мобильная платформа
+        window.VK_LAUNCH_PARAMS?.is_app_user && // Пользователь установил приложение
+        !window.VK_LAUNCH_PARAMS?.are_notifications_enabled; // Уведомления еще не включены
+      
+      if (shouldRequestNotifications) {
+        operations.push({
+          name: 'AllowNotifications',
+          critical: false, // НЕ критично для работы игры
+          call: () => window.VKSafe.send('VKWebAppAllowNotifications')
+        });
+      } else {
+        debugLog('Skipping notifications request', { 
+          isMobile: isMobilePlatform,
+          isAppUser: window.VK_LAUNCH_PARAMS?.is_app_user,
+          notificationsEnabled: window.VK_LAUNCH_PARAMS?.are_notifications_enabled 
+        });
+      }
     }
     
-    // Выполняем все операции
+    // Выполняем все операции с правильной обработкой ошибок
     const results = await Promise.allSettled(
-      operations.map(op => op.call().catch(error => {
-        debugLog(`${op.name} failed`, error.message);
-        return { error: error.message };
-      }))
+      operations.map(async op => {
+        try {
+          const result = await op.call();
+          debugLog(`${op.name} success`, result);
+          return { name: op.name, success: true, result };
+        } catch (error) {
+          const errorMsg = `${op.name} failed: ${error.error_data?.error_msg || error.message}`;
+          
+          if (op.critical) {
+            console.error(`❌ Critical error: ${errorMsg}`);
+            throw error;
+          } else {
+            console.warn(`⚠️ Non-critical error: ${errorMsg}`);
+            debugLog(op.name + ' error details', error);
+            return { name: op.name, success: false, error: errorMsg };
+          }
+        }
+      })
     );
     
-    debugLog('VK Interface setup results', results);
+    debugLog('VK Interface setup completed', {
+      total: operations.length,
+      successful: results.filter(r => r.status === 'fulfilled' && r.value.success).length,
+      failed: results.filter(r => r.status === 'fulfilled' && !r.value.success).length
+    });
+    
+    return results;
   }
 
   // Загрузка данных пользователя с таймаутом
