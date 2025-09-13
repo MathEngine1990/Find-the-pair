@@ -1,4 +1,4 @@
-//---scenes/GameScene.js - ПОЛНАЯ ВЕРСИЯ С ПРОГРЕССОМ И ЗВЁЗДОЧКАМИ
+//---scenes/GameScene.js - ИСПРАВЛЕНИЕ ПРОБЛЕМЫ С КАРТОЧКАМИ
 
 window.GameScene = class GameScene extends Phaser.Scene {
   
@@ -25,22 +25,25 @@ window.GameScene = class GameScene extends Phaser.Scene {
       perfectGames: 0
     };
 
-    // ИСПРАВЛЕНО: Состояние игры для сохранения при resize
+    // Состояние игры для сохранения при resize
     this.gameState = {
-      deck: null,           // Исходная колода (детерминированная)
-      openedCards: [],      // Открытые карты
-      matchedCards: [],     // Найденные пары
-      gameStarted: false,   // Флаг начатой игры
-      canResize: true,      // Можно ли делать resize
-      isMemorizationPhase: false, // Фаза запоминания (5 сек)
-      currentSeed: null     // Текущий seed для детерминированности
+      deck: null,           
+      openedCards: [],      
+      matchedCards: [],     
+      gameStarted: false,   
+      canResize: true,      
+      isMemorizationPhase: false,
+      currentSeed: null,
+      // ДОБАВЛЕНО: Фиксированные размеры карт
+      cardWidth: null,
+      cardHeight: null
     };
     
     // Seed для детерминированной генерации
     this.gameSeed = this.generateSeed();
     this.gameState.currentSeed = this.gameSeed;
 
-    console.log('🎮 GameScene init:', {
+    console.log('GameScene init:', {
       isVK: this.isVKEnvironment,
       hasVKUser: !!this.vkUserData,
       hasVKAchievements: !!this.vkAchievementManager,
@@ -48,22 +51,21 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 
-  // ДОБАВЛЕНО: Генерация детерминированного seed
+  // Генерация детерминированного seed
   generateSeed() {
     const urlParams = new URLSearchParams(window.location.search);
     const urlSeed = urlParams.get('seed');
     
     if (urlSeed) {
-      return parseInt(urlSeed, 36); // Для отладки: ?seed=abc123
+      return parseInt(urlSeed, 36);
     }
     
-    // Детерминированный seed на основе уровня + случайность
     const levelHash = this.currentLevel ? 
       (this.currentLevel.cols * 1000 + this.currentLevel.rows) : 1;
     return (Date.now() + levelHash) % 2147483647;
   }
 
-  // ДОБАВЛЕНО: Детерминированное перемешивание
+  // Детерминированное перемешивание
   seededRandom(seed) {
     const x = Math.sin(seed) * 10000;
     return x - Math.floor(x);
@@ -94,15 +96,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return Math.min(2.0, Math.max(1, (window.devicePixelRatio || 1))); 
   }
 
-  _createHiDPICanvasTexture(key, w, h, drawFn) {
-    const DPR = this.getDPR();
-    const tex = this.textures.createCanvas(key, Math.max(2, Math.round(w*DPR)), Math.max(2, Math.round(h*DPR)));
-    const ctx = tex.getContext();
-    ctx.save(); ctx.scale(DPR, DPR); drawFn(ctx, w, h); ctx.restore();
-    tex.refresh();
-    return tex;
-  }
-
   preload() {}
 
   create() {
@@ -126,7 +119,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.bgImage = null;
     this._texId = 0;
 
-    // ДОБАВЛЕНО: Таймеры для управления
+    // Таймеры для управления
     this.memorizeTimer = null;
     this.flipTimer = null;
 
@@ -140,7 +133,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     this.startGame(this.currentLevel);
 
-    // ИСПРАВЛЕНО: Правильная обработка resize - не перетасовывать карты
+    // Обработка resize - не перетасовывать карты
     this.scale.on('resize', () => {
       if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
       
@@ -154,12 +147,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this.ensureGradientBackground();
       
       if (this.gameState.gameStarted || this.gameState.isMemorizationPhase) {
-        // Сохраняем состояние игры перед resize
         this.saveGameState();
-        // Перерисовываем только layout, не меняя логику игры
         this.redrawLayout();
       } else {
-        // Игра еще не началась, можно пересоздать
         this.startGame(this.currentLevel);
       }
     });
@@ -168,7 +158,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.events.once('destroy', this.cleanup, this);
   }
 
-  // ДОБАВЛЕНО: Полная очистка при завершении сцены
+  // Полная очистка при завершении сцены
   cleanup() {
     console.log('GameScene cleanup started');
     
@@ -216,7 +206,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     console.log('GameScene cleanup completed');
   }
 
-  // ДОБАВЛЕНО: Сохранение состояния игры
+  // Сохранение состояния игры
   saveGameState() {
     if (!this.cards.length) return;
     
@@ -232,7 +222,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     console.log('Game state saved:', this.gameState.openedCards.length, 'special cards');
   }
 
-  // ДОБАВЛЕНО: Перерисовка layout без изменения игровой логики
+  // Перерисовка layout без изменения игровой логики
   redrawLayout() {
     if (!this.gameState.deck || !this.currentLevel) {
       console.warn('Cannot redraw: missing deck or level');
@@ -251,7 +241,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const currentTime = this.currentTimeSeconds;
     const wasGameStarted = this.gameState.gameStarted;
 
-    // ИСПРАВЛЕНО: Останавливаем все активные процессы перед очисткой
+    // Останавливаем все активные процессы перед очисткой
     this.stopAllActiveProcesses();
     
     // Очищаем визуальные элементы безопасно
@@ -275,7 +265,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
         // Восстанавливаем интерактивность
         if (currentOpenedState[index].matched) {
-          card.setAlpha(THEME.cardDimAlpha).disableInteractive();
+          card.setAlpha(window.THEME.cardDimAlpha).disableInteractive();
         } else if (!wasMemorizing && wasGameStarted) {
           card.setInteractive({ useHandCursor: true });
         }
@@ -301,7 +291,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     console.log('Layout redrawn, game state preserved');
   }
 
-  // ДОБАВЛЕНО: Остановка всех активных процессов
+  // Остановка всех активных процессов
   stopAllActiveProcesses() {
     // Останавливаем таймер
     this.stopGameTimer();
@@ -330,12 +320,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.opened = [];
   }
 
-  // ДОБАВЛЕНО: Безопасная очистка визуальных элементов
+  // Безопасная очистка визуальных элементов
   clearVisualElements() {
-    // ИСПРАВЛЕНО: Безопасное уничтожение карт
+    // Безопасное уничтожение карт
     if (this.cards && Array.isArray(this.cards)) {
       this.cards.forEach(card => {
-        if (card && card.scene) { // Проверяем что объект еще существует
+        if (card && card.scene) {
           card.destroy();
         }
       });
@@ -354,12 +344,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // Система достижений
   getAchievements() {
-    // Если есть VK менеджер достижений, используем его
     if (this.vkAchievementManager) {
       return this.vkAchievementManager.achievements;
     }
     
-    // Иначе используем localStorage
     const saved = localStorage.getItem('findpair_achievements');
     return saved ? JSON.parse(saved) : {
       first_win: false,
@@ -373,16 +361,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
   async saveAchievements() {
     try {
       if (this.vkAchievementManager) {
-        // Сохраняем через VK менеджер
         this.vkAchievementManager.achievements = this.achievements;
         await this.vkAchievementManager.saveAchievements();
       } else {
-        // Локальное сохранение
         localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
       }
     } catch (error) {
-      console.warn('⚠️ Failed to save achievements:', error);
-      // Fallback к localStorage
+      console.warn('Failed to save achievements:', error);
       localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
     }
   }
@@ -394,7 +379,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}с`;
   }
 
-  // УЛУЧШЕНО: Обновление HUD с таймером
+  // Обновление HUD с таймером
   drawHUD() {
     this.clearHUD();
     const { W, H } = this.getSceneWH();
@@ -410,12 +395,12 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Счетчик ошибок слева
     this.mistakeText = this.add.text(20, hudH/2, 'Ошибок: ' + this.mistakeCount, {
-      fontFamily: THEME.font, fontSize: fontSize + 'px', color: '#FF6B6B', fontStyle: '600'
+      fontFamily: 'Arial, sans-serif', fontSize: fontSize + 'px', color: '#FF6B6B', fontStyle: 'bold'
     }).setOrigin(0, 0.5).setDepth(6);
 
     // Таймер по центру
     this.timeText = this.add.text(W/2, hudH/2, this.formatTime(this.currentTimeSeconds), {
-      fontFamily: THEME.font, fontSize: (fontSize + 2) + 'px', color: '#4ECDC4', fontStyle: '700'
+      fontFamily: 'Arial, sans-serif', fontSize: (fontSize + 2) + 'px', color: '#4ECDC4', fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(6);
 
     // Кнопка домой справа
@@ -433,7 +418,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   clearHUD() {
-    // ИСПРАВЛЕНО: Безопасное удаление UI элементов
     if (this.hud && this.hud.scene) this.hud.destroy();
     if (this.mistakeText && this.mistakeText.scene) this.mistakeText.destroy();
     if (this.timeText && this.timeText.scene) this.timeText.destroy();
@@ -443,7 +427,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // Управление таймером
   startGameTimer() {
-    // ИСПРАВЛЕНО: Предотвращаем создание множественных таймеров
     if (this.gameTimer) {
       this.gameTimer.destroy();
       this.gameTimer = null;
@@ -453,7 +436,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
       delay: 1000,
       callback: () => {
         this.currentTimeSeconds++;
-        // ИСПРАВЛЕНО: Проверяем существование элемента перед обновлением
         if (this.timeText && this.timeText.scene) {
           this.timeText.setText(this.formatTime(this.currentTimeSeconds));
         }
@@ -470,7 +452,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   startGame(level) {
-    console.log('🚀 Starting game with level:', level);
+    console.log('Starting game with level:', level);
     
     if (!level || !level.cols || !level.rows) {
       console.error('Invalid level data:', level);
@@ -500,17 +482,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
       matchTimes: []
     };  
 
-    // ИСПРАВЛЕНО: Детерминированная генерация колоды только если её еще нет
+    // Детерминированная генерация колоды
     if (!this.gameState.deck || this.gameState.currentSeed !== this.gameSeed) {
       const pairs = Math.floor(total / 2);
       const shuffledKeys = this.shuffleWithSeed([...window.ALL_CARD_KEYS], this.gameSeed);
       const base = Array.from({length: pairs}, (_, i) => 
         shuffledKeys[i % shuffledKeys.length]);
       
-      // Создаем пары и перемешиваем их детерминированно
       this.gameState.deck = this.shuffleWithSeed(
         base.concat(base), 
-        this.gameSeed + 1000 // Другой seed для финального перемешивания
+        this.gameSeed + 1000
       );
       
       this.gameState.currentSeed = this.gameSeed;
@@ -518,7 +499,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       console.log('Generated deterministic deck with seed:', this.gameSeed);
     }
 
-    // ИСПРАВЛЕНО: Останавливаем все процессы перед очисткой
+    // Останавливаем все процессы перед очисткой
     this.stopAllActiveProcesses();
     this.clearVisualElements();
     this.ensureGradientBackground();
@@ -532,22 +513,29 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.drawHUD();
     this.createCardLayout(this.gameState.deck);
 
-    // ДОБАВЛЕНО: 5-секундный показ карт для запоминания
+    // 5-секундный показ карт для запоминания
     this.showCardsForMemorization();
   }
 
-  // ДОБАВЛЕНО: Создание layout карт
+  // ИСПРАВЛЕНО: Создание layout карт с фиксированными размерами
   createCardLayout(deck) {
     const level = this.currentLevel;
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(100, Math.round(H * 0.12));
     const gameAreaH = H - hudH - 20;
     
-    const maxCardW = Math.min(140, (W - 40) / level.cols - 10);
-    const maxCardH = Math.min(190, gameAreaH / level.rows - 10);
+    // ИСПРАВЛЕНО: Фиксируем размеры карт при первом создании
+    if (!this.gameState.cardWidth || !this.gameState.cardHeight) {
+      const maxCardW = Math.min(140, (W - 40) / level.cols - 10);
+      const maxCardH = Math.min(190, gameAreaH / level.rows - 10);
+      
+      this.gameState.cardWidth = Math.min(maxCardW, maxCardH * 0.7);
+      this.gameState.cardHeight = Math.min(maxCardH, maxCardW / 0.7);
+    }
     
-    const cardW = Math.min(maxCardW, maxCardH * 0.7);
-    const cardH = Math.min(maxCardH, maxCardW / 0.7);
+    // Используем зафиксированные размеры
+    const cardW = this.gameState.cardWidth;
+    const cardH = this.gameState.cardHeight;
     
     const totalW = level.cols * cardW + (level.cols - 1) * 8;
     const totalH = level.rows * cardH + (level.rows - 1) * 8;
@@ -563,8 +551,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
         const x = offsetX + col * (cardW + 8) + cardW/2;
         const y = offsetY + row * (cardH + 8) + cardH/2;
         
-        const card = this.add.image(x, y, key) // НАЧИНАЕМ ЛИЦОМ!
-          .setDisplaySize(cardW, cardH)
+        const card = this.add.image(x, y, key) // Начинаем лицом
+          .setDisplaySize(cardW, cardH) // ИСПРАВЛЕНО: Явно устанавливаем размер
           .setData('key', key)
           .setData('opened', false)
           .setData('matched', false)
@@ -576,9 +564,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // ДОБАВЛЕНО: 5-секундный показ карт для запоминания
+  // 5-секундный показ карт для запоминания
   showCardsForMemorization() {
-    console.log('🧠 Showing cards for memorization (5 seconds)...');
+    console.log('Showing cards for memorization (5 seconds)...');
     
     const { W, H } = this.getSceneWH();
     
@@ -594,7 +582,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Показываем уведомление
     const notification = this.add.text(W/2, H*0.15, 'Запомните карты!', {
-      fontFamily: THEME.font,
+      fontFamily: 'Arial, sans-serif',
       fontSize: this._pxByH(0.05, 24, 32) + 'px',
       color: '#FFD700',
       fontStyle: 'bold'
@@ -603,7 +591,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Обратный отсчёт
     let countdown = 5;
     const countdownText = this.add.text(W/2, H*0.22, countdown.toString(), {
-      fontFamily: THEME.font,
+      fontFamily: 'Arial, sans-serif',
       fontSize: this._pxByH(0.08, 36, 48) + 'px',
       color: '#FF4444',
       fontStyle: 'bold'
@@ -637,20 +625,27 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 
-  // ДОБАВЛЕНО: Переворот карт и начало игры
+  // ИСПРАВЛЕНО: Переворот карт без изменения размеров
   flipAllCardsAndStartGame() {
-    console.log('🔄 Flipping all cards and starting game...');
+    console.log('Flipping all cards and starting game...');
     
-    // Анимированное переворачивание карт
+    // Анимированное переворачивание карт с сохранением размеров
     this.cards.forEach((card, index) => {
+      // Сохраняем текущие размеры
+      const currentWidth = card.displayWidth;
+      const currentHeight = card.displayHeight;
+      
       this.tweens.add({
         targets: card,
         scaleX: 0,
         duration: 200,
-        delay: index * 30, // каскадный эффект
+        delay: index * 30,
         ease: 'Power2.easeIn',
         onComplete: () => {
           card.setTexture('back');
+          // ИСПРАВЛЕНО: Восстанавливаем размеры после смены текстуры
+          card.setDisplaySize(currentWidth, currentHeight);
+          
           this.tweens.add({
             targets: card,
             scaleX: 1,
@@ -663,21 +658,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Финальная настройка после переворота
     this.flipTimer = this.time.delayedCall(1000, () => {
-      // Включаем интерактивность карт
+      // Включаем интерактивность карт с сохранением размеров
       this.cards.forEach(card => {
         card.setInteractive({ useHandCursor: true });
+        // ИСПРАВЛЕНО: Убеждаемся что размеры сохранены
+        card.setDisplaySize(this.gameState.cardWidth, this.gameState.cardHeight);
       });
       
       this.canClick = true;
       this.gameState.gameStarted = true;
       this.gameState.isMemorizationPhase = false;
-      this.gameState.canResize = true; // Разблокируем resize после начала игры
+      this.gameState.canResize = true;
       
-      // ВАЖНО: Запускаем таймер игры только после показа карт
+      // Запускаем таймер игры только после показа карт
       this.gameMetrics.startTime = Date.now();
       this.startGameTimer();
       
-      console.log('✅ Game fully started, timer running, clicks enabled');
+      console.log('Game fully started, timer running, clicks enabled');
     });
   }
 
@@ -685,7 +682,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     if (!this.canClick || this._processingCards) return;
     if (card.getData('opened') || card.getData('matched')) return;
 
-    // УЛУЧШЕННАЯ защита от быстрых кликов
+    // Защита от быстрых кликов
     const now = Date.now();
     if (this._lastClickTime && now - this._lastClickTime < 250) {
       console.log('Click ignored - too fast');
@@ -698,14 +695,18 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     this.gameMetrics.attempts++;
 
+    // ИСПРАВЛЕНО: Сохраняем размеры при смене текстуры
+    const currentWidth = card.displayWidth;
+    const currentHeight = card.displayHeight;
+    
     card.setTexture(card.getData('key'));
+    card.setDisplaySize(currentWidth, currentHeight); // Восстанавливаем размер
     card.setData('opened', true);
     this.opened.push(card);
 
     if (this.opened.length === 2) {
       this.canClick = false;
       
-      // ИСПРАВЛЕНО: Используем delayedCall вместо setTimeout
       const checkTimer = this.time.delayedCall(450, () => {
         const [a, b] = this.opened;
         if (a.getData('key') === b.getData('key')) {
@@ -717,16 +718,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
             this.gameMetrics.timeToFirstMatch = matchTime;
           }
           
-          a.setData('matched', true).setAlpha(THEME.cardDimAlpha).disableInteractive();
-          b.setData('matched', true).setAlpha(THEME.cardDimAlpha).disableInteractive();
+          a.setData('matched', true).setAlpha(window.THEME.cardDimAlpha).disableInteractive();
+          b.setData('matched', true).setAlpha(window.THEME.cardDimAlpha).disableInteractive();
           a.setData('opened', false); 
           b.setData('opened', false);
         } else {
           this.mistakeCount++;
           this.gameMetrics.errors++;
           if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
-          a.setTexture('back').setData('opened', false);
-          b.setTexture('back').setData('opened', false);
+          
+          // ИСПРАВЛЕНО: Сохраняем размеры при возврате к 'back'
+          const aWidth = a.displayWidth;
+          const aHeight = a.displayHeight;
+          const bWidth = b.displayWidth;
+          const bHeight = b.displayHeight;
+          
+          a.setTexture('back').setDisplaySize(aWidth, aHeight).setData('opened', false);
+          b.setTexture('back').setDisplaySize(bWidth, bHeight).setData('opened', false);
         }
         
         this.opened = [];
@@ -738,36 +746,31 @@ window.GameScene = class GameScene extends Phaser.Scene {
         }
       });
       
-      // Сохраняем ссылку на таймер для возможной очистки
       this.gameTimer = checkTimer;
     } else {
-      // Если открыта только одна карта
       this._processingCards = false;
     }
   }
 
-  // УЛУЧШЕНО: Экран победы с системой прогресса и звёздочками
+  // Экран победы с системой прогресса и звёздочками
   showWin() {
     this.canClick = false;
-    this.gameState.gameStarted = false; // Игра завершена
-    this.stopGameTimer(); // Останавливаем таймер
+    this.gameState.gameStarted = false;
+    this.stopGameTimer();
     this.cards.forEach(c => c.disableInteractive());
 
     const gameTime = this.currentTimeSeconds;
     const accuracy = this.gameMetrics.attempts > 0 ? 
       Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
 
-    // ДОБАВЛЕНО: Сохранение прогресса с системой звёздочек
+    // Сохранение прогресса с системой звёздочек
     const levelIndex = window.LEVELS.findIndex(l => l === this.currentLevel);
     const progressResult = this.saveProgress(levelIndex, gameTime, this.gameMetrics.attempts, this.gameMetrics.errors);
 
     // Проверка достижений
     this.checkAchievements(gameTime, this.gameMetrics.errors, this.currentLevel);
 
-    // Отправляем статистику завершенной игры в VK
-    this.sendVKGameStats(gameTime, accuracy);
-
-    console.log('🏆 Game finished:', {
+    console.log('Game finished:', {
       time: gameTime,
       attempts: this.gameMetrics.attempts,
       errors: this.gameMetrics.errors,
@@ -796,40 +799,40 @@ window.GameScene = class GameScene extends Phaser.Scene {
     panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
 
     // Заголовок
-    this.add.text(panelX, panelY - panelH/2 + 50, '🎉 ПОБЕДА! 🎉', {
-      fontFamily: THEME.font, 
+    this.add.text(panelX, panelY - panelH/2 + 50, 'ПОБЕДА!', {
+      fontFamily: 'Arial, sans-serif', 
       fontSize: this._pxByH(0.06, 24, 42) + 'px', 
       color: '#F39C12', 
-      fontStyle: '800'
+      fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(102);
 
-    // ДОБАВЛЕНО: Отображение звёздочек
+    // Отображение звёздочек
     this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
 
     // Детальная статистика
     const statsY = panelY - panelH/2 + 160;
     const lineHeight = 30;
     
-    this.add.text(panelX, statsY, `⏱️ Время: ${this.formatTime(gameTime)}`, {
-      fontFamily: THEME.font, fontSize: '18px', color: '#4ECDC4', fontStyle: '600'
+    this.add.text(panelX, statsY, `Время: ${this.formatTime(gameTime)}`, {
+      fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#4ECDC4', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(102);
 
-    this.add.text(panelX, statsY + lineHeight, `🎯 Попыток: ${this.gameMetrics.attempts}`, {
-      fontFamily: THEME.font, fontSize: '16px', color: '#E8E1C9', fontStyle: '500'
+    this.add.text(panelX, statsY + lineHeight, `Попыток: ${this.gameMetrics.attempts}`, {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#E8E1C9', fontStyle: 'normal'
     }).setOrigin(0.5).setDepth(102);
 
-    this.add.text(panelX, statsY + lineHeight * 2, `❌ Ошибок: ${this.mistakeCount}`, {
-      fontFamily: THEME.font, fontSize: '16px', color: '#E74C3C', fontStyle: '500'
+    this.add.text(panelX, statsY + lineHeight * 2, `Ошибок: ${this.mistakeCount}`, {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#E74C3C', fontStyle: 'normal'
     }).setOrigin(0.5).setDepth(102);
 
-    this.add.text(panelX, statsY + lineHeight * 3, `📊 Точность: ${accuracy}%`, {
-      fontFamily: THEME.font, fontSize: '16px', color: '#2ECC71', fontStyle: '500'
+    this.add.text(panelX, statsY + lineHeight * 3, `Точность: ${accuracy}%`, {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#2ECC71', fontStyle: 'normal'
     }).setOrigin(0.5).setDepth(102);
 
-    // ДОБАВЛЕНО: Показываем улучшение результата
+    // Показываем улучшение результата
     if (progressResult.improved) {
-      this.add.text(panelX, statsY + lineHeight * 4, '🆕 Новый рекорд!', {
-        fontFamily: THEME.font, fontSize: '18px', color: '#F39C12', fontStyle: '700'
+      this.add.text(panelX, statsY + lineHeight * 4, 'Новый рекорд!', {
+        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#F39C12', fontStyle: 'bold'
       }).setOrigin(0.5).setDepth(102);
     }
 
@@ -841,7 +844,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Кнопка "Ещё раз"
     const playAgainBtn = window.makeImageButton(
       this, panelX - btnW/2 - 10, btnY, btnW, btnH,
-      '🔄 Ещё раз',
+      'Ещё раз',
       () => this.restartLevel()
     );
     playAgainBtn.setDepth(102);
@@ -849,7 +852,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Кнопка "Меню"
     const menuBtn = window.makeImageButton(
       this, panelX + btnW/2 + 10, btnY, btnW, btnH,
-      '🏠 Меню',
+      'Меню',
       () => {
         this.gameState.gameStarted = false;
         this.scene.start('MenuScene', { page: this.levelPage });
@@ -858,7 +861,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     menuBtn.setDepth(102);
   }
 
-  // ДОБАВЛЕНО: Система сохранения прогресса с звёздочками
+  // Система сохранения прогресса с звёздочками
   saveProgress(levelIndex, gameTime, attempts, errors) {
     const accuracy = attempts > 0 ? (attempts - errors) / attempts : 0;
     
@@ -903,7 +906,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     return { stars, improved, currentBest: progress[levelIndex] };
   }
 
-  // ДОБАВЛЕНО: Получение прогресса
+  // Получение прогресса
   getProgress() {
     try {
       const saved = localStorage.getItem('findpair_progress');
@@ -914,7 +917,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // ДОБАВЛЕНО: Анимация звёздочек
+  // Анимация звёздочек
   showStarsAnimation(x, y, progressResult) {
     const { stars, improved } = progressResult;
     const starSize = 32;
@@ -951,14 +954,14 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Текст с количеством звёзд
     const starsText = `${stars}/3 ⭐`;
     this.add.text(x, y + 40, starsText, {
-      fontFamily: THEME.font,
+      fontFamily: 'Arial, sans-serif',
       fontSize: '16px',
       color: '#F39C12',
-      fontStyle: '600'
+      fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(102);
   }
 
-  // ДОБАВЛЕНО: Эффект блеска звёзд
+  // Эффект блеска звёзд
   createStarSparkle(x, y) {
     const sparkles = ['✨', '⭐', '💫'];
     
@@ -987,11 +990,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
   restartLevel() {
     this.gameState.gameStarted = false;
     this.gameState.deck = null; // Очищаем сохраненную колоду для новой генерации
+    this.gameState.cardWidth = null; // Сбрасываем фиксированные размеры
+    this.gameState.cardHeight = null;
     this.gameSeed = this.generateSeed(); // Новый seed
     this.startGame(this.currentLevel);
   }
 
-  // Проверка достижений с VK интеграцией
+  // Проверка достижений
   async checkAchievements(gameTime, errors, level) {
     let newAchievements = [];
     
@@ -1051,92 +1056,17 @@ window.GameScene = class GameScene extends Phaser.Scene {
     if (newAchievements.length > 0) {
       await this.saveAchievements();
       
-      // Разблокируем достижения в VK (если доступно)
-      if (this.vkAchievementManager) {
-        for (const achievement of newAchievements) {
-          try {
-            const unlocked = await this.vkAchievementManager.unlockAchievement(achievement.id);
-            if (unlocked) {
-              console.log('🏆 VK Achievement unlocked:', achievement.title);
-            }
-          } catch (error) {
-            console.warn('⚠️ VK achievement unlock failed:', error);
-          }
-        }
-      }
-      
       // Показываем уведомления о достижениях
       this.showAchievements(newAchievements);
-      
-      // VK специфичные действия
-      await this.handleVKAchievements(newAchievements);
     }
   }
 
-  // ДОБАВЛЕНО: VK обработка достижений
-  async handleVKAchievements(newAchievements) {
-    if (!this.isVKEnvironment || !window.VKSafe || !window.VKSafe.send) return;
-    
-    try {
-      // Тактильная обратная связь при получении достижения
-      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppTapticNotificationOccurred')) {
-        await window.VKSafe.send('VKWebAppTapticNotificationOccurred', {
-          type: 'success'
-        });
-      }
-      
-      // Отправляем статистику во VK
-      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppStorageSet')) {
-        const stats = {
-          totalGames: this.sessionStats.gamesPlayed,
-          totalAchievements: Object.values(this.achievements).filter(Boolean).length,
-          lastPlayed: Date.now()
-        };
-        
-        await window.VKSafe.send('VKWebAppStorageSet', {
-          key: 'game_stats',
-          value: JSON.stringify(stats)
-        });
-      }
-      
-      // Предлагаем поделиться особыми достижениями
-      const specialAchievements = ['first_win', 'perfect_game', 'speed_runner'];
-      const hasSpecial = newAchievements.some(a => specialAchievements.includes(a.id));
-      
-      if (hasSpecial && Math.random() < 0.3) { // 30% шанс предложить поделиться
-        this.showVKShareDialog(newAchievements[0]);
-      }
-      
-    } catch (error) {
-      console.warn('⚠️ VK achievement handling failed:', error);
-    }
-  }
-
-  // ДОБАВЛЕНО: VK диалог поделиться
-  async showVKShareDialog(achievement) {
-    try {
-      const userName = this.vkUserData?.first_name || 'Игрок';
-      const message = `${userName} получил достижение "${achievement.title}" в игре "Find the Pair"! 🏆\n\n${achievement.description}`;
-      
-      // Показываем диалог поста на стену
-      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppShowWallPostBox')) {
-        await window.VKSafe.send('VKWebAppShowWallPostBox', {
-          message: message,
-          attachments: window.location.href
-        });
-      }
-    } catch (error) {
-      // Пользователь отменил или нет разрешений
-      console.log('VK sharing cancelled');
-    }
-  }
-
-  // Показ достижений с красивой анимацией
+  // Показ достижений
   showAchievements(achievements) {
     const { W, H } = this.getSceneWH();
     
     achievements.forEach((achievement, index) => {
-      // Создаем более красивое уведомление
+      // Создаем уведомление о достижении
       const bgWidth = 320;
       const bgHeight = 80;
       const x = W / 2;
@@ -1156,18 +1086,18 @@ window.GameScene = class GameScene extends Phaser.Scene {
       
       // Заголовок достижения
       const achievementTitle = this.add.text(x - bgWidth/2 + 60, y - 10, achievement.title, {
-        fontFamily: THEME.font,
+        fontFamily: 'Arial, sans-serif',
         fontSize: '18px',
         color: '#F39C12',
-        fontStyle: '700'
+        fontStyle: 'bold'
       }).setOrigin(0, 0.5).setDepth(201);
       
       // Описание достижения
       const achievementDesc = this.add.text(x - bgWidth/2 + 60, y + 15, achievement.description, {
-        fontFamily: THEME.font,
+        fontFamily: 'Arial, sans-serif',
         fontSize: '14px',
         color: '#E8E1C9',
-        fontStyle: '500'
+        fontStyle: 'normal'
       }).setOrigin(0, 0.5).setDepth(201);
       
       // Группируем элементы
@@ -1185,11 +1115,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
         scale: 1,
         duration: 500,
         delay: index * 300,
-        ease: 'Back.easeOut',
-        onComplete: () => {
-          // Частицы при появлении
-          this.createAchievementParticles(x, y);
-        }
+        ease: 'Back.easeOut'
       });
 
       // Удаляем через 4 секунды
@@ -1205,100 +1131,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
         });
       });
     });
-    
-    // Звук достижения (если есть)
-    if (this.sound && this.sound.get('achievement_sound')) {
-      this.sound.play('achievement_sound', { volume: 0.5 });
-    }
-  }
-
-  // ДОБАВЛЕНО: Эффекты частиц для достижений
-  createAchievementParticles(x, y) {
-    // Простая анимация "звездочек" для достижений
-    const emojis = ['✨', '⭐', '🎉', '💫'];
-    
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const distance = 50;
-      const particleX = x + Math.cos(angle) * distance;
-      const particleY = y + Math.sin(angle) * distance;
-      
-      const particle = this.add.text(x, y, emojis[i % emojis.length], {
-        fontSize: '16px'
-      }).setDepth(202);
-      
-      this.tweens.add({
-        targets: particle,
-        x: particleX,
-        y: particleY,
-        alpha: 0,
-        scale: 1.5,
-        duration: 800,
-        ease: 'Power2',
-        onComplete: () => particle.destroy()
-      });
-    }
-  }
-
-  // ДОБАВЛЕНО: Отправка статистики в VK
-  async sendVKGameStats(gameTime, accuracy) {
-    if (!this.isVKEnvironment || !window.VKSafe || !window.VKSafe.send) return;
-    
-    try {
-      // Сохраняем статистику игры в VK Storage
-      const gameStats = {
-        level: {
-          cols: this.currentLevel.cols,
-          rows: this.currentLevel.rows,
-          pairs: this.gameMetrics.pairs
-        },
-        performance: {
-          time: gameTime,
-          attempts: this.gameMetrics.attempts,
-          errors: this.gameMetrics.errors,
-          accuracy: accuracy
-        },
-        timestamp: Date.now(),
-        userId: window.VK_LAUNCH_PARAMS?.user_id
-      };
-      
-      if (window.VKSafe.supports && window.VKSafe.supports('VKWebAppStorageSet')) {
-        await window.VKSafe.send('VKWebAppStorageSet', {
-          key: `game_result_${Date.now()}`,
-          value: JSON.stringify(gameStats)
-        });
-      }
-      
-      console.log('📊 Game stats sent to VK Storage');
-      
-    } catch (error) {
-      console.warn('⚠️ Failed to send VK game stats:', error);
-    }
-  }
-
-  // Dev команды для отладки
-  devRevealAll() {
-    if (!this.cards) return;
-    this.cards.forEach(card => {
-      card.setTexture(card.getData('key'));
-      card.setData('opened', true);
-    });
-    console.log('DEV: All cards revealed');
-  }
-
-  devTestPair() {
-    if (!this.cards || this.cards.length < 2) return;
-    const firstCard = this.cards[0];
-    const matchingCard = this.cards.find(card => 
-      card !== firstCard && card.getData('key') === firstCard.getData('key'));
-    
-    if (matchingCard) {
-      [firstCard, matchingCard].forEach(card => {
-        card.setTexture(card.getData('key'));
-        card.setData('matched', true);
-      });
-      console.log('DEV: Test pair matched');
-    }
   }
 
   // Остальные методы
@@ -1325,7 +1157,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const tex = this.textures.createCanvas(key, Math.max(2, Math.round(W*DPR)), Math.max(2, Math.round(H*DPR)));
       const ctx = tex.getContext(); ctx.save(); ctx.scale(DPR, DPR);
       const g = ctx.createLinearGradient(0,0,0,H);
-      g.addColorStop(0, THEME.bgTop); g.addColorStop(0.6, THEME.bgMid); g.addColorStop(1, THEME.bgBottom);
+      g.addColorStop(0, window.THEME.bgTop); g.addColorStop(0.6, window.THEME.bgMid); g.addColorStop(1, window.THEME.bgBottom);
       ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
       ctx.restore(); tex.refresh();
     }
@@ -1364,79 +1196,3 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 };
-
-// Dev команды в консоли (только в development)
-if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.search.includes('debug=1'))) {
-  window.devGameScene = {
-    revealAll: () => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene) scene.devRevealAll();
-    },
-    testPair: () => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene) scene.devTestPair();
-    },
-    setSeed: (seed) => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene) {
-        scene.gameSeed = seed;
-        scene.gameState.deck = null; // Сбрасываем колоду для пересоздания
-        scene.gameState.currentSeed = null;
-        console.log('Seed set to:', seed);
-      }
-    },
-    getCurrentSeed: () => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene) {
-        console.log('Current seed:', scene.gameSeed);
-        return scene.gameSeed;
-      }
-    },
-    forceResize: () => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene && scene.gameState.gameStarted) {
-        console.log('Forcing resize test...');
-        scene.saveGameState();
-        scene.redrawLayout();
-      }
-    },
-    testVKAchievement: (id) => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene && scene.vkAchievementManager) {
-        scene.vkAchievementManager.unlockAchievement(id);
-      }
-    },
-    getProgress: () => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene) {
-        const progress = scene.getProgress();
-        console.table(progress);
-        return progress;
-      }
-    },
-    clearProgress: () => {
-      localStorage.removeItem('findpair_progress');
-      console.log('Progress cleared');
-    },
-    setStars: (levelIndex, stars) => {
-      const scene = window.game?.scene?.getScene('GameScene');
-      if (scene) {
-        const progress = scene.getProgress();
-        progress[levelIndex] = { stars, bestTime: 30, bestAccuracy: 100, attempts: 10, errors: 0, completedAt: Date.now() };
-        localStorage.setItem('findpair_progress', JSON.stringify(progress));
-        console.log(`Level ${levelIndex} set to ${stars} stars`);
-      }
-    }
-  };
-  
-  console.log('🎮 Dev commands available:');
-  console.log('devGameScene.revealAll() - показать все карты');
-  console.log('devGameScene.testPair() - показать тестовую пару');
-  console.log('devGameScene.setSeed(123) - установить seed');
-  console.log('devGameScene.getCurrentSeed() - получить текущий seed');
-  console.log('devGameScene.forceResize() - принудительно протестировать resize');
-  console.log('devGameScene.testVKAchievement("first_win") - протестировать VK достижение');
-  console.log('devGameScene.getProgress() - показать прогресс');
-  console.log('devGameScene.clearProgress() - очистить прогресс');
-  console.log('devGameScene.setStars(0, 3) - установить звёзды для уровня');
-}
