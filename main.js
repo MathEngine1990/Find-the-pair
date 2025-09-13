@@ -38,76 +38,32 @@ function getOptimalGameSize() {
   };
 }
 
-// ИСПРАВЛЕНО: Инициализация с адаптивными размерами
-const gameSize = getOptimalGameSize();
-console.log('Game size:', gameSize); // DEBUG
+// ИСПРАВЛЕНО: Получаем базовую конфигурацию из index.html и дополняем
+const optimalSize = getOptimalGameSize();
+console.log('Optimal game size:', optimalSize); // DEBUG
 
-// ИСПРАВЛЕНО: Определяем DPR с учетом производительности
-const DPR = Math.min(
-  window.devicePixelRatio || 1,
-  2 // Ограничиваем максимальный DPR для производительности
-);
-
-const config = {
-  type: Phaser.AUTO,
-  parent: 'game',
-  backgroundColor: '#1d2330',
-  scale: {
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: RESIZE вместо FIT
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    
-    // ИСПРАВЛЕНО: Адаптивные размеры вместо фиксированных
-    width: gameSize.width,
-    height: gameSize.height,
-    
-    // ДОБАВЛЕНО: Минимальные и максимальные размеры
-    min: {
-      width: 360,
-      height: 640
-    },
-    max: {
-      width: 1920,
-      height: 1080
-    }
-  },
-  resolution: DPR,
-  render: { 
-    antialias: true, 
-    pixelArt: false,
-    roundPixels: true, // Четкость на всех экранах
-    powerPreference: 'high-performance' // Для лучшей производительности
-  },
-  scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
+// Обновляем конфигурацию оптимальными размерами
+if (window.gameConfig) {
+  window.gameConfig.scale.width = optimalSize.width;
+  window.gameConfig.scale.height = optimalSize.height;
   
-  // ОПТИМИЗАЦИЯ: Отключаем неиспользуемые системы
-  physics: {
-    default: false // Memory game не нуждается в физике
-  },
-  
-  // ДОБАВЛЕНО: Улучшенная обработка input
-  input: {
-    activePointers: 1, // Только один активный указатель
-    smoothFactor: 0,   // Отключаем сглаживание для быстрого отклика
-    windowEvents: false // Не обрабатываем события окна
-  },
-  
-  // ДОБАВЛЕНО: Настройки производительности
-  fps: {
+  // ДОБАВЛЕНО: Дополнительные настройки производительности
+  window.gameConfig.fps = {
     target: 60,
     forceSetTimeOut: false
-  },
+  };
   
-  // ИСПРАВЛЕНО: Настройки DOM
-  dom: {
-    createContainer: false // Не создаем DOM контейнер
-  }
-};
+  window.gameConfig.dom = {
+    createContainer: false
+  };
+  
+  window.gameConfig.render.powerPreference = 'high-performance';
+}
 
-// Создаем игру
-const game = new Phaser.Game(config);
+// Создаем игру с обновленной конфигурацией
+const game = new Phaser.Game(window.gameConfig || {});
 
-// ДОБАВЛЕНО: Сохраняем ссылку на игру глобально для доступа из обработчиков
+// ДОБАВЛЕНО: Сохраняем ссылку на игру глобально
 window.game = game;
 
 // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Обработчик изменения размеров

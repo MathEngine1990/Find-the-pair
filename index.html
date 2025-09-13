@@ -40,31 +40,12 @@
   <script src="scenes/MenuScene.js"></script>
   <script src="scenes/GameScene.js"></script>
 
-  <!-- ИСПРАВЛЕНО: Адаптивная инициализация игры -->
+  <!-- ИСПРАВЛЕНО: Минимальная инициализация, основная логика в main.js -->
   <script>
-    // Получаем реальные размеры экрана
-    function getGameSize() {
-      const screenWidth = window.innerWidth;
-      const screenHeight = window.innerHeight;
-      
-      // Минимальные размеры для мобильных
-      const minWidth = 360;
-      const minHeight = 640;
-      
-      // Максимальные размеры для десктопа
-      const maxWidth = 1920;
-      const maxHeight = 1080;
-      
-      const width = Math.min(Math.max(screenWidth, minWidth), maxWidth);
-      const height = Math.min(Math.max(screenHeight, minHeight), maxHeight);
-      
-      return { width, height };
-    }
-
-    const gameSize = getGameSize();
-    const DPR = window.devicePixelRatio || 1;
+    // Объявляем только базовую конфигурацию, детали в main.js
+    const DPR = Math.min(2, window.devicePixelRatio || 1);
     
-    const config = {
+    window.gameConfig = {
       type: Phaser.AUTO,
       parent: 'game',
       backgroundColor: '#000000',
@@ -72,50 +53,25 @@
         // ИСПРАВЛЕНО: Используем RESIZE для полной адаптивности
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        // ИСПРАВЛЕНО: Начальные размеры от реального экрана
-        width: gameSize.width,
-        height: gameSize.height
+        // Временные размеры, будут обновлены в main.js
+        width: 800,
+        height: 600
       },
-      resolution: Math.min(2, DPR), // Ограничиваем DPR для производительности
+      resolution: DPR,
       render: { 
         antialias: true, 
         pixelArt: false,
-        // ИСПРАВЛЕНО: Округление пикселей для четкости
         roundPixels: true
       },
       scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
-      
-      // ДОБАВЛЕНО: Настройки для производительности
       physics: {
-        default: false // Отключаем физику, она не нужна для карточной игры
+        default: false
       },
-      
-      // ДОБАВЛЕНО: Дополнительные настройки
       input: {
-        // Активная область для touch устройств
         activePointers: 1,
-        // Предотвращаем случайные клики
         smoothFactor: 0
       }
     };
-
-    // ДОБАВЛЕНО: Обработчик изменения размеров окна
-    window.addEventListener('resize', () => {
-      if (window.game && window.game.scale) {
-        const newSize = getGameSize();
-        window.game.scale.resize(newSize.width, newSize.height);
-      }
-    });
-
-    // ДОБАВЛЕНО: Обработчик изменения ориентации для мобильных
-    window.addEventListener('orientationchange', () => {
-      setTimeout(() => {
-        if (window.game && window.game.scale) {
-          const newSize = getGameSize();
-          window.game.scale.resize(newSize.width, newSize.height);
-        }
-      }, 100);
-    });
   </script>
 
   <!-- VK bridge подгрузи в main-vk.js, если нужно, но не мешай запуску игры -->
