@@ -6,7 +6,47 @@
     "mvk": "https://mathengine1990.github.io/Find-the-pair/", 
     "web": "https://mathengine1990.github.io/Find-the-pair/"
   },
-  "oauth_settings": {
-    "redirect_uri": "https://mathengine1990.github.io/Find-the-pair/"
-  }
+  "build_commands": [
+    "npm install",
+    "npm run build"
+  ],
+  "ignore_files": [
+    "node_modules/**",
+    "src/**",
+    "*.log",
+    "*.md",
+    ".git/**",
+    ".vscode/**",
+    "vite.config.js",
+    "tsconfig.json"
+  ],
+  "headers": {
+    "/**": [
+      {
+        "key": "X-Frame-Options",
+        "value": "SAMEORIGIN"
+      },
+      {
+        "key": "X-Content-Type-Options", 
+        "value": "nosniff"
+      }
+    ],
+    "/**/*.{js,css,png,jpg,jpeg,webp,svg,woff2,ttf}": [
+      {
+        "key": "Cache-Control",
+        "value": "public, max-age=31536000, immutable"
+      }
+    ],
+    "/index.html": [
+      {
+        "key": "Cache-Control",
+        "value": "no-cache, no-store, must-revalidate"
+      }
+    ]
+  },
+  "rewrites": [
+    {
+      "source": "/**",
+      "destination": "https://mathengine1990.github.io/Find-the-pair/"
+    }
 }
