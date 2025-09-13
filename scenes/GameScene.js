@@ -333,9 +333,13 @@ init(data) {
   }
 
   onCardClick(card){
-    if (!this.canClick) return;
-    if (card.getData('opened') || card.getData('matched')) return;
+    if (!this.canClick || this._processingCards) return;
+  if (card.getData('opened') || card.getData('matched')) return;
 
+ // Защита от быстрых кликов
+  if (this._lastClickTime && Date.now() - this._lastClickTime < 300) return;
+  this._lastClickTime = Date.now();
+    
     // ИСПРАВЛЕНО: Увеличиваем попытки только один раз
     this.gameMetrics.attempts++;
 
