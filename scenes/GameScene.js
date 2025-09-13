@@ -34,7 +34,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       canResize: true,      
       isMemorizationPhase: false,
       currentSeed: null,
-      // ДОБАВЛЕНО: Фиксированные размеры карт
+      // ИСПРАВЛЕНО: Фиксированные размеры карт
       cardWidth: null,
       cardHeight: null
     };
@@ -158,6 +158,57 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.events.once('destroy', this.cleanup, this);
   }
 
+  // НОВЫЙ МЕТОД: Универсальная функция для установки размера карты
+  setCardSize(card, width, height) {
+    if (!card || !card.scene) return;
+    
+    // Используем scale вместо displaySize для более точного контроля
+    const originalWidth = card.texture.source[0].width;
+    const originalHeight = card.texture.source[0].height;
+    
+    const scaleX = width / originalWidth;
+    const scaleY = height / originalHeight;
+    
+    card.setScale(scaleX, scaleY);
+    
+    // Сохраняем размеры в данных карты для последующего использования
+    card.setData('targetWidth', width);
+    card.setData('targetHeight', height);
+    card.setData('scaleX', scaleX);
+    card.setData('scaleY', scaleY);
+  }
+
+  // НОВЫЙ МЕТОД: Восстановление размера карты
+  restoreCardSize(card) {
+    if (!card || !card.scene) return;
+    
+    const targetWidth = card.getData('targetWidth');
+    const targetHeight = card.getData('targetHeight');
+    
+    if (targetWidth && targetHeight) {
+      this.setCardSize(card, targetWidth, targetHeight);
+    } else if (this.gameState.cardWidth && this.gameState.cardHeight) {
+      this.setCardSize(card, this.gameState.cardWidth, this.gameState.cardHeight);
+    }
+  }
+
+  // УЛУЧШЕННЫЙ МЕТОД: Смена текстуры карты с сохранением размера
+  setCardTexture(card, textureKey) {
+    if (!card || !card.scene) return;
+    
+    // Сохраняем текущие размеры
+    const targetWidth = card.getData('targetWidth') || this.gameState.cardWidth;
+    const targetHeight = card.getData('targetHeight') || this.gameState.cardHeight;
+    
+    // Меняем текстуру
+    card.setTexture(textureKey);
+    
+    // Восстанавливаем размер
+    if (targetWidth && targetHeight) {
+      this.setCardSize(card, targetWidth, targetHeight);
+    }
+  }
+
   // Полная очистка при завершении сцены
   cleanup() {
     console.log('GameScene cleanup started');
@@ -258,9 +309,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
         
         // Визуально показываем состояние
         if (wasMemorizing || currentOpenedState[index].opened || currentOpenedState[index].matched) {
-          card.setTexture(card.getData('key'));
+          this.setCardTexture(card, card.getData('key'));
         } else {
-          card.setTexture('back');
+          this.setCardTexture(card, 'back');
         }
 
         // Восстанавливаем интерактивность
@@ -517,7 +568,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.showCardsForMemorization();
   }
 
-  // ИСПРАВЛЕНО: Создание layout карт с фиксированными размерами
+  // ИСПРАВЛЕНО: Создание layout карт с улучшенной системой размеров
   createCardLayout(deck) {
     const level = this.currentLevel;
     const { W, H } = this.getSceneWH();
@@ -531,6 +582,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
       
       this.gameState.cardWidth = Math.min(maxCardW, maxCardH * 0.7);
       this.gameState.cardHeight = Math.min(maxCardH, maxCardW / 0.7);
+      
+      console.log('Card dimensions fixed:', this.gameState.cardWidth, 'x', this.gameState.cardHeight);
     }
     
     // Используем зафиксированные размеры
@@ -552,12 +605,14 @@ window.GameScene = class GameScene extends Phaser.Scene {
         const y = offsetY + row * (cardH + 8) + cardH/2;
         
         const card = this.add.image(x, y, key) // Начинаем лицом
-          .setDisplaySize(cardW, cardH) // ИСПРАВЛЕНО: Явно устанавливаем размер
           .setData('key', key)
           .setData('opened', false)
           .setData('matched', false)
           .setInteractive({ useHandCursor: true })
           .on('pointerdown', () => this.onCardClick(card));
+        
+        // ИСПРАВЛЕНО: Используем новый метод установки размера
+        this.setCardSize(card, cardW, cardH);
         
         this.cards.push(card);
       }
@@ -576,7 +631,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     // Показываем все карты лицом (они уже такие после createCardLayout)
     this.cards.forEach(card => {
-      card.setTexture(card.getData('key'));
+      this.setCardTexture(card, card.getData('key'));
       card.disableInteractive(); // Отключаем клики на время запоминания
     });
 
@@ -625,15 +680,17 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 
-  // ИСПРАВЛЕНО: Переворот карт без изменения размеров
+  // ИСПРАВЛЕНО: Переворот карт с правильным сохранением размеров
   flipAllCardsAndStartGame() {
     console.log('Flipping all cards and starting game...');
     
     // Анимированное переворачивание карт с сохранением размеров
     this.cards.forEach((card, index) => {
-      // Сохраняем текущие размеры
-      const currentWidth = card.displayWidth;
-      const currentHeight = card.displayHeight;
+      // Сохраняем данные о размерах перед анимацией
+      const targetWidth = card.getData('targetWidth');
+      const targetHeight = card.getData('targetHeight');
+      const scaleX = card.getData('scaleX');
+      const scaleY = card.getData('scaleY');
       
       this.tweens.add({
         targets: card,
@@ -642,13 +699,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
         delay: index * 30,
         ease: 'Power2.easeIn',
         onComplete: () => {
-          card.setTexture('back');
-          // ИСПРАВЛЕНО: Восстанавливаем размеры после смены текстуры
-          card.setDisplaySize(currentWidth, currentHeight);
+          // Меняем текстуру на заднюю сторону
+          this.setCardTexture(card, 'back');
           
+          // Возвращаем анимацию
           this.tweens.add({
             targets: card,
-            scaleX: 1,
+            scaleX: scaleX, // Восстанавливаем оригинальный масштаб
             duration: 200,
             ease: 'Power2.easeOut'
           });
@@ -658,11 +715,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     // Финальная настройка после переворота
     this.flipTimer = this.time.delayedCall(1000, () => {
-      // Включаем интерактивность карт с сохранением размеров
+      // Включаем интерактивность карт
       this.cards.forEach(card => {
         card.setInteractive({ useHandCursor: true });
-        // ИСПРАВЛЕНО: Убеждаемся что размеры сохранены
-        card.setDisplaySize(this.gameState.cardWidth, this.gameState.cardHeight);
+        // ИСПРАВЛЕНО: Убеждаемся что размеры правильные
+        this.restoreCardSize(card);
       });
       
       this.canClick = true;
@@ -695,12 +752,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     this.gameMetrics.attempts++;
 
-    // ИСПРАВЛЕНО: Сохраняем размеры при смене текстуры
-    const currentWidth = card.displayWidth;
-    const currentHeight = card.displayHeight;
-    
-    card.setTexture(card.getData('key'));
-    card.setDisplaySize(currentWidth, currentHeight); // Восстанавливаем размер
+    // ИСПРАВЛЕНО: Используем новый метод смены текстуры
+    this.setCardTexture(card, card.getData('key'));
     card.setData('opened', true);
     this.opened.push(card);
 
@@ -727,14 +780,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
           this.gameMetrics.errors++;
           if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
           
-          // ИСПРАВЛЕНО: Сохраняем размеры при возврате к 'back'
-          const aWidth = a.displayWidth;
-          const aHeight = a.displayHeight;
-          const bWidth = b.displayWidth;
-          const bHeight = b.displayHeight;
-          
-          a.setTexture('back').setDisplaySize(aWidth, aHeight).setData('opened', false);
-          b.setTexture('back').setDisplaySize(bWidth, bHeight).setData('opened', false);
+          // ИСПРАВЛЕНО: Используем новый метод для возврата к задней стороне
+          this.setCardTexture(a, 'back');
+          this.setCardTexture(b, 'back');
+          a.setData('opened', false);
+          b.setData('opened', false);
         }
         
         this.opened = [];
