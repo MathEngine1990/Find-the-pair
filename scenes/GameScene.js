@@ -177,7 +177,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     attempts: 0,
     errors: 0,
     pairs: level.cols * level.rows / 2
-    
+   };  
     this.currentLevel = level;
     this.mistakeCount = 0;
 
