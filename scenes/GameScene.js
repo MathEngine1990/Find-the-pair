@@ -1,6 +1,74 @@
-//---scenes/GameScene.js - путь отдельного файла
+//---scenes/GameScene.js - ИСПРАВЛЕННАЯ версия
+
 
 window.GameScene = class GameScene extends Phaser.Scene {
+
+  // В GameScene.js добавить в init:
+init(data) {
+  this.currentLevel = data?.level || null;
+  this.levelPage = data?.page || 0;
+  
+  // Система достижений
+  this.achievements = this.getAchievements();
+  this.sessionStats = {
+    gamesPlayed: 0,
+    totalTime: 0,
+    totalErrors: 0,
+    perfectGames: 0
+  };
+}
+
+  getAchievements() {
+  const saved = localStorage.getItem('findpair_achievements');
+  return saved ? JSON.parse(saved) : {
+    firstWin: false,
+    perfectGame: false,
+    speedRunner: false, // выиграл за < 30 сек
+    persistent: false,  // сыграл 10 игр
+    expert: false       // прошел сложный уровень
+  };
+}
+
+  saveAchievements() {
+  localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+}
+
+  checkAchievements(gameTime, errors, level) {
+  let newAchievements = [];
+  
+  if (!this.achievements.firstWin) {
+    this.achievements.firstWin = true;
+    newAchievements.push('Первая победа!');
+  }
+  
+  if (errors === 0 && !this.achievements.perfectGame) {
+    this.achievements.perfectGame = true;
+    newAchievements.push('Идеальная игра!');
+  }
+  
+  if (gameTime < 30 && !this.achievements.speedRunner) {
+    this.achievements.speedRunner = true;
+    newAchievements.push('Скоростной бегун!');
+  }
+  
+  if (level.difficulty === 'hard' && !this.achievements.expert) {
+    this.achievements.expert = true;
+    newAchievements.push('Эксперт памяти!');
+  }
+  
+  this.sessionStats.gamesPlayed++;
+  if (this.sessionStats.gamesPlayed >= 10 && !this.achievements.persistent) {
+    this.achievements.persistent = true;
+    newAchievements.push('Упорство!');
+  }
+  
+  if (newAchievements.length > 0) {
+    this.saveAchievements();
+    this.showAchievements(newAchievements);
+  }
+}
+
+  
   constructor(){ super('GameScene'); }
 
   init(data){
@@ -172,8 +240,32 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   startGame(level){
+    console.log('Starting game with level:', level); // DEBUG
+    
+    // ИСПРАВЛЕНО: Проверка корректности level
+    if (!level || !level.cols || !level.rows) {
+      console.error('Invalid level data:', level);
+      this.scene.start('MenuScene', { page: this.levelPage });
+      return;
+    }
+       
     this.currentLevel = level;
     this.mistakeCount = 0;
+
+    // ИСПРАВЛЕНО: Безопасная инициализация метрик
+    const total = level.cols * level.rows;
+    if (total % 2 !== 0) {
+      console.error('Нечётное число ячеек в сетке', level);
+      this.scene.start('MenuScene', { page: this.levelPage });
+      return;
+    }
+
+    this.gameMetrics = {
+      startTime: Date.now(),
+      attempts: 0,
+      errors: 0,
+      pairs: Math.floor(total / 2) // ИСПРАВЛЕНО: Целое число пар
+    };  
 
     this.children.removeAll();
     this.ensureGradientBackground();
@@ -181,9 +273,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     this.drawHUD();
 
-    const total = level.cols * level.rows;
-    if (total % 2 !== 0){ console.error('Нечётное число ячеек в сетке', level); return; }
-    const pairs = total / 2;
+    const pairs = Math.floor(total / 2);
 
     const shuffled = Phaser.Utils.Array.Shuffle(ALL_CARD_KEYS.slice());
     const base = Array.from({length:pairs}, (_,i)=> shuffled[i % shuffled.length]);
@@ -232,16 +322,26 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
+    // ИСПРАВЛЕНО: 5 секунд показа лицом
     this.canClick = false;
-    this.time.delayedCall(4000, () => {
+    console.log('Showing cards for 5 seconds...'); // DEBUG
+    this.time.delayedCall(5000, () => {
+      console.log('Hiding cards, game starts!'); // DEBUG
       this.cards.forEach(card => card.setTexture('back'));
       this.canClick = true;
     });
   }
 
   onCardClick(card){
-    if (!this.canClick) return;
-    if (card.getData('opened') || card.getData('matched')) return;
+    if (!this.canClick || this._processingCards) return;
+  if (card.getData('opened') || card.getData('matched')) return;
+
+ // Защита от быстрых кликов
+  if (this._lastClickTime && Date.now() - this._lastClickTime < 300) return;
+  this._lastClickTime = Date.now();
+    
+    // ИСПРАВЛЕНО: Увеличиваем попытки только один раз
+    this.gameMetrics.attempts++;
 
     card.setTexture(card.getData('key'));
     card.setData('opened', true);
@@ -257,6 +357,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
           a.setData('opened', false); b.setData('opened', false);
         } else {
           this.mistakeCount++;
+          this.gameMetrics.errors++; // ДОБАВЛЕНО: Трекинг ошибок в метриках
           if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
           a.setTexture('back').setData('opened', false);
           b.setTexture('back').setData('opened', false);
@@ -273,13 +374,23 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.canClick = false;
     this.cards.forEach(c => c.disableInteractive());
 
+    // ДОБАВЛЕНО: Подсчет финального времени
+    const gameTime = Math.round((Date.now() - this.gameMetrics.startTime) / 1000);
+    console.log('Game finished:', {
+      time: gameTime,
+      attempts: this.gameMetrics.attempts,
+      errors: this.gameMetrics.errors,
+      accuracy: Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100)
+    });
+
     const { W, H } = this.getSceneWH();
 
     this.add.text(W/2, H*0.22, 'Победа!', {
       fontFamily: THEME.font, fontSize: this._pxByH(0.088, 22, 48) + 'px', color:'#FFFFFF', fontStyle:'800'
     }).setOrigin(0.5);
 
-    this.add.text(W/2, H*0.32, `Ошибок за игру: ${this.mistakeCount}`, {
+    // УЛУЧШЕНО: Показываем детальную статистику
+    this.add.text(W/2, H*0.32, `Время: ${gameTime}с | Попыток: ${this.gameMetrics.attempts} | Ошибок: ${this.mistakeCount}`, {
       fontFamily: THEME.font, fontSize: this._pxByH(0.044, 14, 24) + 'px', color:'#E8E1C9', fontStyle:'600'
     }).setOrigin(0.5);
 

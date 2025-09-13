@@ -81,6 +81,14 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const { W, H } = this.getSceneWH();
     this.levelPage = page;
 
+    // ДОБАВЛЕНО: Показ возрастных ограничений при первом запуске
+  const isFirstLaunch = !localStorage.getItem('firstLaunchShown');
+  if (isFirstLaunch && window.VK_LAUNCH_PARAMS) {
+    this.showAgeRating();
+    localStorage.setItem('firstLaunchShown', 'true');
+    return;
+  }
+
     const COLS=3, ROWS=3, PER_PAGE=COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(LEVELS.length / PER_PAGE));
 
@@ -148,4 +156,53 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     };
     this.input.on('wheel', this._wheelHandler);
   }
+
+  // ДОБАВИТЬ новый метод:
+showAgeRating() {
+  const { W, H } = this.getSceneWH();
+  
+  // Затемнение фона
+  const overlay = this.add.graphics()
+    .fillStyle(0x000000, 0.8)
+    .fillRect(0, 0, W, H)
+    .setDepth(1000);
+    
+  // Окно с возрастным ограничением
+  const modalW = Math.min(400, W * 0.8);
+  const modalH = Math.min(300, H * 0.4);
+  
+  const modal = this.add.graphics()
+    .fillStyle(0xffffff, 1)
+    .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 12)
+    .setDepth(1001);
+    
+  const title = this.add.text(W/2, H/2 - 80, 'Возрастное ограничение', {
+    fontFamily: THEME.font,
+    fontSize: '24px',
+    fontStyle: 'bold',
+    color: '#000000'
+  }).setOrigin(0.5).setDepth(1002);
+  
+  const text = this.add.text(W/2, H/2 - 20, 'Данная игра не содержит контента,\nзапрещенного для несовершеннолетних.\n\nВозрастное ограничение: 0+', {
+    fontFamily: THEME.font,
+    fontSize: '16px',
+    color: '#333333',
+    align: 'center'
+  }).setOrigin(0.5).setDepth(1002);
+  
+  const okButton = window.makeImageButton(
+    this, W/2, H/2 + 60, 120, 40,
+    'Понятно',
+    () => {
+      overlay.destroy();
+      modal.destroy();
+      title.destroy();
+      text.destroy();
+      okButton.destroy();
+      this.drawMenu(this.levelPage);
+    }
+  );
+  okButton.setDepth(1003);
+}
+  
 };
