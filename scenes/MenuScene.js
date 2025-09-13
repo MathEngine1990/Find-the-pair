@@ -1,4 +1,4 @@
-//---scenes/MenuScene.js - С СИСТЕМОЙ ПРОГРЕССА И ЗВЕЗДОЧЕК
+//---scenes/MenuScene.js - ИСПРАВЛЕНИЯ ВИЗУАЛЬНЫХ ПРОБЛЕМ
 
 window.MenuScene = class MenuScene extends Phaser.Scene {
   constructor(){ super('MenuScene'); }
@@ -166,45 +166,49 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const COLS=3, ROWS=3, PER_PAGE=COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
-    const titlePx = Math.round(Phaser.Math.Clamp(H * (window.THEME.titleSizeFactor || 0.08), 22, 56));
-    const title = this.add.text(W/2, H*0.13, 'Сколько пар играть?', {
-      fontFamily: window.THEME.fontTitle || window.THEME.font,
-      fontSize:   `${titlePx}px`,
-      fontStyle:  window.THEME.titleStyle || 'bold',
-      color:      window.THEME.titleColor || '#E8E1C9',
+    // ИСПРАВЛЕНО: Уменьшен размер заголовка и добавлен отступ
+    const titlePx = Math.round(Phaser.Math.Clamp(H * 0.06, 20, 40)); // Уменьшено с 0.08
+    const title = this.add.text(W/2, H*0.08, 'Сколько пар играть?', { // Поднято выше
+      fontFamily: 'Arial, sans-serif', // ИСПРАВЛЕНО: Простой шрифт
+      fontSize: `${titlePx}px`,
+      fontStyle: 'bold',
+      color: '#FFFFFF', // ИСПРАВЛЕНО: Белый цвет для лучшей видимости
       align: 'center'
     }).setOrigin(0.5);
-    title.setStroke('#0A1410', Math.max(1, Math.round(titlePx * 0.06)));
-    title.setShadow(0, Math.max(1, Math.round(titlePx * 0.10)), '#000000', Math.round(titlePx * 0.18), false, true);
+    title.setStroke('#000000', Math.max(2, Math.round(titlePx * 0.08))); // Увеличена обводка
+    title.setShadow(2, 2, '#000000', 6, false, true); // Улучшена тень
     this.levelButtons.push(title);
 
-    // Персонализация для VK пользователей
+    // ИСПРАВЛЕНО: Персонализация только если есть данные и с отступом
     if (this.vkUserData && this.vkUserData.first_name) {
-      const greeting = this.add.text(W/2, H*0.06, `Привет, ${this.vkUserData.first_name}!`, {
-        fontFamily: window.THEME.font,
-        fontSize: Math.round(titlePx * 0.5) + 'px',
-        color: '#4ECDC4',
-        fontStyle: '600'
+      const greeting = this.add.text(W/2, H*0.04, `Привет, ${this.vkUserData.first_name}!`, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: Math.round(titlePx * 0.6) + 'px',
+        color: '#FFD700', // Золотой цвет
+        fontStyle: 'bold'
       }).setOrigin(0.5);
+      greeting.setStroke('#000000', 2);
       this.levelButtons.push(greeting);
     }
 
-    // Общая статистика прогресса
+    // ИСПРАВЛЕНО: Статистика сдвинута ниже с лучшим стилем
     const stats = this.getStats();
-    let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels}`;
-    if (stats.totalStars > 0) {
-      statsText += ` | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+    if (stats.completedLevels > 0) {
+      const statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+      
+      const statsDisplay = this.add.text(W/2, H*0.14, statsText, { // Сдвинуто ниже
+        fontFamily: 'Arial, sans-serif',
+        fontSize: Math.round(titlePx * 0.45) + 'px',
+        color: '#E0E0E0', // Светло-серый
+        align: 'center',
+        fontStyle: 'normal'
+      }).setOrigin(0.5);
+      statsDisplay.setStroke('#000000', 1);
+      this.levelButtons.push(statsDisplay);
     }
 
-    const statsDisplay = this.add.text(W/2, H*0.17, statsText, {
-      fontFamily: window.THEME.font,
-      fontSize: Math.round(titlePx * 0.4) + 'px',
-      color: '#B8B8B8',
-      align: 'center'
-    }).setOrigin(0.5);
-    this.levelButtons.push(statsDisplay);
-
-    const topY = H*0.24, bottomY = H*0.78;
+    // ИСПРАВЛЕНО: Область для кнопок сдвинута ниже
+    const topY = H*0.20, bottomY = H*0.78; // Увеличен отступ сверху
     const areaH = bottomY - topY;
     const areaW = Math.min(W*0.90, 1080);
     const cellH = areaH / ROWS;
@@ -239,9 +243,12 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     prevBtn.setAlpha(prevActive?1:0.45); this.levelButtons.push(prevBtn);
 
     const pageTxt = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
-      fontFamily: window.THEME.font, fontSize: Math.round(Math.min(Math.max(size*0.30,14),22)) + 'px',
-      color:'#E8E1C9', fontStyle:'600'
+      fontFamily: 'Arial, sans-serif', 
+      fontSize: Math.round(Math.min(Math.max(size*0.30,14),22)) + 'px',
+      color:'#FFFFFF', 
+      fontStyle: 'bold'
     }).setOrigin(0.5);
+    pageTxt.setStroke('#000000', 1);
     this.levelButtons.push(pageTxt);
 
     const nextBtn = window.makeIconButton(this, W*0.70, yNav, size, '›', () => {
@@ -256,7 +263,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.input.on('wheel', this._wheelHandler);
   }
 
-  // Создание кнопки уровня с прогрессом
+  // ИСПРАВЛЕНО: Создание кнопки уровня с лучшим форматированием
   createLevelButton(x, y, w, h, level, levelIndex) {
     // Контейнер для всех элементов уровня
     const levelContainer = this.add.container(x, y);
@@ -265,9 +272,9 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const progress = this.getProgress();
     const levelProgress = progress[levelIndex];
 
-    // Основная кнопка уровня
-    const btnY = -h*0.15; // Сдвигаем кнопку вверх, чтобы место для звезд
-    const btn = window.makeImageButton(this, 0, btnY, w, h*0.7, level.label, () => {
+    // Основная кнопка уровня (увеличена область)
+    const btnY = -h*0.1; // Меньше сдвиг вверх
+    const btn = window.makeImageButton(this, 0, btnY, w, h*0.75, level.label, () => { // Увеличена высота кнопки
       // Передаем VK данные в GameScene
       this.scene.start('GameScene', { 
         level: level, 
@@ -279,10 +286,10 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
     levelContainer.add(btn);
 
-    // Отображение звездочек и прогресса
-    const starsY = h*0.25;
-    const starSize = Math.min(22, w*0.08);
-    const starSpacing = starSize + 6;
+    // ИСПРАВЛЕНО: Звездочки и прогресс с лучшим размещением
+    const starsY = h*0.32; // Сдвинуто ниже
+    const starSize = Math.min(18, w*0.06); // Уменьшен размер звезд
+    const starSpacing = starSize + 4;
 
     if (levelProgress) {
       // Показываем заработанные звездочки
@@ -291,26 +298,20 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
         const filled = star <= levelProgress.stars;
         const starText = this.add.text(starX, starsY, filled ? '★' : '☆', {
           fontSize: starSize + 'px',
-          color: filled ? '#FFD700' : '#444444'
+          color: filled ? '#FFD700' : '#555555' // Темнее для пустых звезд
         }).setOrigin(0.5);
         levelContainer.add(starText);
       }
 
-      // Показываем лучшее время
-      const timeText = this.add.text(0, starsY + 28, `⏱ ${this.formatTime(levelProgress.bestTime)}`, {
-        fontFamily: window.THEME.font,
-        fontSize: Math.round(starSize * 0.55) + 'px',
-        color: '#4ECDC4'
+      // ИСПРАВЛЕНО: Время и точность в одной строке
+      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.bestAccuracy}%`;
+      const statsDisplay = this.add.text(0, starsY + 22, statsText, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: Math.round(starSize * 0.65) + 'px',
+        color: '#CCCCCC',
+        fontStyle: 'normal'
       }).setOrigin(0.5);
-      levelContainer.add(timeText);
-
-      // Показываем точность
-      const accuracyText = this.add.text(0, starsY + 42, `🎯 ${levelProgress.bestAccuracy}%`, {
-        fontFamily: window.THEME.font,
-        fontSize: Math.round(starSize * 0.55) + 'px',
-        color: '#2ECC71'
-      }).setOrigin(0.5);
-      levelContainer.add(accuracyText);
+      levelContainer.add(statsDisplay);
 
     } else {
       // Уровень не пройден - показываем пустые звездочки
@@ -318,16 +319,17 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
         const starX = (star - 2) * starSpacing;
         const starText = this.add.text(starX, starsY, '☆', {
           fontSize: starSize + 'px',
-          color: '#333333'
+          color: '#444444' // Темнее для непройденных
         }).setOrigin(0.5);
         levelContainer.add(starText);
       }
 
       // Подсказка для непройденного уровня
-      const hintText = this.add.text(0, starsY + 35, 'Не пройден', {
-        fontFamily: window.THEME.font,
-        fontSize: Math.round(starSize * 0.5) + 'px',
-        color: '#666666'
+      const hintText = this.add.text(0, starsY + 22, 'Не пройден', {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: Math.round(starSize * 0.6) + 'px',
+        color: '#888888',
+        fontStyle: 'italic'
       }).setOrigin(0.5);
       levelContainer.add(hintText);
     }
@@ -342,7 +344,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}с`;
   }
 
-  // Диалог возрастных ограничений (улучшенный)
+  // ИСПРАВЛЕНО: Улучшенный диалог возрастных ограничений
   showAgeRating() {
     const { W, H } = this.getSceneWH();
     
@@ -353,57 +355,61 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       .setDepth(1000)
       .setInteractive();
 
-    // Модальное окно
-    const modalW = Math.min(400, W * 0.8);
-    const modalH = Math.min(320, H * 0.7);
+    // Модальное окно с лучшим стилем
+    const modalW = Math.min(450, W * 0.85);
+    const modalH = Math.min(350, H * 0.75);
     const modal = this.add.graphics()
-      .fillStyle(0x1a1a1a)
-      .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 10)
-      .lineStyle(2, 0x4a4a4a)
-      .strokeRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 10)
+      .fillStyle(0x2C3E50, 0.95)
+      .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 15)
+      .lineStyle(3, 0x3498DB, 0.8)
+      .strokeRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 15)
       .setDepth(1001);
 
-    // Заголовок
+    // Заголовок с лучшим стилем
     const title = this.add.text(W/2, H/2 - modalH/3, 'Возрастные ограничения', {
-      fontFamily: window.THEME.font,
-      fontSize: '22px',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '24px',
       color: '#FFFFFF',
       fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(1002);
+    title.setStroke('#000000', 2);
 
-    // Основной текст
+    // Основной текст с лучшим форматированием
     const text = this.add.text(W/2, H/2 - 20, 
-      'Игра "Память: Найди пару"\nне содержит контента,\nзапрещенного для несовершеннолетних\n\n🔞 Возрастное ограничение: 0+\n\n✅ Безопасно для всей семьи', {
-      fontFamily: window.THEME.font,
+      'Игра "Память: Найди пару"\nне содержит контента,\nзапрещенного для несовершеннолетних\n\nВозрастное ограничение: 0+\n\nБезопасно для всей семьи', {
+      fontFamily: 'Arial, sans-serif',
       fontSize: '16px',
-      color: '#CCCCCC',
+      color: '#E8E8E8',
       align: 'center',
-      lineSpacing: 8
+      lineSpacing: 6,
+      fontStyle: 'normal'
     }).setOrigin(0.5).setDepth(1002);
 
     // Дополнительная информация для VK
+    let vkInfo = null;
     if (this.isVKEnvironment) {
-      const vkInfo = this.add.text(W/2, H/2 + modalH/3 - 80, 
-        '🔒 Данные обрабатываются согласно\nполитике конфиденциальности ВКонтакте', {
-        fontFamily: window.THEME.font,
+      vkInfo = this.add.text(W/2, H/2 + modalH/3 - 80, 
+        'Данные обрабатываются согласно\nполитике конфиденциальности ВКонтакте', {
+        fontFamily: 'Arial, sans-serif',
         fontSize: '12px',
-        color: '#888888',
+        color: '#AAAAAA',
         align: 'center',
-        lineSpacing: 4
+        lineSpacing: 4,
+        fontStyle: 'italic'
       }).setOrigin(0.5).setDepth(1002);
     }
 
-    // Кнопка "Понятно"
+    // Кнопка "Понятно" с лучшим стилем
     const okButton = window.makeImageButton(
-      this, W/2, H/2 + modalH/3 - 40, 
-      140, 45, '✓ Понятно', 
+      this, W/2, H/2 + modalH/3 - 30, 
+      150, 50, 'Понятно', 
       () => {
         overlay.destroy();
         modal.destroy();
         title.destroy();
         text.destroy();
+        if (vkInfo) vkInfo.destroy();
         okButton.destroy();
-        if (this.isVKEnvironment && vkInfo) vkInfo.destroy();
         this.drawMenu(this.levelPage);
       }
     );
