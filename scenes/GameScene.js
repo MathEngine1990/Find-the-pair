@@ -172,14 +172,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   startGame(level){
+       
+    this.currentLevel = level;
+    this.mistakeCount = 0;
+
     this.gameMetrics = {
     startTime: Date.now(),
     attempts: 0,
     errors: 0,
     pairs: level.cols * level.rows / 2
-   };  
-    this.currentLevel = level;
-    this.mistakeCount = 0;
+    };  
 
     this.children.removeAll();
     this.ensureGradientBackground();
