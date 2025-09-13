@@ -97,9 +97,10 @@
     };
     
     s.onerror = () => {
-      console.error('❌ Failed to load VK Bridge script');
-      initGame();
-    };
+  console.warn('⚠️ VK Bridge недоступен, запуск в standalone режиме');
+  window.VK_LAUNCH_PARAMS = null;
+  initGame();
+};
     
     document.head.appendChild(s);
   } else {
