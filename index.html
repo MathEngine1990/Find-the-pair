@@ -1,11 +1,10 @@
- <!-- index.html- путь отдельного файла -->
-
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <title>Find the Pair</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ИСПРАВЛЕНО: Более точный viewport для мобильных -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -41,22 +40,42 @@
   <script src="scenes/MenuScene.js"></script>
   <script src="scenes/GameScene.js"></script>
 
-  <!-- Инициализация игры (важно: parent совпадает с id="game") -->
+  <!-- ИСПРАВЛЕНО: Сверхвысокое разрешение для максимального качества -->
   <script>
-    const DPR = Math.min(2, window.devicePixelRatio || 1);
-    const config = {
+    // Максимальный DPR для ультра-четкости
+    const DPR = window.devicePixelRatio || 1;
+    
+    window.gameConfig = {
       type: Phaser.AUTO,
       parent: 'game',
-      backgroundColor: '#000000',
+      backgroundColor: '#1d2330',
       scale: {
+        // FIT режим для лучшего качества
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1080,
-        height: 720
+        // ЗНАЧИТЕЛЬНО увеличенное базовое разрешение
+        width: 2560,   // Увеличено с 1080 до 2560
+        height: 1440   // Увеличено с 720 до 1440
       },
       resolution: DPR,
-      render: { antialias: true, pixelArt: false },
+      render: { 
+        antialias: true, 
+        pixelArt: false,
+        roundPixels: false, // Максимальная четкость
+        powerPreference: 'high-performance',
+        // ДОБАВЛЕНО: Дополнительные настройки качества
+        premultipliedAlpha: true,
+        transparent: false,
+        clearBeforeRender: true
+      },
       scene: [ window.PreloadScene, window.MenuScene, window.GameScene ],
+      physics: {
+        default: false
+      },
+      input: {
+        activePointers: 1,
+        smoothFactor: 0.1 // Небольшое сглаживание для плавности
+      }
     };
   </script>
 
