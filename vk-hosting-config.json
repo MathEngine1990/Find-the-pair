@@ -1,9 +1,12 @@
 {
-  "static_path": ".",
-  "app_id": 0,
+  "static_path": "dist",
+  "app_id": 53937545,
   "endpoints": {
     "mobile": "index.html",
     "mvk": "index.html", 
     "web": "index.html"
+  },
+  "oauth_settings": {
+    "redirect_uri": "https://mathengine1990.github.io/Find-the-pair/"
   }
 }
