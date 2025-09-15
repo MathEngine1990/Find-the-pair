@@ -367,44 +367,56 @@
     debugLog('VK Events subscription initialized');
   }
 
-  // Обработчики событий приложения
+  // ИСПРАВЛЕНИЕ: Безопасные обработчики событий приложения
   function handleAppHide() {
     debugLog('App hidden - pausing game');
     
-    if (window.game?.scene) {
-      const activeScene = window.game.scene.getActiveScene();
-      if (activeScene && activeScene.scene.key === 'GameScene') {
-        activeScene.canClick = false;
-        
-        // Сохраняем состояние игры
-        if (activeScene.gameMetrics && activeScene.gameMetrics.startTime) {
-          activeScene.pausedAt = Date.now();
-          debugLog('Game paused and saved');
+    if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
+      try {
+        const activeScene = window.game.scene.getActiveScene();
+        if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+          activeScene.canClick = false;
+          
+          // Сохраняем состояние игры
+          if (activeScene.gameMetrics && activeScene.gameMetrics.startTime) {
+            activeScene.pausedAt = Date.now();
+            debugLog('Game paused and saved');
+          }
         }
+      } catch (error) {
+        debugLog('Error in handleAppHide:', error);
       }
+    } else {
+      debugLog('Game not ready for app hide handling');
     }
   }
 
   function handleAppRestore() {
     debugLog('App restored - resuming game');
     
-    if (window.game?.scene) {
-      const activeScene = window.game.scene.getActiveScene();
-      if (activeScene && activeScene.scene.key === 'GameScene') {
-        
-        // Восстанавливаем состояние игры с задержкой
-        setTimeout(() => {
-          if (activeScene.pausedAt && activeScene.gameMetrics) {
-            // Корректируем время игры, исключая время паузы
-            const pauseDuration = Date.now() - activeScene.pausedAt;
-            activeScene.gameMetrics.startTime += pauseDuration;
-            activeScene.pausedAt = null;
-          }
+    if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
+      try {
+        const activeScene = window.game.scene.getActiveScene();
+        if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
           
-          activeScene.canClick = true;
-          debugLog('Game resumed');
-        }, 300);
+          // Восстанавливаем состояние игры с задержкой
+          setTimeout(() => {
+            if (activeScene.pausedAt && activeScene.gameMetrics) {
+              // Корректируем время игры, исключая время паузы
+              const pauseDuration = Date.now() - activeScene.pausedAt;
+              activeScene.gameMetrics.startTime += pauseDuration;
+              activeScene.pausedAt = null;
+            }
+            
+            activeScene.canClick = true;
+            debugLog('Game resumed');
+          }, 300);
+        }
+      } catch (error) {
+        debugLog('Error in handleAppRestore:', error);
       }
+    } else {
+      debugLog('Game not ready for app restore handling');
     }
   }
 
@@ -790,30 +802,43 @@
     }
   });
 
-  // Обработка потери фокуса страницы
+  // ИСПРАВЛЕНИЕ: Обработка потери фокуса страницы с проверками
   document.addEventListener('visibilitychange', () => {
-    if (window.game && document.hidden) {
-      debugLog('Page hidden, pausing game...');
-      
-      // Пауза активной сцены
-      const activeScene = window.game.scene.getActiveScene();
-      if (activeScene && activeScene.scene.key === 'GameScene') {
-        activeScene.canClick = false;
-        debugLog('Game input disabled due to page visibility change');
-      }
-    } else if (window.game && !document.hidden) {
-      debugLog('Page visible, resuming game...');
-      
-      const activeScene = window.game.scene.getActiveScene();
-      if (activeScene && activeScene.scene.key === 'GameScene') {
-        // Небольшая задержка перед возобновлением
-        setTimeout(() => {
-          if (activeScene.gameMetrics && activeScene.gameMetrics.startTime) {
-            activeScene.canClick = true;
-            debugLog('Game input re-enabled');
+    // Безопасная проверка существования объектов игры
+    if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
+      if (document.hidden) {
+        debugLog('Page hidden, pausing game...');
+        
+        try {
+          // Пауза активной сцены
+          const activeScene = window.game.scene.getActiveScene();
+          if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+            activeScene.canClick = false;
+            debugLog('Game input disabled due to page visibility change');
           }
-        }, 500);
+        } catch (error) {
+          debugLog('Error pausing game:', error);
+        }
+      } else {
+        debugLog('Page visible, resuming game...');
+        
+        try {
+          const activeScene = window.game.scene.getActiveScene();
+          if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+            // Небольшая задержка перед возобновлением
+            setTimeout(() => {
+              if (activeScene.gameMetrics && activeScene.gameMetrics.startTime) {
+                activeScene.canClick = true;
+                debugLog('Game input re-enabled');
+              }
+            }, 500);
+          }
+        } catch (error) {
+          debugLog('Error resuming game:', error);
+        }
       }
+    } else {
+      debugLog('Game or scene manager not ready for visibility handling');
     }
   });
 
