@@ -14,8 +14,8 @@
   <meta property="og:type" content="game" />
   <meta property="og:url" content="https://mathengine1990.github.io/Find-the-pair/" />
   
-  <!-- ДОБАВЛЕНО: VK специфичные meta -->
-  <meta name="vk:app_id" content="51827773" />
+  <!-- ИСПРАВЛЕНО: VK app_id должен совпадать с vk-hosting-config.json -->
+  <meta name="vk:app_id" content="53937545" />
   <meta name="theme-color" content="#1d2330" />
   
   <!-- ДОБАВЛЕНО: Предзагрузка критичных ресурсов -->
@@ -25,7 +25,69 @@
   <link rel="preload" href="game/Data.js" as="script">
 </head>
 <body>
-  <div id="game"></div>
+  <!-- КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Добавлен fallback контент в game div -->
+  <div id="game">
+    <!-- Прелоадер на случай медленной загрузки -->
+    <div id="preloader" style="
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      background: #1d2330; 
+      color: #fff; 
+      font-family: Arial, sans-serif;
+      text-align: center;
+    ">
+      <div style="
+        width: 50px; 
+        height: 50px; 
+        border: 3px solid #4ECDC4; 
+        border-top: 3px solid transparent; 
+        border-radius: 50%; 
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      "></div>
+      <h2 style="margin: 0 0 10px 0; color: #4ECDC4;">Find the Pair</h2>
+      <p style="margin: 0; color: #ccc;">Загрузка игры...</p>
+    </div>
+  </div>
+
+  <!-- ДОБАВЛЕНО: CSS для анимации прелоадера и стилей -->
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Скрываем прелоадер когда игра загружена */
+    .game-loaded #preloader {
+      display: none !important;
+    }
+    
+    /* Убеждаемся что game div занимает весь экран */
+    #game {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+    }
+    
+    /* Дополнительные стили для стабильности */
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #1d2330;
+    }
+    
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
 
   <!-- Локальный Phaser (важно: до сцен) -->
   <script src="lib/phaser.min.js"></script>
@@ -35,9 +97,35 @@
   <script src="game/Data.js"></script>
   <script src="ui/Button.js"></script>
 
-  <!-- УЛУЧШЕНО: Расширенная заглушка для Button.js с вашими улучшениями -->
+  <!-- УЛУЧШЕНО: Расширенная заглушка для Button.js с проверками зависимостей -->
   <script>
     console.log('Buttons loaded?', typeof window.makeImageButton);
+    
+    // ИСПРАВЛЕНИЕ: Проверяем загрузку зависимостей
+    function checkDependencies() {
+      const deps = {
+        Phaser: typeof window.Phaser !== 'undefined',
+        THEME: typeof window.THEME !== 'undefined',
+        ALL_CARD_KEYS: Array.isArray(window.ALL_CARD_KEYS),
+        LEVELS: Array.isArray(window.LEVELS),
+        makeImageButton: typeof window.makeImageButton === 'function'
+      };
+      
+      console.log('Dependencies check:', deps);
+      
+      const allLoaded = Object.values(deps).every(Boolean);
+      if (allLoaded) {
+        console.log('✅ All dependencies loaded');
+        document.body.classList.add('dependencies-ready');
+      } else {
+        console.warn('⚠️ Some dependencies missing:', 
+          Object.entries(deps).filter(([key, value]) => !value).map(([key]) => key)
+        );
+      }
+      
+      return allLoaded;
+    }
+    
     if (typeof window.makeImageButton !== 'function') {
       console.warn('ui/Button.js НЕ загрузился — включаю улучшенную заглушку');
       
@@ -190,6 +278,9 @@
         return container;
       };
     }
+    
+    // Проверяем зависимости после загрузки каждого скрипта
+    setTimeout(checkDependencies, 50);
   </script>
 
   <!-- Сцены -->
@@ -197,10 +288,10 @@
   <script src="scenes/MenuScene.js"></script>
   <script src="scenes/GameScene.js"></script>
 
-  <!-- СОХРАНЕНО: Ваши настройки сверхвысокого разрешения + добавления -->
+  <!-- СОХРАНЕНО: Ваши настройки сверхвысокого разрешения + критические исправления -->
   <script>
     // ДОБАВЛЕНО: Проверка готовности всех зависимостей
-    function checkDependencies() {
+    function checkAllDependencies() {
       const required = [
         { name: 'Phaser', check: () => window.Phaser },
         { name: 'THEME', check: () => window.THEME },
@@ -295,7 +386,7 @@
           console.log('🚀 Game pre-boot');
           
           // Проверяем зависимости
-          if (!checkDependencies()) {
+          if (!checkAllDependencies()) {
             throw new Error('Missing required dependencies');
           }
         },
@@ -309,6 +400,9 @@
             mobile: isMobile,
             lowEnd: isLowEnd
           });
+          
+          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убираем прелоадер после успешной инициализации
+          hidePreloader();
           
           // Сохраняем ссылку на игру глобально
           window.game = game;
@@ -339,7 +433,17 @@
       }
     };
 
-    // ДОБАВЛЕНО: Обработка ошибок инициализации
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Функция скрытия прелоадера
+    function hidePreloader() {
+      const preloader = document.getElementById('preloader');
+      if (preloader) {
+        preloader.style.display = 'none';
+        document.body.classList.add('game-loaded');
+        console.log('✅ Preloader hidden, game ready');
+      }
+    }
+    
+    // ИСПРАВЛЕНИЕ: Улучшенная обработка ошибок инициализации
     window.addEventListener('error', (event) => {
       console.error('🚨 JavaScript Error:', {
         message: event.message,
@@ -348,10 +452,55 @@
         error: event.error
       });
       
+      // Специальная обработка ошибки appendChild
+      if (event.message && 
+          event.message.includes('appendChild') && 
+          !window.game) {
+        
+        console.log('🔧 Attempting to fix appendChild error...');
+        
+        // Очищаем и пересоздаем game контейнер
+        const gameDiv = document.getElementById('game');
+        if (gameDiv) {
+          gameDiv.innerHTML = `
+            <div style="
+              display: flex; 
+              flex-direction: column; 
+              justify-content: center; 
+              align-items: center; 
+              height: 100vh; 
+              background: #1d2330; 
+              color: #fff; 
+              font-family: Arial, sans-serif;
+              text-align: center;
+              padding: 20px;
+            ">
+              <h2>🔧 Исправление ошибки...</h2>
+              <p>Перезапуск игры через 2 секунды</p>
+              <div style="
+                width: 30px; 
+                height: 30px; 
+                border: 2px solid #4ECDC4; 
+                border-top: 2px solid transparent; 
+                border-radius: 50%; 
+                animation: spin 1s linear infinite;
+                margin-top: 15px;
+              "></div>
+            </div>
+          `;
+          
+          // Пытаемся перезапустить игру через 2 секунды
+          setTimeout(() => {
+            location.reload();
+          }, 2000);
+        }
+      }
+      
       // Показываем пользователю ошибку только при критических проблемах
-      if (event.message.includes('Phaser') || 
-          event.message.includes('WebGL') ||
-          event.message.includes('dependencies')) {
+      if (event.message && 
+          (event.message.includes('Phaser') || 
+           event.message.includes('WebGL') ||
+           event.message.includes('dependencies'))) {
         
         const gameDiv = document.getElementById('game');
         if (gameDiv && !window.game) {
@@ -413,15 +562,44 @@
         }
         lastTouchEnd = now;
       }, { passive: false });
+
+      // Предотвращаем контекстное меню
+      document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+      });
+
+      // Скрываем адресную строку на iOS
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        setTimeout(() => {
+          window.scrollTo(0, 1);
+        }, 100);
+      }
       
       console.log('📱 Mobile optimizations applied');
     }
+
+    // ИСПРАВЛЕНИЕ: Автоматическое скрытие прелоадера через максимальное время
+    let gameCheckInterval = setInterval(() => {
+      if (window.game && window.game.scene && window.game.scene.scenes.length > 0) {
+        hidePreloader();
+        clearInterval(gameCheckInterval);
+      }
+    }, 100);
+
+    // Fallback - убираем прелоадер через 10 секунд в любом случае
+    setTimeout(() => {
+      if (document.getElementById('preloader')) {
+        console.warn('⚠️ Preloader timeout - hiding anyway');
+        hidePreloader();
+      }
+      clearInterval(gameCheckInterval);
+    }, 10000);
   </script>
 
-  <!-- ИСПРАВЛЕНО: Раскомментирован main.js (VK интеграция включена) -->
+  <!-- ИСПРАВЛЕНО: main.js загружается последним с обработкой ошибок -->
   <script src="main.js"></script>
   
-  <!-- ДОБАВЛЕНО: Обработка изменения ориентации -->
+  <!-- ДОБАВЛЕНО: Финальные обработчики событий -->
   <script>
     // Обработка поворота экрана
     window.addEventListener('orientationchange', () => {
@@ -455,6 +633,49 @@
           console.warn('Cleanup warning:', e);
         }
       }
+    });
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Финальная проверка инициализации
+    window.addEventListener('load', () => {
+      console.log('📄 Page fully loaded');
+      
+      // Проверяем что игра успешно создалась
+      setTimeout(() => {
+        if (!window.game) {
+          console.warn('⚠️ Game not created after page load - showing error');
+          const gameDiv = document.getElementById('game');
+          if (gameDiv) {
+            gameDiv.innerHTML = `
+              <div style="
+                display: flex; 
+                flex-direction: column; 
+                justify-content: center; 
+                align-items: center; 
+                height: 100vh; 
+                background: #1d2330; 
+                color: #fff; 
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+              ">
+                <h2>⚠️ Игра не загрузилась</h2>
+                <p>Попробуйте обновить страницу или проверьте интернет-соединение</p>
+                <button onclick="location.reload()" style="
+                  padding: 12px 24px; 
+                  font-size: 16px; 
+                  background: #e74c3c; 
+                  color: white; 
+                  border: none; 
+                  border-radius: 8px; 
+                  cursor: pointer;
+                  margin-top: 20px;
+                  font-weight: bold;
+                ">🔄 Перезагрузить</button>
+              </div>
+            `;
+          }
+        }
+      }, 3000);
     });
   </script>
 </body>
