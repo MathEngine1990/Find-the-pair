@@ -678,6 +678,25 @@
             console.log('✅ Preloader hidden, game ready');
           }
           
+          // ДОБАВЛЕНО: Отслеживание сцен
+          game.events.on('step', () => {
+            const activeScene = game.scene.getActiveScene();
+            if (activeScene) {
+              console.log('🎬 Active scene:', activeScene.scene.key);
+            }
+          });
+          
+          // ДОБАВЛЕНО: Логирование переходов между сценами
+          game.scene.scenes.forEach(scene => {
+            scene.events.on('create', () => {
+              console.log(`🎭 Scene created: ${scene.scene.key}`);
+            });
+            
+            scene.events.on('shutdown', () => {
+              console.log(`🏁 Scene shutdown: ${scene.scene.key}`);
+            });
+          });
+          
           // Передаем VK данные в игру
           game.registry.set('vkUserData', window.VK_USER_DATA);
           game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
@@ -689,6 +708,28 @@
             console.error('Game error:', error);
             debugLog('Game error details', error);
           });
+          
+          // ДОБАВЛЕНО: Принудительная проверка что PreloadScene запустился
+          setTimeout(() => {
+            const currentScene = game.scene.getActiveScene();
+            if (!currentScene) {
+              console.error('❌ No active scene found! Manually starting PreloadScene...');
+              game.scene.start('PreloadScene');
+            } else {
+              console.log('✅ Active scene found:', currentScene.scene.key);
+              
+              // Дополнительная диагностика если застряли в PreloadScene
+              if (currentScene.scene.key === 'PreloadScene') {
+                setTimeout(() => {
+                  const stillInPreload = game.scene.getActiveScene();
+                  if (stillInPreload && stillInPreload.scene.key === 'PreloadScene') {
+                    console.warn('⚠️ Still in PreloadScene after 5 seconds. Forcing transition to MenuScene...');
+                    game.scene.start('MenuScene', { page: 0 });
+                  }
+                }, 5000);
+              }
+            }
+          }, 1000);
         }
       }
     };
