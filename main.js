@@ -536,41 +536,72 @@
     `;
   }
 
-  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Инициализация игры с DOM проверками
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Инициализация игры с усиленными DOM проверками
   function initGame() {
-    // ИСПРАВЛЕНИЕ: Проверяем готовность DOM
+    // ИСПРАВЛЕНИЕ 1: Проверяем готовность DOM
     if (document.readyState === 'loading') {
       console.log('DOM not ready, waiting...');
       document.addEventListener('DOMContentLoaded', initGame);
       return;
     }
 
+    // ИСПРАВЛЕНИЕ 2: Дополнительная проверка что документ полностью готов
+    if (!document.body) {
+      console.log('Document body not ready, retrying...');
+      setTimeout(initGame, 50);
+      return;
+    }
+
     debugLog('Initializing game...', {
       readyState: document.readyState,
+      hasBody: !!document.body,
       hasPhaserLib: !!window.Phaser,
       hasGameData: !!(window.ALL_CARD_KEYS && window.LEVELS),
       hasScenes: !!(window.PreloadScene && window.MenuScene && window.GameScene)
     });
 
-    // ИСПРАВЛЕНИЕ: Валидируем parent элемент
-    const gameContainer = document.getElementById('game');
+    // ИСПРАВЛЕНИЕ 3: Усиленная валидация parent элемента
+    let gameContainer = document.getElementById('game');
+    
+    // Если контейнер не найден, создаем его немедленно
     if (!gameContainer) {
-      console.error('Game container not found! Creating fallback...');
+      console.warn('Game container not found! Creating immediately...');
       
-      // Создаем fallback контейнер
-      const fallbackContainer = document.createElement('div');
-      fallbackContainer.id = 'game';
-      fallbackContainer.style.cssText = `
+      gameContainer = document.createElement('div');
+      gameContainer.id = 'game';
+      gameContainer.style.cssText = `
         width: 100vw; 
         height: 100vh; 
         position: fixed; 
         top: 0; 
         left: 0; 
         background: #1d2330;
+        z-index: 1000;
       `;
-      document.body.appendChild(fallbackContainer);
       
-      // Повторная попытка через 100ms
+      // Убеждаемся что body существует перед appendChild
+      if (document.body) {
+        document.body.appendChild(gameContainer);
+      } else {
+        console.error('Document body still not available!');
+        setTimeout(initGame, 100);
+        return;
+      }
+      
+      // Проверяем что элемент действительно добавился
+      const verification = document.getElementById('game');
+      if (!verification) {
+        console.error('Failed to create game container, retrying...');
+        setTimeout(initGame, 100);
+        return;
+      }
+      
+      console.log('Game container created successfully');
+    }
+
+    // ИСПРАВЛЕНИЕ 4: Финальная проверка что контейнер доступен
+    if (!gameContainer || !gameContainer.parentNode) {
+      console.error('Game container validation failed, retrying...');
       setTimeout(initGame, 100);
       return;
     }
@@ -740,7 +771,7 @@
     }
   };
 
-  // ИСПРАВЛЕНИЕ: Улучшенная функция main с Promise chain
+  // ИСПРАВЛЕНИЕ: Улучшенная функция main с усиленными DOM проверками
   async function main() {
     debugLog('Starting application', { 
       isVK: isVKEnvironment,
@@ -749,12 +780,34 @@
       readyState: document.readyState
     });
 
-    // Ждем готовности DOM
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Ждем полной готовности DOM
     if (document.readyState === 'loading') {
+      console.log('Waiting for DOM to be ready...');
       await new Promise(resolve => {
-        document.addEventListener('DOMContentLoaded', resolve);
+        const handler = () => {
+          document.removeEventListener('DOMContentLoaded', handler);
+          resolve();
+        };
+        document.addEventListener('DOMContentLoaded', handler);
       });
     }
+
+    // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся что body существует
+    if (!document.body) {
+      console.log('Waiting for document.body...');
+      await new Promise(resolve => {
+        const checkBody = () => {
+          if (document.body) {
+            resolve();
+          } else {
+            setTimeout(checkBody, 10);
+          }
+        };
+        checkBody();
+      });
+    }
+
+    console.log('DOM fully ready, proceeding with initialization...');
 
     if (isVKEnvironment) {
       try {
