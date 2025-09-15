@@ -1,4 +1,4 @@
-//---main.js - ФИНАЛЬНАЯ ВЕРСИЯ С ПОЛНОЙ VK ИНТЕГРАЦИЕЙ И DOM FIX
+//---main.js - ИСПРАВЛЕНИЕ НОВЫХ ОШИБОК
 
 (function() {
   'use strict';
@@ -71,7 +71,7 @@
     inIframe: window.parent !== window
   });
 
-  // Безопасная обертка для VK Bridge
+  // ИСПРАВЛЕНИЕ: Безопасная обертка для VK Bridge с новыми методами
   window.VKSafe = {
     async send(method, params = {}) {
       if (!window.vkBridge) {
@@ -94,8 +94,30 @@
       return !!(window.vkBridge && window.vkBridge.send);
     },
     
-    supports(method) {
-      return window.vkBridge && window.vkBridge.supports && window.vkBridge.supports(method);
+    // ИСПРАВЛЕНИЕ: Используем новый метод supportsAsync с fallback
+    async supports(method) {
+      if (!window.vkBridge) return false;
+      
+      // Пробуем новый метод
+      if (window.vkBridge.supportsAsync) {
+        try {
+          return await window.vkBridge.supportsAsync(method);
+        } catch (error) {
+          debugLog(`supportsAsync error for ${method}:`, error);
+          return false;
+        }
+      }
+      
+      // Fallback на старый метод с подавлением warning
+      if (window.vkBridge.supports) {
+        try {
+          return window.vkBridge.supports(method);
+        } catch (error) {
+          return false;
+        }
+      }
+      
+      return false;
     }
   };
 
@@ -134,8 +156,9 @@
     debugLog('Initializing VK Bridge...');
     
     try {
-      // Проверяем доступность методов
-      if (!window.VKSafe.supports('VKWebAppInit')) {
+      // ИСПРАВЛЕНИЕ: Проверяем доступность методов через новый API
+      const supportsInit = await window.VKSafe.supports('VKWebAppInit');
+      if (!supportsInit) {
         throw new Error('VKWebAppInit not supported');
       }
       
@@ -184,12 +207,12 @@
     }
   }
 
-  // Настройка интерфейса VK
+  // ИСПРАВЛЕНИЕ: Настройка интерфейса VK с обработкой ошибок
   async function setupVKInterface() {
     const operations = [];
     
     // Настройка статус-бара и навигации
-    if (window.VKSafe.supports('VKWebAppSetViewSettings')) {
+    if (await window.VKSafe.supports('VKWebAppSetViewSettings')) {
       operations.push({
         name: 'SetViewSettings',
         call: () => window.VKSafe.send('VKWebAppSetViewSettings', {
@@ -201,18 +224,32 @@
     }
     
     // Отключение свайпа назад
-    if (window.VKSafe.supports('VKWebAppDisableSwipeBack')) {
+    if (await window.VKSafe.supports('VKWebAppDisableSwipeBack')) {
       operations.push({
         name: 'DisableSwipeBack',
         call: () => window.VKSafe.send('VKWebAppDisableSwipeBack')
       });
     }
     
-    // Разрешение уведомлений (опционально)
-    if (window.VKSafe.supports('VKWebAppAllowNotifications')) {
+    // ИСПРАВЛЕНИЕ: Разрешение уведомлений с обработкой ошибок
+    if (await window.VKSafe.supports('VKWebAppAllowNotifications')) {
       operations.push({
         name: 'AllowNotifications',
-        call: () => window.VKSafe.send('VKWebAppAllowNotifications')
+        call: async () => {
+          try {
+            return await window.VKSafe.send('VKWebAppAllowNotifications');
+          } catch (error) {
+            // Обрабатываем специфичные ошибки уведомлений
+            if (error.error_data?.error_code === 15) {
+              debugLog('Notifications: App needs moderation approval');
+            } else if (error.error_data?.error_code === 4) {
+              debugLog('Notifications: User denied permission');
+            } else {
+              debugLog('Notifications: Other error', error);
+            }
+            throw error;
+          }
+        }
       });
     }
     
@@ -229,7 +266,8 @@
 
   // Загрузка данных пользователя
   async function loadUserData() {
-    if (!window.VKSafe.supports('VKWebAppGetUserInfo')) {
+    const supportsUserInfo = await window.VKSafe.supports('VKWebAppGetUserInfo');
+    if (!supportsUserInfo) {
       debugLog('VKWebAppGetUserInfo not supported');
       return null;
     }
@@ -588,6 +626,14 @@
             size: `${game.scale.width}x${game.scale.height}`,
             deviceRatio: window.devicePixelRatio
           });
+          
+          // ИСПРАВЛЕНИЕ: Скрываем прелоадер при успешной инициализации
+          const preloader = document.getElementById('preloader');
+          if (preloader) {
+            preloader.style.display = 'none';
+            document.body.classList.add('game-loaded');
+            console.log('✅ Preloader hidden, game ready');
+          }
           
           // Передаем VK данные в игру
           game.registry.set('vkUserData', window.VK_USER_DATA);
