@@ -1,4 +1,4 @@
-//---main.js - ФИНАЛЬНАЯ ВЕРСИЯ С ПОЛНОЙ VK ИНТЕГРАЦИЕЙ
+//---main.js - ФИНАЛЬНАЯ ВЕРСИЯ С ПОЛНОЙ VK ИНТЕГРАЦИЕЙ И DOM FIX
 
 (function() {
   'use strict';
@@ -37,6 +37,7 @@
       <div>Platform: ${info.platform || 'N/A'}</div>
       <div>Bridge: ${info.bridgeAvailable ? 'Available' : 'Not available'}</div>
       <div>UserData: ${info.userDataLoaded ? 'Loaded' : 'Not loaded'}</div>
+      <div>Game: ${info.gameCreated ? 'Created' : 'Not created'}</div>
       <div style="margin-top: 5px; font-size: 10px; opacity: 0.7;">
         Auto-close in 10s
       </div>
@@ -436,22 +437,110 @@
     });
   }
 
-  // Инициализация игры
-  function initGame() {
-    debugLog('Initializing game...');
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Функция показа ошибки с возможностью перезапуска
+  function showErrorFallback(message, details = '') {
+    const gameContainer = document.getElementById('game');
+    if (!gameContainer) return;
     
+    gameContainer.innerHTML = `
+      <div style="
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        align-items: center; 
+        height: 100vh; 
+        background: #1d2330; 
+        color: #fff; 
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+      ">
+        <h2 style="color: #ff6b6b;">😔 ${message}</h2>
+        ${details ? `<p style="color: #ccc; font-size: 14px; margin: 10px 0;">${details}</p>` : ''}
+        <p style="color: #ccc;">Проверьте подключение к интернету и попробуйте снова</p>
+        <button onclick="location.reload()" style="
+          padding: 12px 24px; 
+          font-size: 16px; 
+          background: #3498db; 
+          color: white; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer;
+          margin-top: 20px;
+          font-weight: bold;
+        ">🔄 Перезагрузить</button>
+        
+        ${window.VK_DEBUG ? `
+          <details style="margin-top: 20px; color: #888; font-size: 12px;">
+            <summary>Техническая информация</summary>
+            <pre style="text-align: left; margin-top: 10px;">
+  DOM Ready: ${document.readyState}
+  Phaser: ${!!window.Phaser}
+  Game Data: ${!!(window.ALL_CARD_KEYS && window.LEVELS)}
+  Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene)}
+  VK Environment: ${!!isVKEnvironment}
+            </pre>
+          </details>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Инициализация игры с DOM проверками
+  function initGame() {
+    // ИСПРАВЛЕНИЕ: Проверяем готовность DOM
+    if (document.readyState === 'loading') {
+      console.log('DOM not ready, waiting...');
+      document.addEventListener('DOMContentLoaded', initGame);
+      return;
+    }
+
+    debugLog('Initializing game...', {
+      readyState: document.readyState,
+      hasPhaserLib: !!window.Phaser,
+      hasGameData: !!(window.ALL_CARD_KEYS && window.LEVELS),
+      hasScenes: !!(window.PreloadScene && window.MenuScene && window.GameScene)
+    });
+
+    // ИСПРАВЛЕНИЕ: Валидируем parent элемент
+    const gameContainer = document.getElementById('game');
+    if (!gameContainer) {
+      console.error('Game container not found! Creating fallback...');
+      
+      // Создаем fallback контейнер
+      const fallbackContainer = document.createElement('div');
+      fallbackContainer.id = 'game';
+      fallbackContainer.style.cssText = `
+        width: 100vw; 
+        height: 100vh; 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        background: #1d2330;
+      `;
+      document.body.appendChild(fallbackContainer);
+      
+      // Повторная попытка через 100ms
+      setTimeout(initGame, 100);
+      return;
+    }
+
+    // Проверяем наличие зависимостей
     if (!window.Phaser) {
-      console.error('Phaser not found. Check library connection.');
+      console.error('Phaser library not loaded');
+      showErrorFallback('Ошибка загрузки библиотеки игры');
       return;
     }
 
     if (!window.ALL_CARD_KEYS || !window.LEVELS) {
       console.error('Game data not loaded');
+      showErrorFallback('Ошибка загрузки данных игры');
       return;
     }
 
     if (!window.PreloadScene || !window.MenuScene || !window.GameScene) {
       console.error('Game scenes not loaded');
+      showErrorFallback('Ошибка загрузки сцен игры');
       return;
     }
 
@@ -461,9 +550,10 @@
     const gameHeight = 720;
     
     const DPR = Math.min(2, window.devicePixelRatio || 1);
+    
     const gameConfig = {
       type: Phaser.AUTO,
-      parent: 'game',
+      parent: gameContainer, // ИСПРАВЛЕНО: Передаем элемент напрямую
       backgroundColor: '#1d2330',
       scale: {
         mode: Phaser.Scale.FIT,
@@ -503,7 +593,7 @@
           game.registry.set('vkUserData', window.VK_USER_DATA);
           game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
           game.registry.set('isVKEnvironment', isVKEnvironment);
-          game.registry.set('vkBridgeAvailable', window.VKSafe.isAvailable());
+          game.registry.set('vkBridgeAvailable', window.VKSafe?.isAvailable() || false);
           
           // Глобальные обработчики ошибок
           game.events.on('error', (error) => {
@@ -514,9 +604,18 @@
       }
     };
 
-    // Создаем игру с обработкой ошибок
+    // ИСПРАВЛЕНИЕ: Создаем игру с обработкой ошибок
     try {
+      console.log('Creating Phaser game...');
       window.game = new Phaser.Game(gameConfig);
+      
+      // Дополнительная проверка успешного создания
+      if (!window.game) {
+        throw new Error('Game creation failed');
+      }
+      
+      console.log('✅ Game created successfully');
+      debugLog('Game created successfully');
       
       // Показываем отладочную информацию
       if (window.VK_DEBUG) {
@@ -525,48 +624,16 @@
             isVK: isVKEnvironment,
             userId: window.VK_LAUNCH_PARAMS?.user_id,
             platform: window.VK_LAUNCH_PARAMS?.platform,
-            bridgeAvailable: window.VKSafe.isAvailable(),
-            userDataLoaded: !!window.VK_USER_DATA
+            bridgeAvailable: window.VKSafe?.isAvailable() || false,
+            userDataLoaded: !!window.VK_USER_DATA,
+            gameCreated: !!window.game
           });
         }, 1000);
       }
       
-      debugLog('Game created successfully');
-      
     } catch (error) {
-      console.error('Error creating game:', error);
-      
-      // Показываем пользователю ошибку
-      const gameDiv = document.getElementById('game');
-      if (gameDiv) {
-        gameDiv.innerHTML = `
-          <div style="
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            background: #1d2330; 
-            color: #fff; 
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 20px;
-          ">
-            <h2>Error loading game</h2>
-            <p>Try refreshing the page</p>
-            <button onclick="location.reload()" style="
-              padding: 12px 24px; 
-              font-size: 16px; 
-              background: #3498db; 
-              color: white; 
-              border: none; 
-              border-radius: 8px; 
-              cursor: pointer;
-              margin-top: 20px;
-            ">Refresh</button>
-          </div>
-        `;
-      }
+      console.error('Failed to create Phaser game:', error);
+      showErrorFallback('Не удалось создать игру', error.message);
     }
   }
 
@@ -615,13 +682,21 @@
     }
   };
 
-  // Главная функция запуска
+  // ИСПРАВЛЕНИЕ: Улучшенная функция main с Promise chain
   async function main() {
     debugLog('Starting application', { 
       isVK: isVKEnvironment,
       debug: window.VK_DEBUG,
-      userAgent: navigator.userAgent
+      userAgent: navigator.userAgent,
+      readyState: document.readyState
     });
+
+    // Ждем готовности DOM
+    if (document.readyState === 'loading') {
+      await new Promise(resolve => {
+        document.addEventListener('DOMContentLoaded', resolve);
+      });
+    }
 
     if (isVKEnvironment) {
       try {
@@ -644,10 +719,11 @@
       debugLog('Not VK environment, starting directly');
     }
 
-    // Запускаем игру после небольшой задержки
-    setTimeout(() => {
-      initGame();
-    }, 100);
+    // ИСПРАВЛЕНИЕ: Небольшая задержка для стабилизации
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Запускаем игру
+    initGame();
   }
 
   // Глобальные обработчики
@@ -695,12 +771,11 @@
     }
   });
 
-  // Запуск после загрузки DOM
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', main);
-  } else {
-    main();
-  }
+  // ИСПРАВЛЕНИЕ: Запуск с обработкой ошибок
+  main().catch(error => {
+    console.error('Application startup failed:', error);
+    showErrorFallback('Ошибка запуска приложения', error.message);
+  });
 
   // Отладочные утилиты (только в dev режиме)
   if (window.VK_DEBUG) {
@@ -766,11 +841,11 @@
       }
     };
 
-    console.log('VK Debug utilities loaded:');
-    console.log('VKUtils.testVKMethod(method, params) - test VK methods');
-    console.log('VKUtils.getUserInfo() - get user data');
-    console.log('VKUtils.testStorage() - test storage');
-    console.log('VKUtils.showVKData() - show VK data');
+    console.log('🛠️ VK Debug utilities loaded:');
+    console.log('📞 VKUtils.testVKMethod(method, params) - test VK methods');
+    console.log('👤 VKUtils.getUserInfo() - get user data');
+    console.log('💾 VKUtils.testStorage() - test storage');
+    console.log('📊 VKUtils.showVKData() - show VK data');
   }
 
 })();
