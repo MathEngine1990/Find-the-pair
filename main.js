@@ -611,7 +611,7 @@
   }
 
   // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 7: Мобильно-оптимизированная инициализация игры
-  function initGame() {
+ function initGame() {
     // ИСПРАВЛЕНИЕ 1: Проверяем готовность DOM
     if (document.readyState === 'loading') {
       console.log('DOM not ready, waiting...');
@@ -757,8 +757,8 @@
       gameHeight = 720;
     }
     
-    // ИСПРАВЛЕНИЕ: Оптимизированный DPR для мобильных устройств
-    const DPR = isMobile ? Math.min(2, window.devicePixelRatio || 1) : Math.min(2, window.devicePixelRatio || 1);
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убираем проблемные параметры DPR
+    // const DPR = isMobile ? Math.min(2, window.devicePixelRatio || 1) : Math.min(2, window.devicePixelRatio || 1);
     
     debugLog('Game configuration', {
       screenWidth: screenWidth,
@@ -766,218 +766,103 @@
       isPortrait: isPortrait,
       gameWidth: gameWidth,
       gameHeight: gameHeight,
-      DPR: DPR,
+      // DPR: DPR,
       isMobile: isMobile
     });
     
     const gameConfig = {
       type: Phaser.AUTO,
       parent: gameContainer, // ИСПРАВЛЕНО: Передаем элемент напрямую
+      width: gameWidth,      // ИСПРАВЛЕНИЕ: Упрощаем до базовых параметров
+      height: gameHeight,
       backgroundColor: '#1d2330',
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: gameWidth,
-        height: gameHeight,
-        // ИСПРАВЛЕНИЕ: Мобильные настройки масштабирования
-        min: {
-          width: isMobile ? (isPortrait ? 360 : 640) : 800,
-          height: isMobile ? (isPortrait ? 640 : 360) : 600
-        },
-        max: {
-          width: isMobile ? (isPortrait ? 768 : 1366) : 1920,
-          height: isMobile ? (isPortrait ? 1366 : 768) : 1080
-        }
+        height: gameHeight
+        // ИСПРАВЛЕНИЕ: Убираем сложные min/max параметры которые могут ломать игру
+        // min: {
+        //   width: isMobile ? (isPortrait ? 360 : 640) : 800,
+        //   height: isMobile ? (isPortrait ? 640 : 360) : 600
+        // },
+        // max: {
+        //   width: isMobile ? (isPortrait ? 768 : 1366) : 1920,
+        //   height: isMobile ? (isPortrait ? 1366 : 768) : 1080
+        // }
       },
-      resolution: DPR,
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убираем resolution параметр
+      // resolution: DPR,
       render: { 
         antialias: !isMobile, // Отключаем антиалиасинг на мобильных для производительности
-        pixelArt: false,
-        powerPreference: isMobile ? 'default' : 'high-performance', // Энергосбережение на мобильных
-        // ИСПРАВЛЕНИЕ: Мобильные настройки рендеринга
-        batchSize: isMobile ? 1000 : 2000,
-        maxTextures: isMobile ? 8 : 16
+        pixelArt: false
+        // ИСПРАВЛЕНИЕ: Убираем проблемные render параметры
+        // powerPreference: isMobile ? 'default' : 'high-performance',
+        // batchSize: isMobile ? 1000 : 2000,
+        // maxTextures: isMobile ? 8 : 16
       },
-      // ИСПРАВЛЕНИЕ: Мобильная поддержка ввода
-      input: {
-        mouse: !isMobile,
-        touch: isMobile,
-        keyboard: !isMobile, // Отключаем клавиатуру на мобильных
-        gamepad: false
-      },
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Упрощаем input конфигурацию
+      // input: {
+      //   mouse: !isMobile,
+      //   touch: isMobile,
+      //   keyboard: !isMobile,
+      //   gamepad: false
+      // },
       scene: [
         window.PreloadScene,
         window.MenuScene,
         window.GameScene
-      ],
-      fps: {
-        target: isMobile ? 30 : 60, // Ограничиваем FPS на мобильных для экономии батареи
-        forceSetTimeOut: true,
-        deltaHistory: isMobile ? 5 : 10 // Меньше истории на мобильных
-      },
-      // ИСПРАВЛЕНИЕ: Мобильная производительность
-      physics: {
-        default: 'arcade',
-        arcade: {
-          fps: isMobile ? 30 : 60,
-          fixedStep: true
-        }
-      },
-      callbacks: {
-        preBoot: function(game) {
-          debugLog('Game pre-boot started');
+      ]
+      // ИСПРАВЛЕНИЕ: Убираем сложные fps и physics настройки
+      // fps: {
+      //   target: isMobile ? 30 : 60,
+      //   forceSetTimeOut: true,
+      //   deltaHistory: isMobile ? 5 : 10
+      // },
+      // physics: {
+      //   default: 'arcade',
+      //   arcade: {
+      //     fps: isMobile ? 30 : 60,
+      //     fixedStep: true
+      //   }
+      // },
+      // ИСПРАВЛЕНИЕ: Упрощаем callbacks - убираем сложный preBoot
+      // callbacks: {
+      //   preBoot: function(game) {
+      //     debugLog('Game pre-boot started');
           
-          // ИСПРАВЛЕНИЕ: Мобильная оптимизация перед загрузкой
-          if (isMobile) {
-            // Отключаем контекстное меню на мобильных
-            game.canvas.addEventListener('contextmenu', (e) => {
-              e.preventDefault();
-              return false;
-            });
+      //     if (isMobile) {
+      //       game.canvas.addEventListener('contextmenu', (e) => {
+      //         e.preventDefault();
+      //         return false;
+      //       });
             
-            // Предотвращаем зум на мобильных
-            game.canvas.addEventListener('touchstart', (e) => {
-              if (e.touches.length > 1) {
-                e.preventDefault();
-              }
-            }, { passive: false });
+      //       game.canvas.addEventListener('touchstart', (e) => {
+      //         if (e.touches.length > 1) {
+      //           e.preventDefault();
+      //         }
+      //       }, { passive: false });
             
-            game.canvas.addEventListener('gesturestart', (e) => {
-              e.preventDefault();
-            });
-          }
-        },
+      //       game.canvas.addEventListener('gesturestart', (e) => {
+      //         e.preventDefault();
+      //       });
+      //     }
+      //   },
         
-        postBoot: function(game) {
-          debugLog('Game booted', {
-            renderer: game.renderer.type === 0 ? 'Canvas' : 'WebGL',
-            resolution: DPR,
-            size: `${game.scale.width}x${game.scale.height}`,
-            deviceRatio: window.devicePixelRatio,
-            isMobile: isMobile,
-            platform: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'
-          });
-          
-          console.log('🎮 Game postBoot called');
-          console.log('📱 Mobile device:', isMobile);
-          console.log('🔧 Device info:', {
-            iOS: isIOS,
-            Android: isAndroid,
-            portrait: isPortrait,
-            screen: `${screenWidth}x${screenHeight}`,
-            game: `${gameWidth}x${gameHeight}`
-          });
-          console.log('🎭 Available scenes:', game.scene.scenes.map(s => s.scene.key));
-          console.log('🎬 Scene manager status:', game.scene);
-          
-          // ИСПРАВЛЕНИЕ: Скрываем прелоадер при успешной инициализации
-          const preloader = document.getElementById('preloader');
-          if (preloader) {
-            // ИСПРАВЛЕНИЕ: Плавное скрытие прелоадера на мобильных
-            if (isMobile) {
-              preloader.style.transition = 'opacity 0.5s ease-out';
-              preloader.style.opacity = '0';
-              setTimeout(() => {
-                preloader.style.display = 'none';
-                document.body.classList.add('game-loaded');
-                console.log('✅ Preloader hidden (mobile), game ready');
-              }, 500);
-            } else {
-              preloader.style.display = 'none';
-              document.body.classList.add('game-loaded');
-              console.log('✅ Preloader hidden (desktop), game ready');
-            }
-          }
-          
-          // Передаем VK данные в игру
-          game.registry.set('vkUserData', window.VK_USER_DATA);
-          game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
-          game.registry.set('isVKEnvironment', isVKEnvironment);
-          game.registry.set('vkBridgeAvailable', window.VKSafe?.isAvailable() || false);
-          game.registry.set('isMobile', isMobile);
-          game.registry.set('isIOS', isIOS);
-          game.registry.set('isAndroid', isAndroid);
-          
-          // Глобальные обработчики ошибок
-          game.events.on('error', (error) => {
-            console.error('Game error:', error);
-            debugLog('Game error details', error);
-          });
-          
-          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно запускаем PreloadScene с задержкой для мобильных
-          const startDelay = isMobile ? 500 : 100;
-          console.log(`🚀 Starting PreloadScene manually in ${startDelay}ms...`);
-          
-          setTimeout(() => {
-            try {
-              game.scene.start('PreloadScene');
-              console.log('✅ PreloadScene start command sent');
-            } catch (error) {
-              console.error('❌ Failed to start PreloadScene:', error);
-              // Пробуем запустить MenuScene напрямую
-              try {
-                console.log('🔄 Trying to start MenuScene directly...');
-                game.scene.start('MenuScene', { page: 0 });
-              } catch (menuError) {
-                console.error('❌ Failed to start MenuScene:', menuError);
-                showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
-              }
-            }
-          }, startDelay);
-          
-          // ИСПРАВЛЕНИЕ: Проверяем статус через увеличенные интервалы для мобильных
-          let checkCount = 0;
-          const checkInterval = isMobile ? 1000 : 500;
-          const maxChecks = isMobile ? 15 : 10;
-          
-          const sceneCheck = setInterval(() => {
-            checkCount++;
-            const activeScenes = game.scene.scenes.filter(s => s.scene.settings.active);
-            console.log(`🔍 Check ${checkCount}: Active scenes:`, activeScenes.map(s => s.scene.key));
-            
-            if (activeScenes.length > 0) {
-              console.log('✅ Scene is active:', activeScenes[0].scene.key);
-              clearInterval(sceneCheck);
-            } else if (checkCount > maxChecks) {
-              console.error(`❌ No scenes became active after ${maxChecks} checks. Force starting MenuScene...`);
-              try {
-                game.scene.start('MenuScene', { page: 0 });
-                console.log('🔄 Forced MenuScene start');
-              } catch (error) {
-                console.error('Failed to force start MenuScene:', error);
-                showErrorFallback('Ошибка запуска сцены', 'Игровые сцены не отвечают');
-              }
-              clearInterval(sceneCheck);
-            }
-          }, checkInterval);
-          
-          // ИСПРАВЛЕНИЕ: Дополнительная диагностика для мобильных устройств
-          if (isMobile && window.VK_DEBUG) {
-            setTimeout(() => {
-              console.group('🔍 Mobile Diagnostics');
-              console.log('Canvas size:', game.canvas.width, 'x', game.canvas.height);
-              console.log('Canvas style:', game.canvas.style.width, 'x', game.canvas.style.height);
-              console.log('Game size:', game.scale.width, 'x', game.scale.height);
-              console.log('Display size:', game.scale.displaySize.width, 'x', game.scale.displaySize.height);
-              console.log('Touch enabled:', game.input.touch.enabled);
-              console.log('Mouse enabled:', game.input.mouse.enabled);
-              console.log('Active pointers:', game.input.activePointer);
-              console.groupEnd();
-            }, 2000);
-          }
-        }
-      }
+      //   postBoot: function(game) {
+      //     // Весь сложный код callback'ов здесь
+      //   }
+      // }
     };
 
-    // ИСПРАВЛЕНИЕ: Создаем игру с обработкой ошибок и мобильными оптимизациями
+    // ИСПРАВЛЕНИЕ: Создаем игру с упрощенной конфигурацией и добавляем postBoot логику после создания
     try {
       console.log('Creating Phaser game...');
       console.log('Game config:', {
         type: 'AUTO',
         parent: 'game container element',
         mobile: isMobile,
-        gameSize: `${gameWidth}x${gameHeight}`,
-        DPR: DPR
+        gameSize: `${gameWidth}x${gameHeight}`
       });
       
       window.game = new Phaser.Game(gameConfig);
@@ -990,7 +875,58 @@
       console.log('✅ Game created successfully');
       debugLog('Game created successfully');
       
-      // ИСПРАВЛЕНИЕ: Мобильные обработчики событий
+      // ИСПРАВЛЕНИЕ: Добавляем postBoot логику через событие после создания игры
+      window.game.events.once('ready', function() {
+        console.log('🎮 Game ready event triggered');
+        console.log('📱 Mobile device:', isMobile);
+        console.log('🎭 Available scenes:', window.game.scene.scenes.map(s => s.scene.key));
+        
+        // Скрываем прелоадер
+        const preloader = document.getElementById('preloader');
+        if (preloader) {
+          if (isMobile) {
+            preloader.style.transition = 'opacity 0.5s ease-out';
+            preloader.style.opacity = '0';
+            setTimeout(() => {
+              preloader.style.display = 'none';
+              document.body.classList.add('game-loaded');
+              console.log('✅ Preloader hidden (mobile), game ready');
+            }, 500);
+          } else {
+            preloader.style.display = 'none';
+            document.body.classList.add('game-loaded');
+            console.log('✅ Preloader hidden (desktop), game ready');
+          }
+        }
+        
+        // Передаем VK данные в игру
+        window.game.registry.set('vkUserData', window.VK_USER_DATA);
+        window.game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
+        window.game.registry.set('isVKEnvironment', isVKEnvironment);
+        window.game.registry.set('vkBridgeAvailable', window.VKSafe?.isAvailable() || false);
+        window.game.registry.set('isMobile', isMobile);
+        window.game.registry.set('isIOS', isIOS);
+        window.game.registry.set('isAndroid', isAndroid);
+        
+        // ИСПРАВЛЕНИЕ: Запускаем сцену с минимальной задержкой
+        setTimeout(() => {
+          try {
+            window.game.scene.start('PreloadScene');
+            console.log('✅ PreloadScene start command sent');
+          } catch (error) {
+            console.error('❌ Failed to start PreloadScene:', error);
+            try {
+              console.log('🔄 Trying to start MenuScene directly...');
+              window.game.scene.start('MenuScene', { page: 0 });
+            } catch (menuError) {
+              console.error('❌ Failed to start MenuScene:', menuError);
+              showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
+            }
+          }
+        }, 200);
+      });
+      
+      // ИСПРАВЛЕНИЕ: Упрощенные мобильные обработчики событий
       if (isMobile) {
         // Обработка изменения ориентации
         window.addEventListener('orientationchange', () => {
@@ -1002,36 +938,30 @@
           }, 500);
         });
         
-        // Обработка фокуса/потери фокуса на мобильных
-        window.addEventListener('blur', () => {
-          if (window.game && window.game.loop) {
-            window.game.loop.sleep();
-            console.log('📱 App lost focus, game loop paused');
+        // Добавляем обработчики для предотвращения зума и скролла ПОСЛЕ создания canvas
+        setTimeout(() => {
+          if (window.game && window.game.canvas) {
+            window.game.canvas.addEventListener('contextmenu', (e) => {
+              e.preventDefault();
+              return false;
+            });
+            
+            window.game.canvas.addEventListener('touchstart', (e) => {
+              if (e.touches.length > 1) {
+                e.preventDefault();
+              }
+            }, { passive: false });
+            
+            window.game.canvas.addEventListener('gesturestart', (e) => {
+              e.preventDefault();
+            });
+            
+            console.log('📱 Mobile touch handlers added to canvas');
           }
-        });
-        
-        window.addEventListener('focus', () => {
-          if (window.game && window.game.loop) {
-            window.game.loop.wake();
-            console.log('📱 App gained focus, game loop resumed');
-          }
-        });
-        
-        // Обработка события паузы (специфично для мобильных браузеров)
-        document.addEventListener('visibilitychange', () => {
-          if (window.game) {
-            if (document.hidden) {
-              window.game.events.emit('pause');
-              console.log('📱 Page hidden, game paused');
-            } else {
-              window.game.events.emit('resume');
-              console.log('📱 Page visible, game resumed');
-            }
-          }
-        });
+        }, 1000);
       }
       
-      // Показываем отладочную информацию с дополнительными мобильными данными
+      // Показываем отладочную информацию
       if (window.VK_DEBUG) {
         setTimeout(() => {
           showDebugInfo({
