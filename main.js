@@ -613,9 +613,13 @@
   // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 7: Мобильно-оптимизированная инициализация игры
  function initGame() {
     // ИСПРАВЛЕНИЕ 1: Проверяем готовность DOM
-    if (document.readyState === 'loading') {
+    if (document.readyState === 'loading' || !document.body) {
       console.log('DOM not ready, waiting...');
+      if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initGame);
+        } else {
+        setTimeout(initGame, 100);
+    }
       return;
     }
 
