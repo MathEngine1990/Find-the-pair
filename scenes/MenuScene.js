@@ -332,18 +332,18 @@ showUserAgreement() {
   }).setOrigin(0.5).setDepth(1002);
 
   // Кнопки для просмотра полных документов
-  // const fullAgreementBtn = window.makeImageButton(
-  //   this, W/2 - 80, H/2 + modalH/2 - 120, 
-  //   140, 35, 'Полный текст', 
-  //   () => {
-  //     if (this.isVKEnvironment && window.VKHelpers) {
-  //       window.VKHelpers.openExternalUrl('user-agreement.html');
-  //     } else {
-  //       window.open('user-agreement.html', '_blank');
-  //     }
-  //   }
-  // );
-  // fullAgreementBtn.setDepth(1003);
+  const fullAgreementBtn = window.makeImageButton(
+    this, W/2 - 80, H/2 + modalH/2 - 120, 
+    140, 35, 'Полный текст', 
+    () => {
+      if (this.isVKEnvironment && window.VKHelpers) {
+        window.VKHelpers.openExternalUrl('user-agreement.html');
+      } else {
+        window.open('user-agreement.html', '_blank');
+      }
+    }
+  );
+  fullAgreementBtn.setDepth(1003);
 
   // const privacyBtn = window.makeImageButton(
   //   this, W/2 + 80, H/2 + modalH/2 - 120, 
