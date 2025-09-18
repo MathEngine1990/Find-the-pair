@@ -397,20 +397,47 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       this, W/2 + btnSpacing, btnY, 
       this.isMobile ? 140 : 120, this.isMobile ? 50 : 45, 'Отклонить', 
       () => {
-        // При отклонении возвращаем к стартовой странице или закрываем приложение
-        if (this.isVKEnvironment && window.VKHelpers && window.VKHelpers.closeApp) {
-          window.VKHelpers.closeApp();
-        } else if (this.isVKEnvironment && window.vkBridge) {
-          try {
-            window.vkBridge.send('VKWebAppClose', {
-              status: 'success'
-            });
-          } catch (e) {
-            window.history.back();
+        // ИСПРАВЛЕНО: Более понятное поведение кнопки "Отклонить"
+        
+        // Показываем предупреждение об отклонении
+        if (confirm('Без принятия соглашения игра недоступна.\nВы уверены, что хотите выйти?')) {
+          // Очищаем диалог перед выходом
+          this.cleanupAgreementDialog([
+            overlay, modal, title, text, 
+            fullAgreementBtn, acceptBtn, declineBtn
+          ]);
+          
+          // Пытаемся закрыть приложение
+          if (this.isVKEnvironment && window.VKHelpers && window.VKHelpers.closeApp) {
+            window.VKHelpers.closeApp();
+          } else if (this.isVKEnvironment && window.vkBridge) {
+            try {
+              window.vkBridge.send('VKWebAppClose', {
+                status: 'success'
+              });
+            } catch (e) {
+              // Если VK методы не работают, просто закрываем вкладку/окно
+              try {
+                window.close();
+              } catch (closeError) {
+                // Последний fallback - перенаправляем на главную VK
+                if (this.isVKEnvironment) {
+                  window.location.href = 'https://vk.com';
+                } else {
+                  window.history.back();
+                }
+              }
+            }
+          } else {
+            // Не VK окружение - просто возвращаемся назад
+            try {
+              window.close();
+            } catch (e) {
+              window.history.back();
+            }
           }
-        } else {
-          window.history.back();
         }
+        // Если пользователь отменил confirm, ничего не делаем - диалог остается
       }
     );
     declineBtn.setDepth(1003);
