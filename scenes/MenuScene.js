@@ -165,21 +165,15 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
 
 
-    // ИСПРАВЛЕНО: Проверяем принятие соглашения отдельно от первого запуска
-  const AGREEMENT_VERSION = '2025-09-13'; // Версия соглашения
-  const acceptedAgreement = localStorage.getItem('acceptedAgreement');
-  const acceptedVersion = localStorage.getItem('agreementVersion');
-  
-  // Показываем соглашение если:
-  // 1) Ещё не принято ИЛИ 
-  // 2) Версия устарела ИЛИ
-  // 3) VK окружение и ещё не показывали
-  if (!acceptedAgreement || 
-      acceptedVersion !== AGREEMENT_VERSION || 
-      (this.isVKEnvironment && !localStorage.getItem('vk_agreement_shown'))) {
-    this.showUserAgreement();
-    return;
-  }
+   // ИСПРАВЛЕНО: Проверяем принятие соглашения, а не только первый запуск
+const acceptedAgreement = localStorage.getItem('acceptedAgreement');
+const agreementVersion = localStorage.getItem('agreementVersion');
+const CURRENT_VERSION = '2025-09-13';
+
+if (!acceptedAgreement || agreementVersion !== CURRENT_VERSION) {
+  this.showUserAgreement();
+  return;
+}
 
     
 
