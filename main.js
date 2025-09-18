@@ -1348,3 +1348,69 @@
   }
 
 })();
+
+
+
+
+// ДОБАВИТЬ в main.js после создания игры для отладки
+
+// Команды для отладки в консоли браузера
+window.DebugAgreement = {
+  // Сбросить все данные о соглашении
+  reset: function() {
+    localStorage.removeItem('acceptedAgreement');
+    localStorage.removeItem('agreementVersion');
+    localStorage.removeItem('agreementAcceptedAt');
+    localStorage.removeItem('vk_agreement_shown');
+    localStorage.removeItem('firstLaunchShown');
+    console.log('✅ Agreement data reset. Reload page to test.');
+  },
+
+  // Показать текущие данные
+  status: function() {
+    console.log('Agreement Status:', {
+      accepted: localStorage.getItem('acceptedAgreement'),
+      version: localStorage.getItem('agreementVersion'),
+      acceptedAt: localStorage.getItem('agreementAcceptedAt'),
+      vkShown: localStorage.getItem('vk_agreement_shown'),
+      firstLaunch: localStorage.getItem('firstLaunchShown')
+    });
+  },
+
+  // Принудительно показать соглашение
+  show: function() {
+    if (window.game && window.game.scene && window.game.scene.getScene('MenuScene')) {
+      const menuScene = window.game.scene.getScene('MenuScene');
+      if (menuScene.showUserAgreement) {
+        menuScene.showUserAgreement();
+      } else {
+        console.error('showUserAgreement method not found');
+      }
+    } else {
+      console.error('MenuScene not found');
+    }
+  },
+
+  // Принять соглашение программно
+  accept: function() {
+    localStorage.setItem('acceptedAgreement', 'true');
+    localStorage.setItem('agreementVersion', '2025-09-13');
+    localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
+    console.log('✅ Agreement accepted programmatically');
+  }
+};
+
+// Показать доступные команды
+console.log(`
+🔧 DEBUG COMMANDS для тестирования соглашения:
+
+DebugAgreement.reset()  - сбросить все данные
+DebugAgreement.status() - показать текущий статус  
+DebugAgreement.show()   - принудительно показать соглашение
+DebugAgreement.accept() - принять соглашение программно
+`);
+
+// Автоматическая проверка при загрузке (только в dev режиме)
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  console.log('🚀 Dev mode detected. Use DebugAgreement commands to test.');
+}
