@@ -1352,65 +1352,78 @@
 
 
 
-// ДОБАВИТЬ в main.js после создания игры для отладки
 
-// Команды для отладки в консоли браузера
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ДОБАВИТЬ В САМЫЙ КОНЕЦ main.js (после всех функций)
+
+// Debug commands for agreement testing (всегда доступны)
 window.DebugAgreement = {
-  // Сбросить все данные о соглашении
   reset: function() {
     localStorage.removeItem('acceptedAgreement');
     localStorage.removeItem('agreementVersion');
     localStorage.removeItem('agreementAcceptedAt');
     localStorage.removeItem('vk_agreement_shown');
     localStorage.removeItem('firstLaunchShown');
-    console.log('✅ Agreement data reset. Reload page to test.');
+    console.log('✅ Agreement data cleared');
+    console.log('📄 Reload page: location.reload()');
   },
 
-  // Показать текущие данные
   status: function() {
-    console.log('Agreement Status:', {
+    const status = {
       accepted: localStorage.getItem('acceptedAgreement'),
       version: localStorage.getItem('agreementVersion'),
       acceptedAt: localStorage.getItem('agreementAcceptedAt'),
       vkShown: localStorage.getItem('vk_agreement_shown'),
       firstLaunch: localStorage.getItem('firstLaunchShown')
-    });
+    };
+    console.table(status);
+    return status;
   },
 
-  // Принудительно показать соглашение
   show: function() {
-    if (window.game && window.game.scene && window.game.scene.getScene('MenuScene')) {
+    if (window.game && window.game.scene) {
       const menuScene = window.game.scene.getScene('MenuScene');
-      if (menuScene.showUserAgreement) {
+      if (menuScene && menuScene.showUserAgreement) {
         menuScene.showUserAgreement();
+      } else if (menuScene && menuScene.showAgeRating) {
+        menuScene.showAgeRating();
       } else {
-        console.error('showUserAgreement method not found');
+        console.error('MenuScene not ready or methods missing');
       }
     } else {
-      console.error('MenuScene not found');
+      console.error('Game not initialized');
     }
   },
 
-  // Принять соглашение программно
   accept: function() {
     localStorage.setItem('acceptedAgreement', 'true');
     localStorage.setItem('agreementVersion', '2025-09-13');
     localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
-    console.log('✅ Agreement accepted programmatically');
+    console.log('✅ Agreement accepted');
   }
 };
 
-// Показать доступные команды
+// Автоматически показываем команды в консоли
 console.log(`
-🔧 DEBUG COMMANDS для тестирования соглашения:
+🔧 DEBUG COMMANDS доступны:
 
-DebugAgreement.reset()  - сбросить все данные
-DebugAgreement.status() - показать текущий статус  
-DebugAgreement.show()   - принудительно показать соглашение
-DebugAgreement.accept() - принять соглашение программно
+DebugAgreement.reset()  - сбросить соглашение
+DebugAgreement.status() - проверить статус  
+DebugAgreement.show()   - показать соглашение
+DebugAgreement.accept() - принять соглашение
+
+Пример: DebugAgreement.reset(); location.reload();
 `);
-
-// Автоматическая проверка при загрузке (только в dev режиме)
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-  console.log('🚀 Dev mode detected. Use DebugAgreement commands to test.');
-}
