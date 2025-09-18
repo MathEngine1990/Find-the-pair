@@ -156,12 +156,32 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.levelPage = page;
 
     // Показ возрастных ограничений при первом запуске
-    const isFirstLaunch = !localStorage.getItem('firstLaunchShown');
-    if (isFirstLaunch && this.isVKEnvironment) {
-      this.showAgeRating();
-      localStorage.setItem('firstLaunchShown', 'true');
-      return;
-    }
+    // const isFirstLaunch = !localStorage.getItem('firstLaunchShown');
+    // if (isFirstLaunch && this.isVKEnvironment) {
+    //   this.showAgeRating();
+    //   localStorage.setItem('firstLaunchShown', 'true');
+    //   return;
+    // }
+
+
+
+    // ИСПРАВЛЕНО: Проверяем принятие соглашения отдельно от первого запуска
+  const AGREEMENT_VERSION = '2025-09-13'; // Версия соглашения
+  const acceptedAgreement = localStorage.getItem('acceptedAgreement');
+  const acceptedVersion = localStorage.getItem('agreementVersion');
+  
+  // Показываем соглашение если:
+  // 1) Ещё не принято ИЛИ 
+  // 2) Версия устарела ИЛИ
+  // 3) VK окружение и ещё не показывали
+  if (!acceptedAgreement || 
+      acceptedVersion !== AGREEMENT_VERSION || 
+      (this.isVKEnvironment && !localStorage.getItem('vk_agreement_shown'))) {
+    this.showUserAgreement();
+    return;
+  }
+
+    
 
     const COLS=3, ROWS=3, PER_PAGE=COLS*ROWS;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
@@ -262,6 +282,145 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     };
     this.input.on('wheel', this._wheelHandler);
   }
+
+  /////////////////////////////////////////////////////////////
+
+// НОВЫЙ МЕТОД: Показ пользовательского соглашения
+showUserAgreement() {
+  const { W, H } = this.getSceneWH();
+  
+  // Затемнение фона
+  const overlay = this.add.graphics()
+    .fillStyle(0x000000, 0.85)
+    .fillRect(0, 0, W, H)
+    .setDepth(1000)
+    .setInteractive();
+
+  // Модальное окно
+  const modalW = Math.min(500, W * 0.9);
+  const modalH = Math.min(600, H * 0.85);
+  const modal = this.add.graphics()
+    .fillStyle(0x2C3E50, 0.95)
+    .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 15)
+    .lineStyle(3, 0x3498DB, 0.8)
+    .strokeRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 15)
+    .setDepth(1001);
+
+  // Заголовок
+  const title = this.add.text(W/2, H/2 - modalH/2 + 50, 'Пользовательское соглашение', {
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '22px',
+    color: '#FFFFFF',
+    fontStyle: 'bold'
+  }).setOrigin(0.5).setDepth(1002);
+  title.setStroke('#000000', 2);
+
+  // Основной текст
+  const agreementText = `Игра "Память: Найди пару"
+
+• Сбор данных: ID пользователя, игровая статистика
+• Возрастное ограничение: 0+ (безопасно для всех)
+• Данные используются только для работы игры
+• Соответствует политике ВКонтакте
+
+Нажимая "Принимаю", вы соглашаетесь
+с условиями использования приложения.
+
+Версия: 2025-09-13`;
+
+  const text = this.add.text(W/2, H/2 - 50, agreementText, {
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '14px',
+    color: '#E8E8E8',
+    align: 'center',
+    lineSpacing: 8,
+    wordWrap: { width: modalW - 40 }
+  }).setOrigin(0.5).setDepth(1002);
+
+  // Кнопки для просмотра полных документов
+  const fullAgreementBtn = window.makeImageButton(
+    this, W/2 - 80, H/2 + modalH/2 - 120, 
+    140, 35, 'Полный текст', 
+    () => {
+      if (this.isVKEnvironment && window.VKHelpers) {
+        window.VKHelpers.openExternalUrl('user-agreement.html');
+      } else {
+        window.open('user-agreement.html', '_blank');
+      }
+    }
+  );
+  fullAgreementBtn.setDepth(1003);
+
+  const privacyBtn = window.makeImageButton(
+    this, W/2 + 80, H/2 + modalH/2 - 120, 
+    140, 35, 'Конфиденциальность', 
+    () => {
+      if (this.isVKEnvironment && window.VKHelpers) {
+        window.VKHelpers.openExternalUrl('privacy-policy.html');
+      } else {
+        window.open('privacy-policy.html', '_blank');
+      }
+    }
+  );
+  privacyBtn.setDepth(1003);
+
+  // Кнопки принятия/отклонения
+  const acceptBtn = window.makeImageButton(
+    this, W/2 - 70, H/2 + modalH/2 - 60, 
+    120, 45, 'Принимаю', 
+    () => {
+      // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Сохраняем принятие соглашения
+      localStorage.setItem('acceptedAgreement', 'true');
+      localStorage.setItem('agreementVersion', '2025-09-13');
+      localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
+      
+      if (this.isVKEnvironment) {
+        localStorage.setItem('vk_agreement_shown', 'true');
+      }
+
+      // Очистка элементов
+      overlay.destroy();
+      modal.destroy();
+      title.destroy();
+      text.destroy();
+      fullAgreementBtn.destroy();
+      privacyBtn.destroy();
+      acceptBtn.destroy();
+      declineBtn.destroy();
+      
+      // Отрисовываем меню
+      this.drawMenu(this.levelPage);
+    }
+  );
+  acceptBtn.setDepth(1003);
+
+  const declineBtn = window.makeImageButton(
+    this, W/2 + 70, H/2 + modalH/2 - 60, 
+    120, 45, 'Отклонить', 
+    () => {
+      // При отклонении возвращаем к стартовой странице или закрываем приложение
+      if (this.isVKEnvironment && window.VKHelpers) {
+        window.VKHelpers.closeApp();
+      } else {
+        window.history.back();
+      }
+    }
+  );
+  declineBtn.setDepth(1003);
+}
+
+// ДОПОЛНИТЕЛЬНО: Метод для принудительного показа соглашения (для отладки)
+showAgreementForDebug() {
+  // Сбрасываем все флаги для тестирования
+  localStorage.removeItem('acceptedAgreement');
+  localStorage.removeItem('agreementVersion');
+  localStorage.removeItem('vk_agreement_shown');
+  
+  // Показываем соглашение
+  this.showUserAgreement();
+}
+
+  /////////////////////////////////////////////////////////////
 
   // ИСПРАВЛЕНО: Создание кнопки уровня с лучшим форматированием
   createLevelButton(x, y, w, h, level, levelIndex) {
