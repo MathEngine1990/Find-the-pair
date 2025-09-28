@@ -17,6 +17,7 @@
     "*.md",
     ".git/**",
     ".vscode/**",
+    "!sync/**"  // НЕ игнорировать папку sync
     "vite.config.js",
     "tsconfig.json"
   ],
