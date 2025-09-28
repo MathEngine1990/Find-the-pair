@@ -17,28 +17,3 @@ window.LEVELS = [
   { label: '.15.', cols: 6, rows: 5 },
   { label: '.18.', cols: 6, rows: 6 }
 ];
-
-
-// Добавить в game/Data.js
-window.STORAGE_KEYS = {
-  PROGRESS: 'findpair_progress_v2',
-  ACHIEVEMENTS: 'findpair_achievements_v2', 
-  SETTINGS: 'findpair_settings_v2',
-  STATS: 'findpair_stats_v2'
-};
-
-// Миграция старых ключей
-window.migrateOldStorage = function() {
-  const migrations = [
-    { old: 'findpair_progress', new: window.STORAGE_KEYS.PROGRESS },
-    { old: 'findpair_achievements', new: window.STORAGE_KEYS.ACHIEVEMENTS }
-  ];
-  
-  migrations.forEach(({ old, new: newKey }) => {
-    const oldData = localStorage.getItem(old);
-    if (oldData && !localStorage.getItem(newKey)) {
-      localStorage.setItem(newKey, oldData);
-      localStorage.removeItem(old);
-    }
-  });
-};
