@@ -1,4 +1,4 @@
-//---scenes/MenuScene.js - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
+//---scenes/MenuScene.js - ИНТЕГРИРОВАННАЯ ВЕРСИЯ с исправлениями синхронизации
 
 window.MenuScene = class MenuScene extends Phaser.Scene {
   constructor(){ 
@@ -12,11 +12,30 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.vkUserData = data?.userData || window.VK_USER_DATA;
     this.isVKEnvironment = data?.isVK || !!window.VK_LAUNCH_PARAMS;
     
+    // ИСПРАВЛЕНИЕ: Получаем единый менеджер прогресса
+    this.progressManager = window.GameProgressManager;
+    
     // Определяем мобильное устройство
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   }
 
   create(){
+    console.log('MenuScene started with unified progress manager');
+    
+    // ИСПРАВЛЕНИЕ: Инициализируем менеджер прогресса если не готов
+    if (this.progressManager && !this.progressManager.isLoaded) {
+      this.progressManager.init().then(() => {
+        this.continueCreate();
+      }).catch(error => {
+        console.error('Failed to initialize progress manager:', error);
+        this.continueCreate(); // Продолжаем без менеджера
+      });
+    } else {
+      this.continueCreate();
+    }
+  }
+
+  continueCreate() {
     if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
     this.scale.on('resize', () => { 
       if (this.scale && this.scale.updateBounds) this.scale.updateBounds(); 
@@ -36,6 +55,11 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     // Очистка при завершении сцены
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
+
+    // ИСПРАВЛЕНИЕ: Подписываемся на события достижений
+    window.addEventListener('achievementUnlocked', (event) => {
+      this.showAchievementNotification(event.detail.achievementId);
+    });
   }
 
   cleanup() {
@@ -63,8 +87,13 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     console.log('MenuScene cleanup completed');
   }
 
-  // Получение прогресса игрока
+  // ИСПРАВЛЕНИЕ: Получение прогресса через единый менеджер
   getProgress() {
+    if (this.progressManager && this.progressManager.isLoaded) {
+      return this.progressManager.getAllProgress();
+    }
+    
+    // Fallback на localStorage если менеджер не работает
     try {
       const saved = localStorage.getItem('findpair_progress');
       return saved ? JSON.parse(saved) : {};
@@ -74,18 +103,37 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     }
   }
 
-  // Получение статистики
+  // ИСПРАВЛЕНИЕ: Получение статистики через единый менеджер
   getStats() {
+    if (this.progressManager && this.progressManager.isLoaded) {
+      const stats = this.progressManager.getStats();
+      const progress = this.progressManager.getAllProgress();
+      const completedLevels = Object.keys(progress).length;
+      const totalStars = this.progressManager.getTotalStars();
+      
+      return {
+        totalLevels: window.LEVELS.length,
+        completedLevels: completedLevels,
+        totalStars: totalStars,
+        maxStars: window.LEVELS.length * 3,
+        averageStars: completedLevels > 0 ? totalStars / completedLevels : 0,
+        gamesPlayed: stats.gamesPlayed,
+        bestTime: stats.bestTime,
+        bestAccuracy: stats.bestAccuracy
+      };
+    }
+    
+    // Fallback расчет статистики
     const progress = this.getProgress();
     const levels = Object.keys(progress);
     
     return {
       totalLevels: window.LEVELS.length,
       completedLevels: levels.length,
-      totalStars: levels.reduce((sum, key) => sum + progress[key].stars, 0),
+      totalStars: levels.reduce((sum, key) => sum + (progress[key].stars || 0), 0),
       maxStars: window.LEVELS.length * 3,
       averageStars: levels.length > 0 ? 
-        levels.reduce((sum, key) => sum + progress[key].stars, 0) / levels.length : 0
+        levels.reduce((sum, key) => sum + (progress[key].stars || 0), 0) / levels.length : 0
     };
   }
 
@@ -203,10 +251,18 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       this.levelButtons.push(greeting);
     }
 
-    // Статистика прохождения
+    // ИСПРАВЛЕНИЕ: Показываем статистику с данными из единого менеджера
     const stats = this.getStats();
     if (stats.completedLevels > 0) {
-      const statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+      let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+      
+      // Добавляем дополнительную статистику если доступна
+      if (this.progressManager && this.progressManager.isLoaded) {
+        const gameStats = this.progressManager.getStats();
+        if (gameStats.gamesPlayed > 0) {
+          statsText += ` | Игр: ${gameStats.gamesPlayed}`;
+        }
+      }
       
       const statsDisplay = this.add.text(W/2, H*0.14, statsText, {
         fontFamily: 'Arial, sans-serif',
@@ -218,6 +274,9 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       statsDisplay.setStroke('#000000', 1);
       this.levelButtons.push(statsDisplay);
     }
+
+    // ИСПРАВЛЕНИЕ: Кнопка синхронизации данных
+    this.createSyncButton(W, H, titlePx);
 
     // Область для кнопок уровней
     const topY = H*0.20, bottomY = H*0.78;
@@ -277,6 +336,55 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       else if (dy < 0 && prevActive) this.drawMenu(this.levelPage - 1);
     };
     this.input.on('wheel', this._wheelHandler);
+  }
+
+  // НОВЫЙ МЕТОД: Кнопка синхронизации данных
+  createSyncButton(W, H, titlePx) {
+    if (!this.progressManager || !this.isVKEnvironment) return;
+
+    const syncButton = this.add.rectangle(W - 60, 60, 100, 35, 0xe74c3c)
+      .setInteractive();
+    
+    const syncText = this.add.text(W - 60, 60, 'SYNC', {
+      fontSize: Math.round(titlePx * 0.3) + 'px',
+      fill: '#ffffff',
+      fontWeight: 'bold'
+    }).setOrigin(0.5);
+    
+    this.levelButtons.push(syncButton);
+    this.levelButtons.push(syncText);
+    
+    syncButton.on('pointerdown', async () => {
+      // Показываем индикатор синхронизации
+      const indicator = this.add.text(W - 60, 90, 'Syncing...', {
+        fontSize: Math.round(titlePx * 0.25) + 'px',
+        fill: '#f39c12'
+      }).setOrigin(0.5);
+      
+      try {
+        // Принудительная синхронизация
+        await this.progressManager.save(true);
+        
+        // Перезагружаем данные
+        await this.progressManager.load();
+        
+        indicator.setText('Synced!').setFill('#27ae60');
+        
+        // Обновляем интерфейс
+        setTimeout(() => {
+          indicator.destroy();
+          this.drawMenu(this.levelPage);
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Sync failed:', error);
+        indicator.setText('Sync failed').setFill('#e74c3c');
+        
+        setTimeout(() => {
+          indicator.destroy();
+        }, 2000);
+      }
+    });
   }
 
   /////////////////////////////////////////////////////////////
@@ -345,12 +453,10 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       this, W/2, H/2 + modalH/2 - (this.isMobile ? 140 : 120), 
       btnWidth, btnHeight, 'Полный текст', 
       () => {
-        // ИСПРАВЛЕНИЕ: Надежное открытие внешних ссылок
-        if (this.isVKEnvironment && window.VKHelpers && window.VKHelpers.openExternalUrl) {
-          window.VKHelpers.openExternalUrl('user-agreement.html');
-        } else if (this.isVKEnvironment && window.vkBridge) {
+        // ИСПРАВЛЕНИЕ: Надежное открытие внешних ссылок через VKManager
+        if (this.isVKEnvironment && window.VKManager?.isAvailable()) {
           try {
-            window.vkBridge.send('VKWebAppOpenApp', {
+            window.VKManager.send('VKWebAppOpenApp', {
               app_id: 0,
               location: 'user-agreement.html'
             });
@@ -398,8 +504,6 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       this.isMobile ? 140 : 120, this.isMobile ? 50 : 45, 'Отклонить', 
       () => {
         // ИСПРАВЛЕНО: Более понятное поведение кнопки "Отклонить"
-        
-        // Показываем предупреждение об отклонении
         if (confirm('Без принятия соглашения игра недоступна.\nВы уверены, что хотите выйти?')) {
           // Очищаем диалог перед выходом
           this.cleanupAgreementDialog([
@@ -407,20 +511,16 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
             fullAgreementBtn, acceptBtn, declineBtn
           ]);
           
-          // Пытаемся закрыть приложение
-          if (this.isVKEnvironment && window.VKHelpers && window.VKHelpers.closeApp) {
-            window.VKHelpers.closeApp();
-          } else if (this.isVKEnvironment && window.vkBridge) {
+          // Пытаемся закрыть приложение через VKManager
+          if (this.isVKEnvironment && window.VKManager?.isAvailable()) {
             try {
-              window.vkBridge.send('VKWebAppClose', {
+              window.VKManager.send('VKWebAppClose', {
                 status: 'success'
               });
             } catch (e) {
-              // Если VK методы не работают, просто закрываем вкладку/окно
               try {
                 window.close();
               } catch (closeError) {
-                // Последний fallback - перенаправляем на главную VK
                 if (this.isVKEnvironment) {
                   window.location.href = 'https://vk.com';
                 } else {
@@ -429,7 +529,6 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
               }
             }
           } else {
-            // Не VK окружение - просто возвращаемся назад
             try {
               window.close();
             } catch (e) {
@@ -437,7 +536,6 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
             }
           }
         }
-        // Если пользователь отменил confirm, ничего не делаем - диалог остается
       }
     );
     declineBtn.setDepth(1003);
@@ -456,18 +554,6 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     });
   }
 
-  // ДОПОЛНИТЕЛЬНО: Метод для принудительного показа соглашения (для отладки)
-  showAgreementForDebug() {
-    // Сбрасываем все флаги для тестирования
-    localStorage.removeItem('acceptedAgreement');
-    localStorage.removeItem('agreementVersion');
-    localStorage.removeItem('vk_agreement_shown');
-    localStorage.removeItem('firstLaunchShown');
-    
-    // Показываем соглашение
-    this.showUserAgreement();
-  }
-
   /////////////////////////////////////////////////////////////
   // СОЗДАНИЕ КНОПОК УРОВНЕЙ
   /////////////////////////////////////////////////////////////
@@ -476,19 +562,27 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     // Контейнер для всех элементов уровня
     const levelContainer = this.add.container(x, y);
 
-    // Получаем прогресс для этого уровня
-    const progress = this.getProgress();
-    const levelProgress = progress[levelIndex];
+    // ИСПРАВЛЕНИЕ: Получаем прогресс через единый менеджер
+    let levelProgress = null;
+    if (this.progressManager && this.progressManager.isLoaded) {
+      levelProgress = this.progressManager.getLevelProgress(levelIndex);
+    } else {
+      // Fallback на старый метод
+      const progress = this.getProgress();
+      levelProgress = progress[levelIndex];
+    }
 
     // Основная кнопка уровня
     const btnY = -h*0.1;
     const btn = window.makeImageButton(this, 0, btnY, w, h*0.75, level.label, () => {
-      // Передаем VK данные в GameScene
+      // ИСПРАВЛЕНИЕ: Передаем единый менеджер прогресса в GameScene
       this.scene.start('GameScene', { 
-        level: level, 
+        level: level,
+        levelIndex: levelIndex, // Добавляем индекс для менеджера
         page: this.levelPage,
         userData: this.vkUserData,
-        isVK: this.isVKEnvironment
+        isVK: this.isVKEnvironment,
+        progressManager: this.progressManager // Передаем менеджер
       });
     });
 
@@ -503,7 +597,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       // Показываем заработанные звездочки
       for (let star = 1; star <= 3; star++) {
         const starX = (star - 2) * starSpacing;
-        const filled = star <= levelProgress.stars;
+        const filled = star <= (levelProgress.stars || 0);
         const starText = this.add.text(starX, starsY, filled ? '★' : '☆', {
           fontSize: starSize + 'px',
           color: filled ? '#FFD700' : '#555555'
@@ -511,15 +605,26 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
         levelContainer.add(starText);
       }
 
-      // Статистика в одной строке
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.bestAccuracy}%`;
-      const statsDisplay = this.add.text(0, starsY + 22, statsText, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(starSize * 0.65) + 'px',
-        color: '#CCCCCC',
-        fontStyle: 'normal'
-      }).setOrigin(0.5);
-      levelContainer.add(statsDisplay);
+      // ИСПРАВЛЕНИЕ: Статистика с поддержкой новых полей
+      let statsText = '';
+      if (levelProgress.bestTime) {
+        statsText += this.formatTime(levelProgress.bestTime);
+      }
+      if (levelProgress.accuracy || levelProgress.bestAccuracy) {
+        const accuracy = levelProgress.accuracy || levelProgress.bestAccuracy || 0;
+        if (statsText) statsText += ' | ';
+        statsText += `${accuracy.toFixed(1)}%`;
+      }
+      
+      if (statsText) {
+        const statsDisplay = this.add.text(0, starsY + 22, statsText, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: Math.round(starSize * 0.65) + 'px',
+          color: '#CCCCCC',
+          fontStyle: 'normal'
+        }).setOrigin(0.5);
+        levelContainer.add(statsDisplay);
+      }
 
     } else {
       // Уровень не пройден - показываем пустые звездочки
@@ -550,48 +655,83 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
   /////////////////////////////////////////////////////////////
 
   // Форматирование времени
-  formatTime(seconds) {
+  formatTime(timeMs) {
+    const seconds = Math.floor(timeMs / 1000);
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}с`;
   }
 
-  // Синхронизация прогресса с VK
+  // ИСПРАВЛЕНИЕ: Синхронизация прогресса через единый менеджер
   async syncProgressWithVK() {
-    if (!this.isVKEnvironment || !window.VKHelpers) return false;
+    if (!this.progressManager || !this.isVKEnvironment) return false;
 
     try {
-      // Получаем данные из VK облака
-      const result = await window.VKHelpers.getStorageData(['findpair_progress']);
-      const vkProgress = result.keys && result.keys[0]?.value ? 
-        JSON.parse(result.keys[0].value) : {};
+      console.log('Syncing progress with VK through GameProgressManager...');
       
-      // Получаем локальные данные
-      const localProgress = this.getProgress();
+      // Принудительная синхронизация через менеджер
+      await this.progressManager.save(true);
       
-      // Мержим прогресс (берем лучший результат)
-      const merged = { ...vkProgress };
+      // Перезагрузка данных из облака
+      await this.progressManager.load();
       
-      Object.keys(localProgress).forEach(levelIndex => {
-        const local = localProgress[levelIndex];
-        const vk = vkProgress[levelIndex];
-        
-        if (!vk || local.stars > vk.stars || 
-            (local.stars === vk.stars && local.bestTime < vk.bestTime)) {
-          merged[levelIndex] = local;
-        }
-      });
-      
-      // Сохраняем обратно в VK и локально
-      await window.VKHelpers.setStorageData('findpair_progress', merged);
-      localStorage.setItem('findpair_progress', JSON.stringify(merged));
-      
-      console.log('Progress synced with VK cloud');
+      console.log('Progress synced successfully');
       return true;
     } catch (error) {
-      console.warn('Failed to sync progress with VK:', error);
+      console.warn('Failed to sync progress through GameProgressManager:', error);
       return false;
     }
+  }
+
+  // НОВЫЙ МЕТОД: Показ уведомления о достижении
+  showAchievementNotification(achievementId) {
+    const { W, H } = this.getSceneWH();
+    
+    // Получаем данные достижения
+    const achievement = window.ACHIEVEMENTS?.[achievementId];
+    if (!achievement) return;
+    
+    const notification = this.add.container(W/2, 50);
+    
+    const bg = this.add.rectangle(0, 0, 300, 60, 0xf39c12, 0.9);
+    const icon = this.add.text(-120, 0, achievement.icon || '🏆', {
+      fontSize: '24px'
+    }).setOrigin(0.5);
+    
+    const title = this.add.text(-80, -10, 'Achievement Unlocked!', {
+      fontSize: '12px',
+      fill: '#ffffff',
+      fontWeight: 'bold'
+    }).setOrigin(0, 0.5);
+    
+    const name = this.add.text(-80, 10, achievement.name || achievementId, {
+      fontSize: '14px',
+      fill: '#ffffff'
+    }).setOrigin(0, 0.5);
+    
+    notification.add([bg, icon, title, name]);
+    notification.setDepth(2000);
+    
+    // Анимация появления и исчезновения
+    notification.setAlpha(0).setY(20);
+    
+    this.tweens.add({
+      targets: notification,
+      alpha: 1,
+      y: 50,
+      duration: 300,
+      ease: 'Back.easeOut'
+    });
+    
+    this.time.delayedCall(3000, () => {
+      this.tweens.add({
+        targets: notification,
+        alpha: 0,
+        y: 20,
+        duration: 200,
+        onComplete: () => notification.destroy()
+      });
+    });
   }
 
   /////////////////////////////////////////////////////////////
@@ -674,5 +814,91 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       }
     );
     okButton.setDepth(1003);
+  }
+
+  // ДОПОЛНИТЕЛЬНО: Метод для принудительного показа соглашения (для отладки)
+  showAgreementForDebug() {
+    // Сбрасываем все флаги для тестирования
+    localStorage.removeItem('acceptedAgreement');
+    localStorage.removeItem('agreementVersion');
+    localStorage.removeItem('vk_agreement_shown');
+    localStorage.removeItem('firstLaunchShown');
+    
+    // Показываем соглашение
+    this.showUserAgreement();
+  }
+
+  // НОВЫЙ МЕТОД: Показ настроек через единый менеджер
+  showSettings() {
+    if (!this.progressManager) return;
+
+    const { W, H } = this.getSceneWH();
+    
+    // Затемнение фона
+    const overlay = this.add.graphics()
+      .fillStyle(0x000000, 0.8)
+      .fillRect(0, 0, W, H)
+      .setDepth(1000)
+      .setInteractive();
+
+    // Модальное окно
+    const modalW = Math.min(this.isMobile ? W * 0.9 : 400, W * 0.85);
+    const modalH = Math.min(this.isMobile ? H * 0.8 : 300, H * 0.75);
+    const modal = this.add.graphics()
+      .fillStyle(0x34495e, 0.95)
+      .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 15)
+      .setDepth(1001);
+
+    const title = this.add.text(W/2, H/2 - modalH/2 + 40, 'НАСТРОЙКИ', {
+      fontSize: '24px',
+      fill: '#ffffff',
+      fontWeight: 'bold'
+    }).setOrigin(0.5).setDepth(1002);
+
+    // Переключатель звука
+    const soundEnabled = this.progressManager.getSetting('soundEnabled');
+    const soundButton = this.add.rectangle(W/2, H/2 - 40,
+      200, 40, soundEnabled ? 0x27ae60 : 0xe74c3c)
+      .setInteractive()
+      .setDepth(1002);
+    
+    this.add.text(W/2, H/2 - 40, 
+      `Sound: ${soundEnabled ? 'ON' : 'OFF'}`, {
+      fontSize: '16px',
+      fill: '#ffffff'
+    }).setOrigin(0.5).setDepth(1003);
+    
+    soundButton.on('pointerdown', () => {
+      const newValue = !this.progressManager.getSetting('soundEnabled');
+      this.progressManager.setSetting('soundEnabled', newValue);
+      
+      // Закрываем и показываем заново
+      overlay.destroy();
+      modal.destroy();
+      title.destroy();
+      soundButton.destroy();
+      this.showSettings();
+    });
+
+    // Кнопка закрытия
+    const closeButton = this.add.rectangle(W/2, H/2 + modalH/2 - 40,
+      100, 40, 0x3498db)
+      .setInteractive()
+      .setDepth(1002);
+    
+    this.add.text(W/2, H/2 + modalH/2 - 40, 'CLOSE', {
+      fontSize: '16px',
+      fill: '#ffffff',
+      fontWeight: 'bold'
+    }).setOrigin(0.5).setDepth(1003);
+    
+    closeButton.on('pointerdown', () => {
+      overlay.destroy();
+      modal.destroy();
+      title.destroy();
+      soundButton.destroy();
+      closeButton.destroy();
+      this.drawMenu(this.levelPage);
+    });
   }
 };
