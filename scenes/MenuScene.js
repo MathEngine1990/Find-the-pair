@@ -47,53 +47,59 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.events.once('destroy', this.cleanup, this);
   }
 
-  // НОВЫЙ МЕТОД: Инициализация менеджера синхронизации
-  async initializeSyncManager() {
-    try {
-      // Используем глобальный менеджер или создаем новый
-      this.syncManager = window.progressSyncManager || new ProgressSyncManager();
-      
-      // Подписываемся на события синхронизации
-      this.syncManager.onProgressUpdate = (progressData) => {
-        console.log('📊 Progress updated, refreshing UI');
-        this.progress = progressData;
+  // ОБНОВЛЕННЫЙ МЕТОД: Инициализация менеджера синхронизации с правильными обработчиками
+async initializeSyncManager() {
+  try {
+    // Используем глобальный менеджер или создаем новый
+    this.syncManager = window.progressSyncManager || new ProgressSyncManager();
+    
+    // Подписываемся на события синхронизации
+    this.syncManager.onProgressUpdate = (progressData) => {
+      console.log('📊 Progress updated, refreshing UI');
+      this.progress = progressData;
+      this.refreshUI();
+    };
+    
+    this.syncManager.onSyncStart = () => {
+      console.log('🔄 Sync started');
+      this.isSyncing = true;
+      this.showSyncIndicator();
+      this.updateSyncButton(); // ДОБАВЛЕНО: Обновляем кнопку
+      this.showSyncButtonAnimation(); // ДОБАВЛЕНО: Показываем анимацию
+    };
+    
+    this.syncManager.onSyncComplete = (data) => {
+      console.log('✅ Sync completed');
+      this.isSyncing = false;
+      this.hideSyncIndicator();
+      this.updateSyncButton(); // ДОБАВЛЕНО: Обновляем кнопку
+      this.hideSyncButtonAnimation(); // ДОБАВЛЕНО: Скрываем анимацию
+      if (data) {
+        this.progress = data;
         this.refreshUI();
-      };
-      
-      this.syncManager.onSyncStart = () => {
-        console.log('🔄 Sync started');
-        this.isSyncing = true;
-        this.showSyncIndicator();
-      };
-      
-      this.syncManager.onSyncComplete = (data) => {
-        console.log('✅ Sync completed');
-        this.isSyncing = false;
-        this.hideSyncIndicator();
-        if (data) {
-          this.progress = data;
-          this.refreshUI();
-        }
-      };
-      
-      this.syncManager.onSyncError = (error) => {
-        console.warn('⚠️ Sync error:', error);
-        this.isSyncing = false;
-        this.hideSyncIndicator();
-        this.showSyncError(error);
-      };
-      
-      // Загружаем прогресс через менеджер
-      this.progress = await this.syncManager.loadProgress();
-      console.log('📊 Progress loaded via sync manager:', this.progress);
-      
-    } catch (error) {
-      console.error('❌ Failed to init sync manager:', error);
-      // Fallback на старую логику
-      this.progress = this.getProgress();
+      }
+    };
+    
+    this.syncManager.onSyncError = (error) => {
+      console.warn('⚠️ Sync error:', error);
+      this.isSyncing = false;
+      this.hideSyncIndicator();
+      this.updateSyncButton(); // ДОБАВЛЕНО: Обновляем кнопку
+      this.hideSyncButtonAnimation(); // ДОБАВЛЕНО: Скрываем анимацию
       this.showSyncError(error);
-    }
+    };
+    
+    // Загружаем прогресс через менеджер
+    this.progress = await this.syncManager.loadProgress();
+    console.log('📊 Progress loaded via sync manager:', this.progress);
+    
+  } catch (error) {
+    console.error('❌ Failed to init sync manager:', error);
+    // Fallback на старую логику
+    this.progress = this.getProgress();
+    this.showSyncError(error);
   }
+}
 
   cleanup() {
     console.log('MenuScene cleanup started');
@@ -373,52 +379,224 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.input.on('wheel', this._wheelHandler);
   }
 
-  // НОВЫЙ МЕТОД: Создание кнопки синхронизации
-  createSyncButton(W, H, titlePx) {
-    if (!this.syncManager) return;
+  // ИСПРАВЛЕННЫЙ МЕТОД: Создание кнопки синхронизации
+createSyncButton(W, H, titlePx) {
+  if (!this.syncManager) return;
 
-    const syncStatus = this.syncManager.getSyncStatus();
-    
-    // Определяем цвет и текст кнопки
-    let btnColor = '#3498DB';
-    let btnText = '🔄';
-    let btnTooltip = 'Синхронизация';
-    
-    if (!syncStatus.isVKAvailable) {
-      btnColor = '#95A5A6';
-      btnText = '📱';
-      btnTooltip = 'Только локально';
-    } else if (this.isSyncing) {
-      btnColor = '#F39C12';
-      btnText = '⏳';
-      btnTooltip = 'Синхронизация...';
-    } else if (syncStatus.lastSyncTime > 0) {
-      btnColor = '#27AE60';
-      btnText = '✅';
-      btnTooltip = 'Синхронизировано';
-    }
+  const syncStatus = this.syncManager.getSyncStatus();
+  
+  // Определяем цвет и текст кнопки
+  let btnColor = 0x3498DB; // Используем hex число
+  let btnText = '🔄';
+  let btnTooltip = 'Синхронизация';
+  
+  if (!syncStatus.isVKAvailable) {
+    btnColor = 0x95A5A6;
+    btnText = '📱';
+    btnTooltip = 'Только локально';
+  } else if (this.isSyncing) {
+    btnColor = 0xF39C12;
+    btnText = '⏳';
+    btnTooltip = 'Синхронизация...';
+  } else if (syncStatus.lastSyncTime > 0) {
+    btnColor = 0x27AE60;
+    btnText = '✅';
+    btnTooltip = 'Синхронизировано';
+  }
 
-    const syncBtn = window.makeIconButton(
-      this, 
-      W - 40, 
-      40, 
-      Math.round(titlePx * 0.8), 
-      btnText, 
-      () => this.forceSyncProgress()
-    );
-    
-    syncBtn.setTint(parseInt(btnColor.replace('#', '0x')));
-    this.levelButtons.push(syncBtn);
+  const size = Math.round(titlePx * 0.8);
+  const x = W - 40;
+  const y = 40;
 
-    // Добавляем tooltip
-    syncBtn.zone.on('pointerover', () => {
-      this.showTooltip(syncBtn.x, syncBtn.y - 30, btnTooltip);
+  // Создаем кнопку вручную для полного контроля
+  const syncButton = this.add.container(x, y);
+  
+  // Фон кнопки
+  const bg = this.add.graphics();
+  bg.fillStyle(btnColor, 0.8);
+  bg.fillCircle(0, 0, size / 2);
+  bg.lineStyle(2, 0xFFFFFF, 0.3);
+  bg.strokeCircle(0, 0, size / 2);
+  
+  // Текст кнопки
+  const text = this.add.text(0, 0, btnText, {
+    fontSize: Math.round(size * 0.5) + 'px',
+    color: '#FFFFFF'
+  }).setOrigin(0.5);
+  
+  syncButton.add([bg, text]);
+  syncButton.setDepth(10);
+  
+  // Интерактивность
+  syncButton.setSize(size, size);
+  syncButton.setInteractive({ useHandCursor: true });
+  
+  // Обработчики событий
+  syncButton.on('pointerdown', () => {
+    this.forceSyncProgress();
+  });
+  
+  syncButton.on('pointerover', () => {
+    bg.setAlpha(1);
+    text.setScale(1.1);
+    this.showTooltip(x, y - 35, btnTooltip);
+  });
+  
+  syncButton.on('pointerout', () => {
+    bg.setAlpha(0.8);
+    text.setScale(1);
+    this.hideTooltip();
+  });
+  
+  // Анимация при клике
+  syncButton.on('pointerdown', () => {
+    this.tweens.add({
+      targets: [bg, text],
+      scaleX: 0.9,
+      scaleY: 0.9,
+      duration: 100,
+      yoyo: true,
+      ease: 'Power2'
     });
-    
-    syncBtn.zone.on('pointerout', () => {
-      this.hideTooltip();
+  });
+  
+  // Сохраняем ссылки для возможного обновления
+  syncButton.bgElement = bg;
+  syncButton.textElement = text;
+  syncButton.currentColor = btnColor;
+  syncButton.currentTooltip = btnTooltip;
+  syncButton.size = size; // ДОБАВЛЕНО: Сохраняем размер
+  
+  this.levelButtons.push(syncButton);
+  
+  // Сохраняем ссылку на кнопку синхронизации для обновлений
+  this.syncButton = syncButton;
+}
+
+  // НОВЫЙ МЕТОД: Обновление состояния кнопки синхронизации
+updateSyncButton() {
+  if (!this.syncButton || !this.syncManager) return;
+
+  const syncStatus = this.syncManager.getSyncStatus();
+  
+  // Определяем новое состояние
+  let btnColor = 0x3498DB;
+  let btnText = '🔄';
+  let btnTooltip = 'Синхронизация';
+  
+  if (!syncStatus.isVKAvailable) {
+    btnColor = 0x95A5A6;
+    btnText = '📱';
+    btnTooltip = 'Только локально';
+  } else if (this.isSyncing) {
+    btnColor = 0xF39C12;
+    btnText = '⏳';
+    btnTooltip = 'Синхронизация...';
+  } else if (syncStatus.lastSyncTime > 0) {
+    btnColor = 0x27AE60;
+    btnText = '✅';
+    btnTooltip = 'Синхронизировано';
+  }
+
+  // Обновляем только если состояние изменилось
+  if (btnColor !== this.syncButton.currentColor) {
+    // Плавная анимация изменения цвета
+    this.tweens.add({
+      targets: this.syncButton.bgElement,
+      alpha: 0.5,
+      duration: 150,
+      yoyo: true,
+      onComplete: () => {
+        this.syncButton.bgElement.clear();
+        this.syncButton.bgElement.fillStyle(btnColor, 0.8);
+        this.syncButton.bgElement.fillCircle(0, 0, this.syncButton.size / 2);
+        this.syncButton.bgElement.lineStyle(2, 0xFFFFFF, 0.3);
+        this.syncButton.bgElement.strokeCircle(0, 0, this.syncButton.size / 2);
+        this.syncButton.currentColor = btnColor;
+      }
     });
   }
+
+  // Обновляем текст если изменился
+  if (btnText !== this.syncButton.textElement.text) {
+    this.syncButton.textElement.setText(btnText);
+  }
+
+  // Обновляем tooltip
+  this.syncButton.currentTooltip = btnTooltip;
+}
+
+
+
+
+  // НОВЫЙ МЕТОД: Показать анимацию синхронизации на кнопке
+showSyncButtonAnimation() {
+  if (!this.syncButton) return;
+
+  // Запускаем вращение иконки для синхронизации
+  if (this.syncButton.textElement.text === '🔄' || this.syncButton.textElement.text === '⏳') {
+    this.syncButtonRotation = this.tweens.add({
+      targets: this.syncButton.textElement,
+      rotation: Math.PI * 2,
+      duration: 1500,
+      repeat: -1,
+      ease: 'Linear'
+    });
+  }
+}
+
+// НОВЫЙ МЕТОД: Остановить анимацию синхронизации на кнопке
+hideSyncButtonAnimation() {
+  if (this.syncButtonRotation) {
+    this.syncButtonRotation.destroy();
+    this.syncButtonRotation = null;
+    
+    if (this.syncButton && this.syncButton.textElement) {
+      this.syncButton.textElement.setRotation(0);
+    }
+  }
+}
+   
+// Обновляем текст если изменился
+  if (btnText !== this.syncButton.textElement.text) {
+    this.syncButton.textElement.setText(btnText);
+  }
+
+  // Обновляем tooltip
+  this.syncButton.currentTooltip = btnTooltip;
+
+  
+  
+  // НОВЫЙ МЕТОД: Показать анимацию синхронизации на кнопке
+showSyncButtonAnimation() {
+  if (!this.syncButton) return;
+
+  // Запускаем вращение иконки для синхронизации
+  if (this.syncButton.textElement.text === '🔄' || this.syncButton.textElement.text === '⏳') {
+    this.syncButtonRotation = this.tweens.add({
+      targets: this.syncButton.textElement,
+      rotation: Math.PI * 2,
+      duration: 1500,
+      repeat: -1,
+      ease: 'Linear'
+    });
+  }
+}
+
+// НОВЫЙ МЕТОД: Остановить анимацию синхронизации на кнопке
+hideSyncButtonAnimation() {
+  if (this.syncButtonRotation) {
+    this.syncButtonRotation.destroy();
+    this.syncButtonRotation = null;
+    
+    if (this.syncButton && this.syncButton.textElement) {
+      this.syncButton.textElement.setRotation(0);
+    }
+  }
+}
+
+
+  
 
   // НОВЫЙ МЕТОД: Принудительная синхронизация
   async forceSyncProgress() {
