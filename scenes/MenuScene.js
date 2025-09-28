@@ -1,4 +1,4 @@
-//---scenes/MenuScene.js - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
+//---scenes/MenuScene.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ ProgressSyncManager
 
 window.MenuScene = class MenuScene extends Phaser.Scene {
   constructor(){ 
@@ -14,9 +14,14 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     
     // Определяем мобильное устройство
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // ДОБАВЛЕНО: Инициализация синхронизации
+    this.syncManager = null;
+    this.progress = {};
+    this.isSyncing = false;
   }
 
-  create(){
+  async create(){
     if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
     this.scale.on('resize', () => { 
       if (this.scale && this.scale.updateBounds) this.scale.updateBounds(); 
@@ -26,6 +31,10 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this._wheelHandler = null;
 
     this.ensureGradientBackground();
+
+    // ДОБАВЛЕНО: Инициализация ProgressSyncManager
+    await this.initializeSyncManager();
+
     this.drawMenu(this.levelPage);
 
     this.scale.on('resize', () => {
@@ -36,6 +45,54 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     // Очистка при завершении сцены
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
+  }
+
+  // НОВЫЙ МЕТОД: Инициализация менеджера синхронизации
+  async initializeSyncManager() {
+    try {
+      // Используем глобальный менеджер или создаем новый
+      this.syncManager = window.progressSyncManager || new ProgressSyncManager();
+      
+      // Подписываемся на события синхронизации
+      this.syncManager.onProgressUpdate = (progressData) => {
+        console.log('📊 Progress updated, refreshing UI');
+        this.progress = progressData;
+        this.refreshUI();
+      };
+      
+      this.syncManager.onSyncStart = () => {
+        console.log('🔄 Sync started');
+        this.isSyncing = true;
+        this.showSyncIndicator();
+      };
+      
+      this.syncManager.onSyncComplete = (data) => {
+        console.log('✅ Sync completed');
+        this.isSyncing = false;
+        this.hideSyncIndicator();
+        if (data) {
+          this.progress = data;
+          this.refreshUI();
+        }
+      };
+      
+      this.syncManager.onSyncError = (error) => {
+        console.warn('⚠️ Sync error:', error);
+        this.isSyncing = false;
+        this.hideSyncIndicator();
+        this.showSyncError(error);
+      };
+      
+      // Загружаем прогресс через менеджер
+      this.progress = await this.syncManager.loadProgress();
+      console.log('📊 Progress loaded via sync manager:', this.progress);
+      
+    } catch (error) {
+      console.error('❌ Failed to init sync manager:', error);
+      // Fallback на старую логику
+      this.progress = this.getProgress();
+      this.showSyncError(error);
+    }
   }
 
   cleanup() {
@@ -59,34 +116,54 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
     // Очистка слушателей resize
     this.scale.off('resize');
+
+    // ДОБАВЛЕНО: Очистка синхронизации
+    this.hideSyncIndicator();
     
     console.log('MenuScene cleanup completed');
   }
 
-  // Получение прогресса игрока
+  // ОБНОВЛЕННЫЙ МЕТОД: Получение прогресса
   getProgress() {
     try {
+      if (this.progress && Object.keys(this.progress).length > 0) {
+        return this.progress.levels || {};
+      }
+      
       const saved = localStorage.getItem('findpair_progress');
-      return saved ? JSON.parse(saved) : {};
+      const parsed = saved ? JSON.parse(saved) : {};
+      return parsed.levels || parsed; // Поддержка старого формата
     } catch (e) {
       console.warn('Error loading progress:', e);
       return {};
     }
   }
 
-  // Получение статистики
+  // ОБНОВЛЕННЫЙ МЕТОД: Получение статистики
   getStats() {
-    const progress = this.getProgress();
-    const levels = Object.keys(progress);
+    const progressLevels = this.getProgress();
+    const levels = Object.keys(progressLevels);
     
-    return {
+    const stats = {
       totalLevels: window.LEVELS.length,
       completedLevels: levels.length,
-      totalStars: levels.reduce((sum, key) => sum + progress[key].stars, 0),
+      totalStars: levels.reduce((sum, key) => sum + (progressLevels[key].stars || 0), 0),
       maxStars: window.LEVELS.length * 3,
       averageStars: levels.length > 0 ? 
-        levels.reduce((sum, key) => sum + progress[key].stars, 0) / levels.length : 0
+        levels.reduce((sum, key) => sum + (progressLevels[key].stars || 0), 0) / levels.length : 0
     };
+    
+    // Добавляем данные из общей статистики если есть
+    if (this.progress && this.progress.stats) {
+      const globalStats = this.progress.stats;
+      stats.gamesPlayed = globalStats.gamesPlayed || 0;
+      stats.totalTime = globalStats.totalTime || 0;
+      stats.bestTime = globalStats.bestTime || null;
+      stats.perfectGames = globalStats.perfectGames || 0;
+      stats.totalErrors = globalStats.totalErrors || 0;
+    }
+    
+    return stats;
   }
 
   getSceneWH(){
@@ -158,6 +235,9 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       });
       this.levelButtons = [];
     }
+
+    // ДОБАВЛЕНО: Не очищаем индикаторы синхронизации
+    // (они управляются отдельно)
   }
 
   drawMenu(page){
@@ -203,14 +283,25 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       this.levelButtons.push(greeting);
     }
 
-    // Статистика прохождения
+    // ОБНОВЛЕНО: Улучшенная статистика с синхронизацией
     const stats = this.getStats();
     if (stats.completedLevels > 0) {
-      const statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+      let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+      
+      // Добавляем дополнительную статистику если есть
+      if (stats.gamesPlayed > 0) {
+        statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
+        if (stats.perfectGames > 0) {
+          statsText += ` | Идеальных: ${stats.perfectGames}`;
+        }
+        if (stats.bestTime) {
+          statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
+        }
+      }
       
       const statsDisplay = this.add.text(W/2, H*0.14, statsText, {
         fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(titlePx * 0.45) + 'px',
+        fontSize: Math.round(titlePx * 0.4) + 'px',
         color: '#E0E0E0',
         align: 'center',
         fontStyle: 'normal'
@@ -218,6 +309,9 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       statsDisplay.setStroke('#000000', 1);
       this.levelButtons.push(statsDisplay);
     }
+
+    // ДОБАВЛЕНО: Кнопка принудительной синхронизации
+    this.createSyncButton(W, H, titlePx);
 
     // Область для кнопок уровней
     const topY = H*0.20, bottomY = H*0.78;
@@ -277,6 +371,324 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       else if (dy < 0 && prevActive) this.drawMenu(this.levelPage - 1);
     };
     this.input.on('wheel', this._wheelHandler);
+  }
+
+  // НОВЫЙ МЕТОД: Создание кнопки синхронизации
+  createSyncButton(W, H, titlePx) {
+    if (!this.syncManager) return;
+
+    const syncStatus = this.syncManager.getSyncStatus();
+    
+    // Определяем цвет и текст кнопки
+    let btnColor = '#3498DB';
+    let btnText = '🔄';
+    let btnTooltip = 'Синхронизация';
+    
+    if (!syncStatus.isVKAvailable) {
+      btnColor = '#95A5A6';
+      btnText = '📱';
+      btnTooltip = 'Только локально';
+    } else if (this.isSyncing) {
+      btnColor = '#F39C12';
+      btnText = '⏳';
+      btnTooltip = 'Синхронизация...';
+    } else if (syncStatus.lastSyncTime > 0) {
+      btnColor = '#27AE60';
+      btnText = '✅';
+      btnTooltip = 'Синхронизировано';
+    }
+
+    const syncBtn = window.makeIconButton(
+      this, 
+      W - 40, 
+      40, 
+      Math.round(titlePx * 0.8), 
+      btnText, 
+      () => this.forceSyncProgress()
+    );
+    
+    syncBtn.setTint(parseInt(btnColor.replace('#', '0x')));
+    this.levelButtons.push(syncBtn);
+
+    // Добавляем tooltip
+    syncBtn.zone.on('pointerover', () => {
+      this.showTooltip(syncBtn.x, syncBtn.y - 30, btnTooltip);
+    });
+    
+    syncBtn.zone.on('pointerout', () => {
+      this.hideTooltip();
+    });
+  }
+
+  // НОВЫЙ МЕТОД: Принудительная синхронизация
+  async forceSyncProgress() {
+    if (!this.syncManager) {
+      this.showSyncError(new Error('Менеджер синхронизации недоступен'));
+      return;
+    }
+
+    try {
+      console.log('🔄 Manual sync triggered');
+      const success = await this.syncManager.forceSync();
+      
+      if (success) {
+        this.showSyncSuccess();
+      } else {
+        this.showSyncError(new Error('Синхронизация не удалась'));
+      }
+      
+    } catch (error) {
+      console.error('❌ Manual sync failed:', error);
+      this.showSyncError(error);
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Показать индикатор синхронизации
+  showSyncIndicator() {
+    if (this.syncIndicator) return;
+    
+    const { W, H } = this.getSceneWH();
+    
+    this.syncIndicator = this.add.container(W - 80, 80);
+    
+    // Фон индикатора
+    const bg = this.add.graphics();
+    bg.fillStyle(0x2C3E50, 0.9);
+    bg.lineStyle(2, 0xF39C12, 1);
+    bg.fillRoundedRect(-30, -15, 60, 30, 15);
+    bg.strokeRoundedRect(-30, -15, 60, 30, 15);
+    
+    // Иконка синхронизации
+    const icon = this.add.text(0, 0, '🔄', {
+      fontSize: '20px'
+    }).setOrigin(0.5);
+    
+    this.syncIndicator.add([bg, icon]);
+    this.syncIndicator.setDepth(1000);
+    
+    // Анимация вращения
+    this.syncRotationTween = this.tweens.add({
+      targets: icon,
+      rotation: Math.PI * 2,
+      duration: 1000,
+      repeat: -1,
+      ease: 'Linear'
+    });
+  }
+
+  // НОВЫЙ МЕТОД: Скрыть индикатор синхронизации
+  hideSyncIndicator() {
+    if (this.syncIndicator) {
+      if (this.syncRotationTween) {
+        this.syncRotationTween.destroy();
+        this.syncRotationTween = null;
+      }
+      this.syncIndicator.destroy();
+      this.syncIndicator = null;
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Обновить UI после синхронизации
+  refreshUI() {
+    // Пропускаем обновление если сцена не активна
+    if (!this.scene.isActive()) return;
+    
+    console.log('🔄 Refreshing MenuScene UI');
+    
+    // Перерисовываем только кнопки уровней, не весь экран
+    this.updateLevelButtons();
+    
+    // Обновляем статистику
+    this.updateStatsDisplay();
+  }
+
+  // НОВЫЙ МЕТОД: Обновление кнопок уровней
+  updateLevelButtons() {
+    const progressLevels = this.getProgress();
+    
+    this.levelButtons.forEach(button => {
+      if (button.levelIndex !== undefined) {
+        this.updateSingleLevelButton(button, button.levelIndex, progressLevels);
+      }
+    });
+  }
+
+  // НОВЫЙ МЕТОД: Обновление статистики
+  updateStatsDisplay() {
+    // Находим элемент статистики и обновляем его
+    const statsElement = this.levelButtons.find(btn => 
+      btn.type === 'Text' && btn.text && btn.text.includes('Пройдено:'));
+    
+    if (statsElement) {
+      const stats = this.getStats();
+      if (stats.completedLevels > 0) {
+        let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+        
+        if (stats.gamesPlayed > 0) {
+          statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
+          if (stats.perfectGames > 0) {
+            statsText += ` | Идеальных: ${stats.perfectGames}`;
+          }
+          if (stats.bestTime) {
+            statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
+          }
+        }
+        
+        statsElement.setText(statsText);
+      }
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Обновление одной кнопки уровня
+  updateSingleLevelButton(button, levelIndex, progressLevels) {
+    const levelProgress = progressLevels[levelIndex];
+    
+    // Обновляем звезды
+    if (button.starsContainer) {
+      button.starsContainer.destroy();
+    }
+    
+    button.starsContainer = this.add.container(button.x, button.y + 35);
+    
+    const starSize = 18;
+    const starSpacing = starSize + 4;
+    const stars = levelProgress ? levelProgress.stars : 0;
+    
+    for (let star = 1; star <= 3; star++) {
+      const starX = (star - 2) * starSpacing;
+      const filled = star <= stars;
+      const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+        fontSize: starSize + 'px',
+        color: filled ? '#FFD700' : '#666666'
+      }).setOrigin(0.5);
+      
+      button.starsContainer.add(starText);
+    }
+    
+    button.starsContainer.setDepth(button.depth + 1);
+    
+    // Обновляем статистику
+    if (button.statsContainer) {
+      button.statsContainer.destroy();
+    }
+    
+    button.statsContainer = this.add.container(button.x, button.y + 57);
+    
+    if (levelProgress) {
+      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
+      const statsDisplay = this.add.text(0, 0, statsText, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '12px',
+        color: '#CCCCCC'
+      }).setOrigin(0.5);
+      
+      button.statsContainer.add(statsDisplay);
+    } else {
+      const hintText = this.add.text(0, 0, 'Не пройден', {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '11px',
+        color: '#888888',
+        fontStyle: 'italic'
+      }).setOrigin(0.5);
+      
+      button.statsContainer.add(hintText);
+    }
+    
+    button.statsContainer.setDepth(button.depth + 1);
+  }
+
+  // НОВЫЙ МЕТОД: Показать успех синхронизации
+  showSyncSuccess() {
+    this.showToast('✅ Данные синхронизированы', '#27AE60');
+  }
+
+  // НОВЫЙ МЕТОД: Показать ошибку синхронизации
+  showSyncError(error) {
+    console.error('Sync error:', error);
+    this.showToast('⚠️ Ошибка синхронизации', '#E74C3C');
+  }
+
+  // НОВЫЙ МЕТОД: Показать tooltip
+  showTooltip(x, y, text) {
+    this.hideTooltip();
+    
+    const tooltip = this.add.container(x, y);
+    
+    const bg = this.add.graphics();
+    bg.fillStyle(0x2C3E50, 0.9);
+    bg.fillRoundedRect(-30, -10, 60, 20, 5);
+    
+    const label = this.add.text(0, 0, text, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '10px',
+      color: '#FFFFFF'
+    }).setOrigin(0.5);
+    
+    tooltip.add([bg, label]);
+    tooltip.setDepth(2000);
+    
+    this.currentTooltip = tooltip;
+    
+    // Автоскрытие через 3 секунды
+    this.tooltipTimer = this.time.delayedCall(3000, () => {
+      this.hideTooltip();
+    });
+  }
+
+  // НОВЫЙ МЕТОД: Скрыть tooltip
+  hideTooltip() {
+    if (this.currentTooltip) {
+      this.currentTooltip.destroy();
+      this.currentTooltip = null;
+    }
+    
+    if (this.tooltipTimer) {
+      this.tooltipTimer.destroy();
+      this.tooltipTimer = null;
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Показать toast уведомление
+  showToast(message, color = '#3498DB', duration = 2000) {
+    const { W, H } = this.getSceneWH();
+    
+    const toast = this.add.container(W / 2, H - 100);
+    
+    const bg = this.add.graphics();
+    bg.fillStyle(parseInt(color.replace('#', '0x')), 0.9);
+    bg.fillRoundedRect(-100, -15, 200, 30, 15);
+    
+    const text = this.add.text(0, 0, message, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '14px',
+      color: '#FFFFFF',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    toast.add([bg, text]);
+    toast.setDepth(2000);
+    
+    // Анимация появления
+    toast.setAlpha(0);
+    this.tweens.add({
+      targets: toast,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2.easeOut'
+    });
+    
+    // Автоматическое скрытие
+    this.time.delayedCall(duration, () => {
+      this.tweens.add({
+        targets: toast,
+        alpha: 0,
+        duration: 300,
+        ease: 'Power2.easeIn',
+        onComplete: () => {
+          toast.destroy();
+        }
+      });
+    });
   }
 
   /////////////////////////////////////////////////////////////
@@ -477,22 +889,27 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     const levelContainer = this.add.container(x, y);
 
     // Получаем прогресс для этого уровня
-    const progress = this.getProgress();
-    const levelProgress = progress[levelIndex];
+    const progressLevels = this.getProgress();
+    const levelProgress = progressLevels[levelIndex];
 
     // Основная кнопка уровня
     const btnY = -h*0.1;
     const btn = window.makeImageButton(this, 0, btnY, w, h*0.75, level.label, () => {
-      // Передаем VK данные в GameScene
+      // ОБНОВЛЕНО: Передаем данные синхронизации в GameScene
       this.scene.start('GameScene', { 
         level: level, 
+        levelIndex: levelIndex,  // ДОБАВЛЕНО: передаем индекс уровня
         page: this.levelPage,
         userData: this.vkUserData,
-        isVK: this.isVKEnvironment
+        isVK: this.isVKEnvironment,
+        syncManager: this.syncManager  // ДОБАВЛЕНО: передаем менеджер синхронизации
       });
     });
 
     levelContainer.add(btn);
+    
+    // ДОБАВЛЕНО: Сохраняем ссылку на индекс уровня для обновлений
+    levelContainer.levelIndex = levelIndex;
 
     // Звездочки и прогресс
     const starsY = h*0.32;
@@ -511,8 +928,12 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
         levelContainer.add(starText);
       }
 
-      // Статистика в одной строке
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.bestAccuracy}%`;
+      // ОБНОВЛЕНО: Улучшенная статистика
+      const accuracy = levelProgress.accuracy || 
+        (levelProgress.attempts > 0 ? 
+          Math.round((levelProgress.attempts - (levelProgress.errors || 0)) / levelProgress.attempts * 100) : 100);
+      
+      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
       const statsDisplay = this.add.text(0, starsY + 22, statsText, {
         fontFamily: 'Arial, sans-serif',
         fontSize: Math.round(starSize * 0.65) + 'px',
@@ -551,47 +972,175 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
   // Форматирование времени
   formatTime(seconds) {
+    if (!seconds) return '0с';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}с`;
   }
 
-  // Синхронизация прогресса с VK
+  // ОБНОВЛЕННЫЙ МЕТОД: Синхронизация прогресса с VK (теперь через ProgressSyncManager)
   async syncProgressWithVK() {
-    if (!this.isVKEnvironment || !window.VKHelpers) return false;
-
-    try {
-      // Получаем данные из VK облака
-      const result = await window.VKHelpers.getStorageData(['findpair_progress']);
-      const vkProgress = result.keys && result.keys[0]?.value ? 
-        JSON.parse(result.keys[0].value) : {};
-      
-      // Получаем локальные данные
-      const localProgress = this.getProgress();
-      
-      // Мержим прогресс (берем лучший результат)
-      const merged = { ...vkProgress };
-      
-      Object.keys(localProgress).forEach(levelIndex => {
-        const local = localProgress[levelIndex];
-        const vk = vkProgress[levelIndex];
-        
-        if (!vk || local.stars > vk.stars || 
-            (local.stars === vk.stars && local.bestTime < vk.bestTime)) {
-          merged[levelIndex] = local;
-        }
-      });
-      
-      // Сохраняем обратно в VK и локально
-      await window.VKHelpers.setStorageData('findpair_progress', merged);
-      localStorage.setItem('findpair_progress', JSON.stringify(merged));
-      
-      console.log('Progress synced with VK cloud');
-      return true;
-    } catch (error) {
-      console.warn('Failed to sync progress with VK:', error);
+    if (!this.syncManager) {
+      console.warn('Sync manager not available');
       return false;
     }
+
+    try {
+      const success = await this.syncManager.forceSync();
+      
+      if (success) {
+        console.log('✅ Progress synced successfully');
+        this.showSyncSuccess();
+        return true;
+      } else {
+        console.warn('⚠️ Sync completed but no changes detected');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ Sync failed:', error);
+      this.showSyncError(error);
+      return false;
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Сохранение прогресса через синхронизатор
+  async saveProgress(levelIndex, stars, time, errors, attempts) {
+    try {
+      if (!this.syncManager) {
+        console.warn('Sync manager not available, using fallback');
+        return this.saveProgressFallback(levelIndex, stars, time, errors, attempts);
+      }
+
+      // Загружаем текущий прогресс
+      const currentProgress = await this.syncManager.loadProgress();
+      
+      // Обновляем прогресс для уровня
+      if (!currentProgress.levels) {
+        currentProgress.levels = {};
+      }
+      
+      const existingLevel = currentProgress.levels[levelIndex];
+      const accuracy = attempts > 0 ? Math.round((attempts - errors) / attempts * 100) : 100;
+      
+      const newLevel = {
+        stars,
+        bestTime: time,
+        errors,
+        attempts,
+        accuracy,
+        timestamp: Date.now(),
+        completedAt: new Date().toISOString()
+      };
+      
+      // Сохраняем только если результат лучше
+      if (!existingLevel || 
+          stars > existingLevel.stars || 
+          (stars === existingLevel.stars && time < existingLevel.bestTime)) {
+        
+        currentProgress.levels[levelIndex] = newLevel;
+        
+        // Обновляем общую статистику
+        if (!currentProgress.stats) {
+          currentProgress.stats = {
+            gamesPlayed: 0,
+            totalTime: 0,
+            totalErrors: 0,
+            bestTime: null,
+            lastPlayed: 0,
+            perfectGames: 0,
+            totalStars: 0
+          };
+        }
+        
+        const stats = currentProgress.stats;
+        stats.gamesPlayed++;
+        stats.totalTime += time;
+        stats.totalErrors += errors;
+        stats.lastPlayed = Date.now();
+        
+        if (errors === 0) {
+          stats.perfectGames++;
+        }
+        
+        if (!stats.bestTime || time < stats.bestTime) {
+          stats.bestTime = time;
+        }
+        
+        // Пересчитываем общее количество звезд
+        stats.totalStars = Object.values(currentProgress.levels)
+          .reduce((total, level) => total + (level.stars || 0), 0);
+        
+        // Сохраняем через синхронизатор
+        await this.syncManager.saveProgress(currentProgress, true);
+        
+        console.log('💾 Progress saved via sync manager:', {
+          level: levelIndex,
+          stars,
+          time,
+          accuracy
+        });
+        
+        // Обновляем локальный кеш
+        this.progress = currentProgress;
+        
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Failed to save progress:', error);
+      // Fallback к старому методу
+      return this.saveProgressFallback(levelIndex, stars, time, errors, attempts);
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Fallback сохранение прогресса
+  saveProgressFallback(levelIndex, stars, time, errors, attempts) {
+    try {
+      const progress = this.getProgress();
+      const existingLevel = progress[levelIndex];
+      const accuracy = attempts > 0 ? Math.round((attempts - errors) / attempts * 100) : 100;
+      
+      const newLevel = {
+        stars,
+        bestTime: time,
+        errors,
+        attempts,
+        accuracy,
+        timestamp: Date.now()
+      };
+      
+      // Сохраняем только если результат лучше
+      if (!existingLevel || 
+          stars > existingLevel.stars || 
+          (stars === existingLevel.stars && time < existingLevel.bestTime)) {
+        
+        progress[levelIndex] = newLevel;
+        localStorage.setItem('findpair_progress', JSON.stringify({ levels: progress }));
+        
+        console.log('💾 Progress saved via fallback');
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Fallback save failed:', error);
+      return false;
+    }
+  }
+
+  /////////////////////////////////////////////////////////////
+  // ОБРАБОТЧИКИ СОБЫТИЙ СЦЕНЫ
+  /////////////////////////////////////////////////////////////
+
+  // НОВЫЙ МЕТОД: Обработчик возврата из GameScene
+  onProgressSynced(data) {
+    console.log('📊 Progress synced event received');
+    this.progress = data;
+    this.refreshUI();
   }
 
   /////////////////////////////////////////////////////////////
