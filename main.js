@@ -1938,3 +1938,4 @@ DebugSync.reinit()      - переинициализировать менедж�
   Screen: ${screen.width}x${screen.height}
   Viewport: ${window.innerWidth}x${window.innerHeight}
   DPR
+}}
