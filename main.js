@@ -1,57 +1,61 @@
-gameContainer.innerHTML = `
-      <div style="
-        display: flex; 
-        flex-direction: column; 
-        justify-content: center; 
-        align-items: center; 
-        height: 100vh; 
-        background: #1d2330; 
-        color: #fff; 
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-        box-sizing: border-box;
-      ">
-        <h2 style="color: #ff6b6b; font-size: ${isMobile ? '18px' : '24px'}; margin-bottom: 15px;">😔 ${message}</h2>
-        ${details ? `<p style="color: #ccc; font-size: ${isMobile ? '12px' : '14px'}; margin: 10px 0; max-width: 90%;">${details}</p>` : ''}
-        <p style="color: #ccc; font-size: ${isMobile ? '12px' : '14px'}; margin-bottom: 20px;">Проверьте подключение к интернету и попробуйте снова</p>
-        <button onclick="location.reload()" style="
-          padding: ${isMobile ? '15px 25px' : '12px 24px'}; 
-          font-size: ${isMobile ? '18px' : '16px'}; 
-          background: #3498db; 
-          color: white; 
-          border: none; 
-          border-radius: 8px; 
-          cursor: pointer;
-          margin-top: 20px;
-          font-weight: bold;
-          min-width: ${isMobile ? '200px' : '160px'};
-        ">🔄 Перезагрузить</button>
-        
-        ${window.VK_DEBUG ? `
-          <details style="margin-top: 20px; color: #888; font-size: ${isMobile ? '10px' : '12px'}; max-width: 90%;">
-            <summary>Техническая информация</summary>
-            <pre style="text-align: left; margin-top: 10px; font-size: ${isMobile ? '8px' : '10px'}; overflow-x: auto;">
-  DOM Ready: ${document.readyState}
-  Mobile Device: ${isMobile}
-  iOS: ${isIOS}
-  Android: ${isAndroid}
-  Touch Support: ${'ontouchstart' in window}
-  Screen: ${screen.width}x${screen.height}
-  Viewport: ${window.innerWidth}x${window.innerHeight}
-  DPR: ${window.devicePixelRatio || 1}
-  Phaser: ${!!window.Phaser}
-  Game Data: ${!!(window.ALL_CARD_KEYS && window.LEVELS)}
-  Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene)}
-  VK Environment: ${!!isVKEnvironment}
-  Sync Manager: ${!!window.ProgressSyncManager}
-  User Agent: ${navigator.userAgent}
-            </pre>
-          </details>
-        ` : ''}
-      </div>
-    `;
-  }
+function showErrorFallback(message, details = '') {
+  const gameContainer = document.getElementById('game');
+  if (!gameContainer) return;
+  
+  gameContainer.innerHTML = `
+    <div style="
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      background: #1d2330; 
+      color: #fff; 
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    ">
+      <h2 style="color: #ff6b6b; font-size: ${isMobile ? '18px' : '24px'}; margin-bottom: 15px;">😔 ${message}</h2>
+      ${details ? `<p style="color: #ccc; font-size: ${isMobile ? '12px' : '14px'}; margin: 10px 0; max-width: 90%;">${details}</p>` : ''}
+      <p style="color: #ccc; font-size: ${isMobile ? '12px' : '14px'}; margin-bottom: 20px;">Проверьте подключение к интернету и попробуйте снова</p>
+      <button onclick="location.reload()" style="
+        padding: ${isMobile ? '15px 25px' : '12px 24px'}; 
+        font-size: ${isMobile ? '18px' : '16px'}; 
+        background: #3498db; 
+        color: white; 
+        border: none; 
+        border-radius: 8px; 
+        cursor: pointer;
+        margin-top: 20px;
+        font-weight: bold;
+        min-width: ${isMobile ? '200px' : '160px'};
+      ">🔄 Перезагрузить</button>
+      
+      ${window.VK_DEBUG ? `
+        <details style="margin-top: 20px; color: #888; font-size: ${isMobile ? '10px' : '12px'}; max-width: 90%;">
+          <summary>Техническая информация</summary>
+          <pre style="text-align: left; margin-top: 10px; font-size: ${isMobile ? '8px' : '10px'}; overflow-x: auto;">
+DOM Ready: ${document.readyState}
+Mobile Device: ${isMobile}
+iOS: ${isIOS}
+Android: ${isAndroid}
+Touch Support: ${'ontouchstart' in window}
+Screen: ${screen.width}x${screen.height}
+Viewport: ${window.innerWidth}x${window.innerHeight}
+DPR: ${window.devicePixelRatio || 1}
+Phaser: ${!!window.Phaser}
+Game Data: ${!!(window.ALL_CARD_KEYS && window.LEVELS)}
+Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene)}
+VK Environment: ${!!isVKEnvironment}
+Sync Manager: ${!!window.ProgressSyncManager}
+User Agent: ${navigator.userAgent}
+          </pre>
+        </details>
+      ` : ''}
+    </div>
+  `;
+}
 
   // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 7: Мобильно-оптимизированная инициализация игры
  function initGame() {
