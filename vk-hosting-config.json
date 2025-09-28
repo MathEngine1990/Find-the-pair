@@ -2,9 +2,9 @@
   "static_path": "dist",
   "app_id": 53937545,
   "endpoints": {
-    "mobile": "https://mathengine1990.github.io/Find-the-pair/",
-    "mvk": "https://mathengine1990.github.io/Find-the-pair/", 
-    "web": "https://mathengine1990.github.io/Find-the-pair/"
+    "mobile": "/",
+    "mvk": "/", 
+    "web": "/"
   },
   "build_commands": [
     "npm install",
@@ -47,6 +47,7 @@
   "rewrites": [
     {
       "source": "/**",
-      "destination": "https://mathengine1990.github.io/Find-the-pair/"
+      "destination": "/index.html"
     }
+  ]
 }
