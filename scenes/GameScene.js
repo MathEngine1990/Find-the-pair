@@ -1,4 +1,4 @@
-//---scenes/GameScene.js - ИСПРАВЛЕНИЕ ПРОБЛЕМЫ С КАРТОЧКАМИ И ЭКРАНОМ ПОБЕДЫ
+//---scenes/GameScene.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ ProgressSyncManager
 
 window.GameScene = class GameScene extends Phaser.Scene {
   
@@ -8,11 +8,16 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   init(data) {
     this.currentLevel = data?.level || null;
+    this.currentLevelIndex = data?.levelIndex || 0; // ДОБАВЛЕНО: индекс уровня
     this.levelPage = data?.page || 0;
     
     // VK данные из PreloadScene
     this.vkUserData = data?.userData || window.VK_USER_DATA;
     this.isVKEnvironment = data?.isVK || !!window.VK_LAUNCH_PARAMS;
+    
+    // ДОБАВЛЕНО: Инициализация синхронизации
+    this.syncManager = data?.syncManager || window.progressSyncManager || null;
+    this.progressData = null;
     
     // Система достижений (локальная + VK)
     this.achievements = this.getAchievements();
@@ -48,11 +53,25 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.gameSeed = this.generateSeed();
     this.gameState.currentSeed = this.gameSeed;
 
+    // ДОБАВЛЕНО: Метрики для синхронизации
+    this.gameMetrics = {
+      startTime: null,
+      attempts: 0,
+      errors: 0,
+      pairs: 0,
+      level: this.currentLevel,
+      timeToFirstMatch: null,
+      matchTimes: [],
+      levelIndex: this.currentLevelIndex
+    };
+
     console.log('GameScene init:', {
       isVK: this.isVKEnvironment,
       hasVKUser: !!this.vkUserData,
       hasVKAchievements: !!this.vkAchievementManager,
-      seed: this.gameSeed
+      hasSyncManager: !!this.syncManager,
+      seed: this.gameSeed,
+      levelIndex: this.currentLevelIndex
     });
   }
 
@@ -103,7 +122,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   preload() {}
 
-  create() {
+  async create() {
     if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
 
     this.levelButtons = [];
@@ -127,6 +146,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Таймеры для управления
     this.memorizeTimer = null;
     this.flipTimer = null;
+
+    // ДОБАВЛЕНО: Инициализация синхронизации
+    await this.initializeSyncManager();
 
     this.makePlaceholdersIfNeeded();
     this.ensureGradientBackground();
@@ -161,6 +183,37 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
+  }
+
+  // НОВЫЙ МЕТОД: Инициализация менеджера синхронизации
+  async initializeSyncManager() {
+    try {
+      // Используем переданный менеджер или глобальный
+      if (!this.syncManager) {
+        this.syncManager = window.progressSyncManager || new ProgressSyncManager();
+      }
+      
+      // Загружаем текущий прогресс
+      this.progressData = await this.syncManager.loadProgress();
+      console.log('🎮 GameScene: Progress data loaded', this.progressData);
+      
+    } catch (error) {
+      console.error('❌ Failed to init sync manager in GameScene:', error);
+      // Fallback к старой системе
+      this.progressData = this.getProgressFallback();
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Fallback загрузка прогресса
+  getProgressFallback() {
+    try {
+      const saved = localStorage.getItem('findpair_progress');
+      const parsed = saved ? JSON.parse(saved) : {};
+      return parsed.levels ? parsed : { levels: parsed };
+    } catch (error) {
+      console.warn('Error loading fallback progress:', error);
+      return { levels: {} };
+    }
   }
 
   // НОВЫЙ МЕТОД: Универсальная функция для установки размера карты
@@ -590,6 +643,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       errors: 0,
       pairs: Math.floor(total / 2),
       level: level,
+      levelIndex: this.currentLevelIndex, // ДОБАВЛЕНО
       timeToFirstMatch: null,
       matchTimes: []
     };  
@@ -863,8 +917,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // УЛУЧШЕННЫЙ МЕТОД: Экран победы с системой прогресса и звёздочками
-  showWin() {
+  // УЛУЧШЕННЫЙ МЕТОД: Экран победы с интеграцией ProgressSyncManager
+  async showWin() {
     this.canClick = false;
     this.gameState.gameStarted = false;
     this.gameState.showingVictory = true;
@@ -875,12 +929,17 @@ window.GameScene = class GameScene extends Phaser.Scene {
     const accuracy = this.gameMetrics.attempts > 0 ? 
       Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
 
-    // Сохранение прогресса с системой звёздочек
-    const levelIndex = window.LEVELS.findIndex(l => l === this.currentLevel);
-    const progressResult = this.saveProgress(levelIndex, gameTime, this.gameMetrics.attempts, this.gameMetrics.errors);
+    // ОБНОВЛЕНО: Сохранение через ProgressSyncManager
+    const progressResult = await this.saveProgressViaSyncManager(
+      this.currentLevelIndex, 
+      gameTime, 
+      this.gameMetrics.attempts, 
+      this.gameMetrics.errors,
+      accuracy
+    );
 
-    // Проверка достижений
-    this.checkAchievements(gameTime, this.gameMetrics.errors, this.currentLevel);
+    // ОБНОВЛЕНО: Проверка достижений через новую систему
+    await this.checkAndUnlockAchievements(progressResult, gameTime, this.gameMetrics.errors);
 
     console.log('Game finished:', {
       time: gameTime,
@@ -952,12 +1011,25 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.victoryContainer.add(accuracyText);
 
-    // Показываем улучшение результата
+    // Показываем улучшение результата или статус синхронизации
     if (progressResult.improved) {
       const recordText = this.add.text(panelX, statsY + lineHeight * 4, 'Новый рекорд!', {
         fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#F39C12', fontStyle: 'bold'
       }).setOrigin(0.5);
       this.victoryContainer.add(recordText);
+    }
+
+    // ДОБАВЛЕНО: Показываем статус синхронизации
+    if (progressResult.synced) {
+      const syncText = this.add.text(panelX, statsY + lineHeight * 5, '☁️ Синхронизировано', {
+        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#27AE60', fontStyle: 'normal'
+      }).setOrigin(0.5);
+      this.victoryContainer.add(syncText);
+    } else if (progressResult.syncError) {
+      const syncErrorText = this.add.text(panelX, statsY + lineHeight * 5, '⚠️ Ошибка синхронизации', {
+        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#E74C3C', fontStyle: 'normal'
+      }).setOrigin(0.5);
+      this.victoryContainer.add(syncErrorText);
     }
 
     // Кнопки
@@ -989,59 +1061,404 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.victoryElements = [playAgainBtn, menuBtn];
   }
 
-  // Система сохранения прогресса с звёздочками
-  saveProgress(levelIndex, gameTime, attempts, errors) {
-    const accuracy = attempts > 0 ? (attempts - errors) / attempts : 0;
-    
+  // НОВЫЙ МЕТОД: Сохранение прогресса через ProgressSyncManager
+  async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accuracy) {
     // Расчёт звёздочек (1-3 звезды)
     let stars = 1; // минимум 1 звезда за прохождение
     
-    if (accuracy >= 0.9 && gameTime <= 60) stars = 3;      // отлично
-    else if (accuracy >= 0.8 && gameTime <= 90) stars = 2; // хорошо
+    const errorRate = attempts > 0 ? errors / attempts : 0;
     
-    // Получаем текущий прогресс
-    const progress = this.getProgress();
+    if (errorRate === 0 && gameTime <= 60) stars = 3;      // отлично
+    else if (errorRate <= 0.2 && gameTime <= 90) stars = 2; // хорошо
     
-    // Обновляем только если результат лучше
-    const current = progress[levelIndex];
-    const improved = !current || stars > current.stars || 
-      (stars === current.stars && gameTime < current.bestTime);
-    
-    if (improved) {
-      progress[levelIndex] = {
+    const result = {
+      stars,
+      improved: false,
+      synced: false,
+      syncError: false,
+      currentBest: null
+    };
+
+    try {
+      if (this.syncManager) {
+        // Используем ProgressSyncManager
+        const currentProgress = await this.syncManager.loadProgress();
+        
+        if (!currentProgress.levels) {
+          currentProgress.levels = {};
+        }
+        
+        const existingLevel = currentProgress.levels[levelIndex];
+        const newLevel = {
+          stars,
+          bestTime: gameTime,
+          bestAccuracy: accuracy,
+          attempts,
+          errors,
+          accuracy,
+          timestamp: Date.now(),
+          completedAt: new Date().toISOString()
+        };
+        
+        // Проверяем, лучше ли новый результат
+        result.improved = !existingLevel || 
+          stars > existingLevel.stars || 
+          (stars === existingLevel.stars && gameTime < existingLevel.bestTime);
+        
+        if (result.improved) {
+          currentProgress.levels[levelIndex] = newLevel;
+          
+          // Обновляем общую статистику
+          if (!currentProgress.stats) {
+            currentProgress.stats = {
+              gamesPlayed: 0,
+              totalTime: 0,
+              totalErrors: 0,
+              bestTime: null,
+              lastPlayed: 0,
+              perfectGames: 0,
+              totalStars: 0
+            };
+          }
+          
+          const stats = currentProgress.stats;
+          stats.gamesPlayed++;
+          stats.totalTime += gameTime;
+          stats.totalErrors += errors;
+          stats.lastPlayed = Date.now();
+          
+          if (errors === 0) {
+            stats.perfectGames++;
+          }
+          
+          if (!stats.bestTime || gameTime < stats.bestTime) {
+            stats.bestTime = gameTime;
+          }
+          
+          // Пересчитываем общее количество звезд
+          stats.totalStars = Object.values(currentProgress.levels)
+            .reduce((total, level) => total + (level.stars || 0), 0);
+          
+          // Сохраняем через синхронизатор (принудительная синхронизация)
+          await this.syncManager.saveProgress(currentProgress, true);
+          
+          result.synced = true;
+          result.currentBest = newLevel;
+          
+          console.log('💾 Progress saved and synced via ProgressSyncManager:', {
+            level: levelIndex,
+            stars,
+            time: gameTime,
+            improved: result.improved
+          });
+        } else {
+          result.currentBest = existingLevel;
+        }
+        
+      } else {
+        // Fallback к старой системе
+        console.warn('ProgressSyncManager not available, using fallback');
+        result = this.saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to save progress via sync manager:', error);
+      result.syncError = true;
+      
+      // Пытаемся fallback сохранение
+      try {
+        const fallbackResult = this.saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy);
+        result.improved = fallbackResult.improved;
+        result.currentBest = fallbackResult.currentBest;
+      } catch (fallbackError) {
+        console.error('❌ Fallback save also failed:', fallbackError);
+      }
+    }
+
+    return result;
+  }
+
+  // ОБНОВЛЕННЫЙ МЕТОД: Fallback сохранение прогресса
+  saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy) {
+    try {
+      const progress = this.getProgressFallback();
+      
+      let stars = 1;
+      const errorRate = attempts > 0 ? errors / attempts : 0;
+      
+      if (errorRate === 0 && gameTime <= 60) stars = 3;
+      else if (errorRate <= 0.2 && gameTime <= 90) stars = 2;
+      
+      const existingLevel = progress.levels[levelIndex];
+      const newLevel = {
         stars,
         bestTime: gameTime,
-        bestAccuracy: Math.round(accuracy * 100),
+        bestAccuracy: accuracy,
         attempts,
         errors,
-        completedAt: Date.now()
+        accuracy,
+        timestamp: Date.now()
       };
       
-      // Сохраняем прогресс
-      try {
+      const improved = !existingLevel || 
+        stars > existingLevel.stars || 
+        (stars === existingLevel.stars && gameTime < existingLevel.bestTime);
+      
+      if (improved) {
+        progress.levels[levelIndex] = newLevel;
         localStorage.setItem('findpair_progress', JSON.stringify(progress));
         
-        // Также синхронизируем с VK если доступно
+        // Также пытаемся синхронизировать с VK если доступно
         if (this.isVKEnvironment && window.VKHelpers) {
           window.VKHelpers.setStorageData('findpair_progress', progress)
             .catch(err => console.warn('VK sync failed:', err));
         }
-      } catch (e) {
-        console.warn('Failed to save progress:', e);
       }
+      
+      return {
+        stars,
+        improved,
+        synced: false,
+        syncError: false,
+        currentBest: progress.levels[levelIndex]
+      };
+      
+    } catch (error) {
+      console.error('❌ Fallback save failed:', error);
+      return {
+        stars: 1,
+        improved: false,
+        synced: false,
+        syncError: true,
+        currentBest: null
+      };
     }
-    
-    return { stars, improved, currentBest: progress[levelIndex] };
   }
 
-  // Получение прогресса
-  getProgress() {
+  // НОВЫЙ МЕТОД: Проверка достижений через ProgressSyncManager
+  async checkAndUnlockAchievements(progressResult, gameTime, errors) {
     try {
-      const saved = localStorage.getItem('findpair_progress');
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) {
-      console.warn('Error loading progress:', e);
-      return {};
+      if (!this.syncManager) {
+        // Fallback к старой системе
+        return this.checkAchievements(gameTime, errors, this.currentLevel);
+      }
+
+      const currentProgress = await this.syncManager.loadProgress();
+      
+      if (!currentProgress.achievements) {
+        currentProgress.achievements = {};
+      }
+      
+      const achievements = currentProgress.achievements;
+      const stats = currentProgress.stats;
+      const newAchievements = [];
+      
+      // Первая победа
+      if (!achievements.first_win) {
+        achievements.first_win = true;
+        newAchievements.push({
+          id: 'first_win',
+          title: 'Первая победа!',
+          description: 'Выиграли первую игру',
+          icon: '🏆',
+          points: 10
+        });
+      }
+      
+      // Идеальная игра
+      if (errors === 0 && !achievements.perfect_game) {
+        achievements.perfect_game = true;
+        newAchievements.push({
+          id: 'perfect_game',
+          title: 'Идеальная память!',
+          description: 'Завершили игру без ошибок',
+          icon: '🧠',
+          points: 50
+        });
+      }
+      
+      // Скоростной бегун
+      if (gameTime <= 30 && !achievements.speed_runner) {
+        achievements.speed_runner = true;
+        newAchievements.push({
+          id: 'speed_runner',
+          title: 'Скоростной бегун!',
+          description: 'Завершили уровень за 30 секунд',
+          icon: '⚡',
+          points: 30
+        });
+      }
+      
+      // Эксперт памяти (сложный уровень)
+      const level = this.currentLevel;
+      const totalPairs = level ? (level.cols * level.rows) / 2 : 0;
+      if (totalPairs >= 12 && !achievements.expert) {
+        achievements.expert = true;
+        newAchievements.push({
+          id: 'expert',
+          title: 'Эксперт памяти!',
+          description: 'Прошли сложный уровень',
+          icon: '🎓',
+          points: 75
+        });
+      }
+      
+      // Упорство (много игр)
+      if (stats && stats.gamesPlayed >= 10 && !achievements.persistent) {
+        achievements.persistent = true;
+        newAchievements.push({
+          id: 'persistent',
+          title: 'Упорство!',
+          description: 'Сыграли 10 игр',
+          icon: '🎯',
+          points: 25
+        });
+      }
+      
+      // Коллекционер звезд
+      if (stats && stats.totalStars >= 30 && !achievements.collector) {
+        achievements.collector = true;
+        newAchievements.push({
+          id: 'collector',
+          title: 'Коллекционер!',
+          description: 'Собрали 30 звезд',
+          icon: '📚',
+          points: 40
+        });
+      }
+      
+      // Марафонец (много времени в игре)
+      if (stats && stats.totalTime >= 3600 && !achievements.marathoner) { // 1 час
+        achievements.marathoner = true;
+        newAchievements.push({
+          id: 'marathoner',
+          title: 'Марафонец!',
+          description: 'Провели в игре больше часа',
+          icon: '🏃',
+          points: 100
+        });
+      }
+      
+      // Сохраняем обновленные достижения
+      if (newAchievements.length > 0) {
+        await this.syncManager.saveProgress(currentProgress, true);
+        
+        // Показываем уведомления о новых достижениях
+        this.showNewAchievements(newAchievements);
+        
+        // Отправляем во VK (если доступно)
+        await this.shareAchievementsToVK(newAchievements);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to check achievements:', error);
+      // Fallback к старой системе
+      this.checkAchievements(gameTime, errors, this.currentLevel);
+    }
+  }
+
+  // НОВЫЙ МЕТОД: Показ новых достижений
+  showNewAchievements(achievements) {
+    const { W, H } = this.getSceneWH();
+    
+    achievements.forEach((achievement, index) => {
+      setTimeout(() => {
+        // Создаем уведомление о достижении
+        const notification = this.add.container(W / 2, 150 + index * 120);
+        
+        // Фон уведомления
+        const bg = this.add.graphics();
+        bg.fillStyle(0x2C3E50, 0.95);
+        bg.lineStyle(3, 0xF39C12, 1);
+        bg.fillRoundedRect(-160, -40, 320, 80, 15);
+        bg.strokeRoundedRect(-160, -40, 320, 80, 15);
+        
+        // Иконка достижения
+        const icon = this.add.text(-130, 0, achievement.icon, {
+          fontSize: '32px'
+        }).setOrigin(0.5);
+        
+        // Текст достижения
+        const title = this.add.text(-90, -10, achievement.title, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '18px',
+          color: '#F39C12',
+          fontStyle: 'bold'
+        }).setOrigin(0, 0.5);
+        
+        const description = this.add.text(-90, 10, achievement.description, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '14px',
+          color: '#FFFFFF'
+        }).setOrigin(0, 0.5);
+        
+        // Очки
+        const points = this.add.text(140, 0, `+${achievement.points}`, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '16px',
+          color: '#27AE60',
+          fontStyle: 'bold'
+        }).setOrigin(1, 0.5);
+        
+        notification.add([bg, icon, title, description, points]);
+        notification.setDepth(1000);
+        
+        // Анимация появления
+        notification.setAlpha(0);
+        notification.setScale(0.8);
+        
+        this.tweens.add({
+          targets: notification,
+          alpha: 1,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 500,
+          ease: 'Back.easeOut'
+        });
+        
+        // Автоматическое скрытие через 4 секунды
+        setTimeout(() => {
+          this.tweens.add({
+            targets: notification,
+            alpha: 0,
+            scaleX: 0.8,
+            scaleY: 0.8,
+            duration: 300,
+            ease: 'Power2.easeIn',
+            onComplete: () => {
+              notification.destroy();
+            }
+          });
+        }, 4000);
+        
+      }, index * 500); // Задержка между достижениями
+    });
+  }
+
+  // НОВЫЙ МЕТОД: Шаринг достижений во VK
+  async shareAchievementsToVK(achievements) {
+    try {
+      if (!window.VKHelpers || !window.VK_BRIDGE_READY) {
+        return;
+      }
+      
+      for (const achievement of achievements) {
+        // Делимся достижением во VK
+        try {
+          await window.VKHelpers.shareResult(
+            `🏆 Получено достижение "${achievement.title}"!\n${achievement.description}\n\n#ИграПамять #FindThePair`,
+            this.currentLevelIndex
+          );
+          
+          console.log('✅ Achievement shared to VK:', achievement.title);
+          
+        } catch (error) {
+          console.log('VK sharing cancelled or not available');
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to share achievements:', error);
     }
   }
 
@@ -1142,7 +1559,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     });
   }
 
-  // Проверка достижений
+  // ОБНОВЛЕННЫЙ МЕТОД: Проверка достижений (fallback)
   async checkAchievements(gameTime, errors, level) {
     let newAchievements = [];
     
@@ -1207,7 +1624,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
   }
 
-  // Показ достижений
+  // СТАРЫЙ МЕТОД: Показ достижений (fallback)
   showAchievements(achievements) {
     const { W, H } = this.getSceneWH();
     
