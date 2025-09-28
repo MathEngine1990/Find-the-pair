@@ -1,38 +1,52 @@
-
-  {
+{
   "static_path": "dist",
   "app_id": 53937545,
   "endpoints": {
-    "mobile": "/",
-    "web": "/", 
-    "mvk": "/"
+    "mobile": "https://mathengine1990.github.io/Find-the-pair/",
+    "mvk": "https://mathengine1990.github.io/Find-the-pair/", 
+    "web": "https://mathengine1990.github.io/Find-the-pair/"
   },
-  "alias": {
-    "mobile": "findpair-mobile",
-    "web": "findpair-web"
-  },
+  "build_commands": [
+    "npm install",
+    "npm run build"
+  ],
+  "ignore_files": [
+    "node_modules/**",
+    "src/**",
+    "*.log",
+    "*.md",
+    ".git/**",
+    ".vscode/**",
+    "vite.config.js",
+    "tsconfig.json"
+  ],
   "headers": {
-    "Content-Security-Policy": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdnjs.cloudflare.com; img-src 'self' data: blob:; connect-src 'self' https://api.vk.com;",
-    "X-Frame-Options": "SAMEORIGIN",
-    "X-Content-Type-Options": "nosniff"
+    "/**": [
+      {
+        "key": "X-Frame-Options",
+        "value": "SAMEORIGIN"
+      },
+      {
+        "key": "X-Content-Type-Options", 
+        "value": "nosniff"
+      }
+    ],
+    "/**/*.{js,css,png,jpg,jpeg,webp,svg,woff2,ttf}": [
+      {
+        "key": "Cache-Control",
+        "value": "public, max-age=31536000, immutable"
+      }
+    ],
+    "/index.html": [
+      {
+        "key": "Cache-Control",
+        "value": "no-cache, no-store, must-revalidate"
+      }
+    ]
   },
   "rewrites": [
     {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/**",
+      "destination": "https://mathengine1990.github.io/Find-the-pair/"
     }
-  ],
-  "cors": {
-    "allowOrigins": [
-      "https://vk.com",
-      "https://m.vk.com", 
-      "https://vk-apps.com"
-    ],
-    "allowMethods": ["GET", "POST"],
-    "allowHeaders": ["Content-Type", "Authorization"]
-  }
 }
