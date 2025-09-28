@@ -131,3 +131,54 @@ showWin() {
   btn.setDepth(10);
 }
 */
+
+
+// Добавить в game/Progress.js
+window.ProgressSyncManager = {
+  async syncWithVK() {
+    if (!window.VKUnified?.isReady()) return false;
+    
+    try {
+      // Загружаем из VK
+      const vkResult = await window.VKUnified.getStorage(['game_progress']);
+      const vkData = vkResult.keys?.[0]?.value ? 
+        JSON.parse(vkResult.keys[0].value) : {};
+      
+      // Загружаем локальные данные
+      const localData = this.getLocalProgress();
+      
+      // Мержим с приоритетом лучшего результата
+      const merged = this.mergeProgress(localData, vkData);
+      
+      // Сохраняем везде
+      await Promise.all([
+        this.saveLocal(merged),
+        window.VKUnified.setStorage('game_progress', merged)
+      ]);
+      
+      console.log('✅ Progress synced successfully');
+      return true;
+      
+    } catch (error) {
+      console.warn('❌ Progress sync failed:', error);
+      return false;
+    }
+  },
+
+  mergeProgress(local, remote) {
+    const merged = { ...remote };
+    
+    Object.keys(local).forEach(levelKey => {
+      const localLevel = local[levelKey];
+      const remoteLevel = remote[levelKey];
+      
+      if (!remoteLevel || 
+          localLevel.stars > remoteLevel.stars ||
+          (localLevel.stars === remoteLevel.stars && localLevel.bestTime < remoteLevel.bestTime)) {
+        merged[levelKey] = { ...localLevel, lastModified: Date.now() };
+      }
+    });
+    
+    return merged;
+  }
+};
