@@ -232,6 +232,10 @@ class VKAchievementManager {
     this.userData = userData;
     this.achievements = this.loadAchievements();
     this.isVKEnvironment = !!window.VK_LAUNCH_PARAMS;
+
+    // ДОБАВЛЕНО: Интеграция с ProgressSyncManager
+    this.syncManager = null;
+    this.initSyncManager();
     
     // Определения достижений VK
     this.vkAchievements = {
@@ -305,22 +309,64 @@ class VKAchievementManager {
     };
   }
 
-  async saveAchievements() {
-    // Сохраняем в VK Storage и локально
-    if (this.isVKEnvironment && window.vkBridge) {
-      try {
-        await window.vkBridge.send('VKWebAppStorageSet', {
-          key: 'achievements',
-          value: JSON.stringify(this.achievements)
-        });
-        console.log('✅ Achievements saved to VK Storage');
-      } catch (error) {
-        console.warn('⚠️ Failed to save to VK Storage:', error);
+
+   async initSyncManager() {
+    try {
+      this.syncManager = new ProgressSyncManager();
+      
+      // Подписываемся на события синхронизации
+      this.syncManager.onSyncComplete = (data) => {
+        console.log('✅ Achievements synced');
+        if (data.achievements) {
+          this.achievements = { ...data.achievements };
+        }
+      };
+      
+      this.syncManager.onSyncError = (error) => {
+        console.warn('⚠️ Achievement sync failed:', error);
+      };
+      
+      // Загружаем достижения через менеджер
+      const progressData = await this.syncManager.loadProgress();
+      if (progressData && progressData.achievements) {
+        this.achievements = { ...progressData.achievements };
       }
+      
+      console.log('🎯 Achievement sync manager initialized');
+      
+    } catch (error) {
+      console.error('❌ Failed to init sync manager:', error);
+      // Fallback на старую логику
+      this.achievements = this.loadAchievements();
     }
-    
-    // Резервное сохранение в localStorage
-    localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+  }
+
+  
+
+  async saveAchievements() {
+    try {
+      if (this.syncManager) {
+        // Используем новый синхронизатор
+        const currentProgress = await this.syncManager.loadProgress();
+        currentProgress.achievements = { ...this.achievements };
+        await this.syncManager.saveProgress(currentProgress, true);
+      } else {
+        // Fallback на старую логику
+        if (this.isVKEnvironment && window.vkBridge) {
+          await window.vkBridge.send('VKWebAppStorageSet', {
+            key: 'achievements',
+            value: JSON.stringify(this.achievements)
+          });
+        }
+        localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
+      }
+      
+      console.log('✅ Achievements saved via sync manager');
+      
+    } catch (error) {
+      console.error('❌ Failed to save achievements:', error);
+      throw error;
+    }
   }
 
   async unlockAchievement(achievementId) {
