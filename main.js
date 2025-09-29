@@ -1005,7 +1005,7 @@ User Agent: ${navigator.userAgent}
     console.log('🗑️ VKUtils.clearAllData() - clear all game data');
   }
 
-})();
+//})();
 
 // ДОБАВЛЕНО: События для синхронизации
 window.addEventListener('progressSynced', (event) => {
