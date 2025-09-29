@@ -556,44 +556,7 @@ hideSyncButtonAnimation() {
     }
   }
 }
-   
-// Обновляем текст если изменился
-  if (btnText !== this.syncButton.textElement.text) {
-    this.syncButton.textElement.setText(btnText);
-  }
 
-  // Обновляем tooltip
-  this.syncButton.currentTooltip = btnTooltip;
-
-  
-  
-  // НОВЫЙ МЕТОД: Показать анимацию синхронизации на кнопке
-showSyncButtonAnimation() {
-  if (!this.syncButton) return;
-
-  // Запускаем вращение иконки для синхронизации
-  if (this.syncButton.textElement.text === '🔄' || this.syncButton.textElement.text === '⏳') {
-    this.syncButtonRotation = this.tweens.add({
-      targets: this.syncButton.textElement,
-      rotation: Math.PI * 2,
-      duration: 1500,
-      repeat: -1,
-      ease: 'Linear'
-    });
-  }
-}
-
-// НОВЫЙ МЕТОД: Остановить анимацию синхронизации на кнопке
-hideSyncButtonAnimation() {
-  if (this.syncButtonRotation) {
-    this.syncButtonRotation.destroy();
-    this.syncButtonRotation = null;
-    
-    if (this.syncButton && this.syncButton.textElement) {
-      this.syncButton.textElement.setRotation(0);
-    }
-  }
-}
 
 
   
