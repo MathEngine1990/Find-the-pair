@@ -1,394 +1,224 @@
-//============================================================================
-// main.js - VK Mini Apps Memory Game Bootstrap
-// Версия: 2.0.0 | Дата: 2025-09-29
-// Поддержка: VK Bridge, ProgressSync, Mobile-first
-//============================================================================
+//---main.js - ИСПРАВЛЕНИЕ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
 
 (function() {
   'use strict';
   
-  //==========================================================================
-  // 1. FEATURE FLAGS & DEVICE DETECTION
-  //==========================================================================
-  
-  // Детекция устройства (выполняется первой)
-  const Device = Object.freeze({
-    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-    isAndroid: /Android/.test(navigator.userAgent),
-    hasTouch: 'ontouchstart' in window,
-    dpr: window.devicePixelRatio || 1,
-    
-    get isPortrait() {
-      return window.innerHeight > window.innerWidth;
-    },
-    
-    get viewport() {
-      return {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        screen: `${screen.width}x${screen.height}`
-      };
-    }
-  });
-  
-  // Feature flags
-  const FEATURES = Object.freeze({
-    PROGRESS_SYNC: typeof ProgressSyncManager !== 'undefined',
-    VK_BRIDGE: true,
-    DEBUG_MODE: window.location.search.includes('debug=1') || 
-                window.location.hostname === 'localhost'
-  });
-  
-  //==========================================================================
-  // 2. GLOBAL STATE
-  //==========================================================================
-  
-  // VK данные
+  // Глобальные переменные для VK
   window.VK_USER_DATA = null;
   window.VK_LAUNCH_PARAMS = null;
   window.VK_BRIDGE_READY = false;
-  window.VK_DEBUG = FEATURES.DEBUG_MODE;
+  window.VK_DEBUG = window.location.search.includes('debug=1') || 
+                   window.location.hostname === 'localhost';
   
-  // Sync состояние
-  window.progressSyncManager = null;
-  window.SYNC_STATUS = {
-    initialized: false,
-    lastSyncTime: 0,
-    syncInProgress: false,
-    lastError: null,
-    available: FEATURES.PROGRESS_SYNC
-  };
+  // ИСПРАВЛЕНИЕ 1: Добавляем детекцию мобильных устройств
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
   
-  // VK окружение
-  const isVKEnvironment = (
-    /vk_(app_id|user_id|platform)/i.test(window.location.search) || 
-    window.location.hostname.includes('vk-apps.com') ||
-    window.location.hostname.includes('vk.com') ||
-    window.parent !== window
-  );
-  
-  //==========================================================================
-  // 3. DEBUG & LOGGING
-  //==========================================================================
-  
+  // Отладочные функции
   function debugLog(message, data = null) {
-    if (!FEATURES.DEBUG_MODE) return;
-    
-    const timestamp = new Date().toISOString().substr(11, 12);
-    console.log(`[${timestamp}] ${message}`, data || '');
+    if (window.VK_DEBUG) {
+      console.log(`[VK Debug] ${message}`, data || '');
+    }
   }
   
-  function showDebugPanel(info) {
-    if (!FEATURES.DEBUG_MODE) return;
+  function showDebugInfo(info) {
+    if (!window.VK_DEBUG) return;
     
+    const debugPanel = document.createElement('div');
+    debugPanel.id = 'vk-debug-panel';
+    debugPanel.style.cssText = `
+      position: fixed; top: 10px; right: 10px; 
+      background: rgba(0,0,0,0.8); color: white; 
+      padding: 10px; border-radius: 5px; 
+      font-family: monospace; font-size: 12px;
+      max-width: 300px; z-index: 10000;
+      border: 1px solid #333;
+    `;
+    debugPanel.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 5px;">VK Debug Info:</div>
+      <div>Environment: ${info.isVK ? 'VK Mini App' : 'Standalone'}</div>
+      <div>Device: ${info.isMobile ? 'Mobile' : 'Desktop'}</div>
+      <div>Platform: ${info.platform || 'N/A'}</div>
+      <div>User Agent: ${navigator.userAgent.substring(0, 30)}...</div>
+      <div>Screen: ${screen.width}x${screen.height}</div>
+      <div>Viewport: ${window.innerWidth}x${window.innerHeight}</div>
+      <div>DPR: ${window.devicePixelRatio || 1}</div>
+      <div>Touch: ${info.touchSupport ? 'Yes' : 'No'}</div>
+      <div>Bridge: ${info.bridgeAvailable ? 'Available' : 'Not available'}</div>
+      <div>UserData: ${info.userDataLoaded ? 'Loaded' : 'Not loaded'}</div>
+      <div>Game: ${info.gameCreated ? 'Created' : 'Not created'}</div>
+      <div style="margin-top: 5px; font-size: 10px; opacity: 0.7;">
+        Auto-close in 15s
+      </div>
+    `;
+    
+    // Удаляем старую панель если есть
     const existing = document.getElementById('vk-debug-panel');
     if (existing) existing.remove();
     
-    const panel = document.createElement('div');
-    panel.id = 'vk-debug-panel';
-    panel.style.cssText = `
-      position: fixed; top: 10px; right: 10px; 
-      background: rgba(0,0,0,0.9); color: #0f0; 
-      padding: 12px; border-radius: 6px; 
-      font-family: 'Courier New', monospace; 
-      font-size: 11px; max-width: 320px; 
-      z-index: 99999; border: 1px solid #0f0;
-      box-shadow: 0 0 20px rgba(0,255,0,0.3);
-    `;
+    document.body.appendChild(debugPanel);
     
-    panel.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 8px; color: #fff;">
-        🔍 VK Mini Apps Diagnostics
-      </div>
-      <div>Environment: ${info.isVK ? 'VK' : 'Standalone'}</div>
-      <div>Device: ${info.device}</div>
-      <div>Platform: ${info.platform || 'N/A'}</div>
-      <div>Screen: ${info.screen}</div>
-      <div>Touch: ${info.hasTouch ? 'Yes' : 'No'}</div>
-      <div>Bridge: ${info.bridgeReady ? '✓' : '✗'}</div>
-      <div>User: ${info.hasUser ? '✓' : '✗'}</div>
-      <div>Game: ${info.gameCreated ? '✓' : '✗'}</div>
-      <div>Sync: ${info.syncReady ? '✓' : '✗'}</div>
-      <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">
-        Auto-hide in 15s
-      </div>
-    `;
-    
-    document.body.appendChild(panel);
-    setTimeout(() => panel.remove(), 15000);
+    // Убираем через 15 секунд на мобильных (больше времени для чтения)
+    setTimeout(() => {
+      if (debugPanel.parentNode) {
+        debugPanel.remove();
+      }
+    }, 15000);
   }
+
+  // Определяем VK окружение
+  const urlParams = new URLSearchParams(window.location.search);
+  const isVKEnvironment = /vk_(app_id|user_id|platform)/i.test(window.location.search) || 
+                         window.location.hostname.includes('vk-apps.com') ||
+                         window.location.hostname.includes('vk.com') ||
+                         window.parent !== window;
   
-  //==========================================================================
-  // 4. ERROR HANDLING
-  //==========================================================================
-  
-  function showErrorFallback(message, details = '') {
-    let container = document.getElementById('game');
-    
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'game';
-      container.style.cssText = `
-        position: fixed; top: 0; left: 0; 
-        width: 100vw; height: 100vh; 
-        background: #1d2330; z-index: 9999;
-      `;
-      document.body?.appendChild(container);
-    }
-    
-    const fontSize = Device.isMobile ? '16px' : '20px';
-    const buttonSize = Device.isMobile ? '16px' : '14px';
-    const buttonPadding = Device.isMobile ? '16px 28px' : '12px 24px';
-    
-    container.innerHTML = `
-      <div style="
-        display: flex; 
-        flex-direction: column; 
-        justify-content: center; 
-        align-items: center; 
-        height: 100%; 
-        color: #fff; 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-        box-sizing: border-box;
-      ">
-        <div style="font-size: 48px; margin-bottom: 20px;">😔</div>
-        <h2 style="
-          color: #ff6b6b; 
-          font-size: ${fontSize}; 
-          margin: 0 0 16px 0;
-          font-weight: 600;
-        ">${message}</h2>
-        
-        ${details ? `
-          <p style="
-            color: #aaa; 
-            font-size: 14px; 
-            margin: 12px 0;
-            max-width: 400px;
-            line-height: 1.5;
-          ">${details}</p>
-        ` : ''}
-        
-        <p style="
-          color: #999; 
-          font-size: 13px; 
-          margin: 16px 0 24px 0;
-        ">Проверьте подключение к интернету</p>
-        
-        <button onclick="location.reload()" style="
-          padding: ${buttonPadding}; 
-          font-size: ${buttonSize}; 
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-          color: white; 
-          border: none; 
-          border-radius: 12px; 
-          cursor: pointer;
-          font-weight: 600;
-          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-          transition: transform 0.2s;
-          min-width: ${Device.isMobile ? '200px' : '160px'};
-        " onmouseover="this.style.transform='scale(1.05)'" 
-           onmouseout="this.style.transform='scale(1)'">
-          🔄 Перезагрузить
-        </button>
-        
-        ${FEATURES.DEBUG_MODE ? `
-          <details style="
-            margin-top: 32px; 
-            color: #666; 
-            font-size: 10px; 
-            max-width: 90%;
-            text-align: left;
-          ">
-            <summary style="cursor: pointer; color: #888; margin-bottom: 8px;">
-              Техническая информация
-            </summary>
-            <pre style="
-              font-family: 'Courier New', monospace; 
-              font-size: 9px; 
-              overflow-x: auto;
-              background: rgba(0,0,0,0.3);
-              padding: 12px;
-              border-radius: 6px;
-              margin-top: 8px;
-            ">
-DOM: ${document.readyState}
-Device: ${Device.isMobile ? 'Mobile' : 'Desktop'} ${Device.isIOS ? '(iOS)' : Device.isAndroid ? '(Android)' : ''}
-Touch: ${Device.hasTouch}
-Screen: ${Device.viewport.screen}
-Viewport: ${Device.viewport.width}x${Device.viewport.height}
-DPR: ${Device.dpr}
-Phaser: ${!!window.Phaser}
-GameData: ${!!(window.ALL_CARD_KEYS && window.LEVELS)}
-Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene)}
-VK Env: ${isVKEnvironment}
-VK Bridge: ${!!window.vkBridge}
-Sync: ${FEATURES.PROGRESS_SYNC}
-User-Agent: ${navigator.userAgent}
-            </pre>
-          </details>
-        ` : ''}
-      </div>
-    `;
-  }
-  
-  //==========================================================================
-  // 5. VK BRIDGE WRAPPER
-  //==========================================================================
-  
+  debugLog('Environment detection', { 
+    isVK: isVKEnvironment,
+    isMobile: isMobile,
+    isIOS: isIOS,
+    isAndroid: isAndroid,
+    search: window.location.search,
+    hostname: window.location.hostname,
+    inIframe: window.parent !== window,
+    userAgent: navigator.userAgent
+  });
+
+  // ИСПРАВЛЕНИЕ 2: Мобильно-оптимизированная обертка для VK Bridge
   window.VKSafe = {
     async send(method, params = {}) {
       if (!window.vkBridge) {
         throw new Error('VK Bridge not available');
       }
       
-      debugLog(`VK → ${method}`, params);
-      
-      const timeout = Device.isMobile ? 10000 : 5000;
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`${method} timeout`)), timeout)
-      );
+      debugLog(`VK Bridge call: ${method}`, params);
       
       try {
-        const result = await Promise.race([
-          window.vkBridge.send(method, params),
-          timeoutPromise
-        ]);
+        // ИСПРАВЛЕНИЕ: Увеличенный таймаут для мобильных устройств
+        const timeout = isMobile ? 10000 : 5000;
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`${method} timeout`)), timeout)
+        );
         
-        debugLog(`VK ← ${method}`, result);
+        const resultPromise = window.vkBridge.send(method, params);
+        const result = await Promise.race([resultPromise, timeoutPromise]);
+        
+        debugLog(`VK Bridge response: ${method}`, result);
         return result;
       } catch (error) {
-        console.warn(`VK Bridge error (${method}):`, error.message);
+        console.warn(`VK Bridge error for ${method}:`, error);
         throw error;
       }
     },
     
     isAvailable() {
-      return !!(window.vkBridge && typeof window.vkBridge.send === 'function');
+      return !!(window.vkBridge && window.vkBridge.send);
     },
     
+    // ИСПРАВЛЕНИЕ: Мобильно-оптимизированная проверка поддержки
     async supports(method) {
       if (!window.vkBridge) return false;
       
       try {
-        // Используем синхронный метод если доступен
-        if (typeof window.vkBridge.supports === 'function') {
+        // На мобильных устройствах используем более простую проверку
+        if (isMobile && window.vkBridge.supports) {
           return window.vkBridge.supports(method);
         }
         
-        // Fallback для старых версий
-        return true; // Оптимистичный подход
+        // Пробуем новый метод для десктопа
+        if (window.vkBridge.supportsAsync) {
+          try {
+            return await window.vkBridge.supportsAsync(method);
+          } catch (error) {
+            debugLog(`supportsAsync error for ${method}:`, error);
+            // Fallback на старый метод
+            return window.vkBridge.supports ? window.vkBridge.supports(method) : false;
+          }
+        }
+        
+        // Fallback на старый метод
+        if (window.vkBridge.supports) {
+          return window.vkBridge.supports(method);
+        }
+        
+        return false;
       } catch (error) {
-        debugLog(`supports(${method}) failed:`, error);
+        debugLog(`supports check error for ${method}:`, error);
         return false;
       }
     }
   };
-  
-  //==========================================================================
-  // 6. VK BRIDGE INITIALIZATION
-  //==========================================================================
-  
+
+  // Парсинг VK параметров с валидацией
   function parseVKParams() {
     const params = {};
-    const vkKeys = [
-      'vk_user_id', 'vk_app_id', 'vk_is_app_user', 
-      'vk_are_notifications_enabled', 'vk_language', 
-      'vk_platform', 'vk_ref', 'vk_group_id', 'vk_ts', 'sign'
+    const search = window.location.search;
+    
+    const vkParams = [
+      'vk_user_id', 'vk_app_id', 'vk_is_app_user', 'vk_are_notifications_enabled',
+      'vk_language', 'vk_ref', 'vk_access_token_settings', 'vk_group_id',
+      'vk_platform', 'vk_ts', 'sign'
     ];
     
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    vkKeys.forEach(key => {
-      const value = urlParams.get(key);
+    const urlParams = new URLSearchParams(search);
+    vkParams.forEach(param => {
+      const value = urlParams.get(param);
       if (value !== null) {
-        // Валидация числовых ID
-        if ((key === 'vk_user_id' || key === 'vk_app_id') && !/^\d+$/.test(value)) {
-          console.warn(`Invalid ${key}: ${value}`);
-          return;
+        // Валидация значений
+        if (param === 'vk_user_id' || param === 'vk_app_id') {
+          if (!/^\d+$/.test(value)) {
+            console.warn(`Invalid ${param}: ${value}`);
+            return;
+          }
         }
-        params[key] = value;
+        params[param] = value;
       }
     });
     
+    debugLog('Parsed VK params', params);
     return params;
   }
-  
-  async function loadVKBridge(retries = 3) {
-    if (window.vkBridge) {
-      debugLog('VK Bridge already loaded');
-      return;
-    }
-    
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js';
-      
-      const timeout = setTimeout(() => {
-        script.remove();
-        if (retries > 0) {
-          debugLog(`Bridge load timeout, retrying (${retries} left)`);
-          loadVKBridge(retries - 1).then(resolve).catch(reject);
-        } else {
-          reject(new Error('VK Bridge load timeout'));
-        }
-      }, Device.isMobile ? 15000 : 10000);
-      
-      script.onload = () => {
-        clearTimeout(timeout);
-        
-        // Ждём доступности vkBridge
-        const checkBridge = (attempts = 50) => {
-          if (window.vkBridge) {
-            debugLog('VK Bridge ready');
-            resolve();
-          } else if (attempts > 0) {
-            setTimeout(() => checkBridge(attempts - 1), 100);
-          } else {
-            reject(new Error('VK Bridge not available'));
-          }
-        };
-        
-        checkBridge();
-      };
-      
-      script.onerror = () => {
-        clearTimeout(timeout);
-        script.remove();
-        
-        if (retries > 0) {
-          setTimeout(() => {
-            loadVKBridge(retries - 1).then(resolve).catch(reject);
-          }, 2000);
-        } else {
-          reject(new Error('Failed to load VK Bridge'));
-        }
-      };
-      
-      document.head.appendChild(script);
-    });
-  }
-  
+
+  // ИСПРАВЛЕНИЕ 3: Мобильно-оптимизированная инициализация VK Bridge
   async function initVKBridge() {
+    debugLog('Initializing VK Bridge...', {
+      isMobile: isMobile,
+      platform: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'
+    });
+    
     try {
+      // ИСПРАВЛЕНИЕ: На мобильных устройствах даем больше времени на инициализацию
+      const initTimeout = isMobile ? 15000 : 10000;
+      
       const supportsInit = await window.VKSafe.supports('VKWebAppInit');
       if (!supportsInit) {
         throw new Error('VKWebAppInit not supported');
       }
       
-      await window.VKSafe.send('VKWebAppInit');
+      // Инициализация Bridge с таймаутом
+      const initPromise = window.VKSafe.send('VKWebAppInit');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('VK init timeout')), initTimeout)
+      );
+      
+      await Promise.race([initPromise, timeoutPromise]);
+      
+      debugLog('VK Bridge initialized successfully');
       window.VK_BRIDGE_READY = true;
       
-      // Парсим параметры запуска
+      // Парсим launch параметры с валидацией
       const vkParams = parseVKParams();
+      
+      // Проверяем обязательные параметры
+      if (!vkParams.vk_user_id || !vkParams.vk_app_id) {
+        console.warn('Missing required VK parameters');
+      }
+      
       window.VK_LAUNCH_PARAMS = {
         user_id: vkParams.vk_user_id,
         app_id: vkParams.vk_app_id,
-        platform: vkParams.vk_platform || (Device.isMobile ? 
-          (Device.isIOS ? 'mobile_iphone' : 'mobile_android') : 'web'),
+        platform: vkParams.vk_platform || (isMobile ? (isIOS ? 'mobile_iphone' : 'mobile_android') : 'web'),
         is_app_user: vkParams.vk_is_app_user === '1',
         language: vkParams.vk_language || 'ru',
         are_notifications_enabled: vkParams.vk_are_notifications_enabled === '1',
@@ -398,80 +228,128 @@ User-Agent: ${navigator.userAgent}
         ts: vkParams.vk_ts
       };
       
-      // Настройка UI
+      debugLog('VK Launch params parsed', window.VK_LAUNCH_PARAMS);
+      
+      // Настройка интерфейса с задержкой для мобильных
+      if (isMobile) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       await setupVKInterface();
       
-      // Загрузка данных пользователя
+      // Получение данных пользователя
       await loadUserData();
       
       // Подписка на события
       subscribeToVKEvents();
       
-      debugLog('VK Bridge initialized', window.VK_LAUNCH_PARAMS);
       return true;
       
     } catch (error) {
-      console.error('VK Bridge init failed:', error);
+      console.error('VK Bridge initialization failed:', error);
       return false;
     }
   }
-  
+
+  // ИСПРАВЛЕНИЕ 4: Мобильно-оптимизированная настройка интерфейса VK
   async function setupVKInterface() {
     const operations = [];
     
-    // Настройка UI
+    // Настройка статус-бара и навигации (особенно важно для мобильных)
     if (await window.VKSafe.supports('VKWebAppSetViewSettings')) {
-      operations.push(
-        window.VKSafe.send('VKWebAppSetViewSettings', {
+      operations.push({
+        name: 'SetViewSettings',
+        call: () => window.VKSafe.send('VKWebAppSetViewSettings', {
           status_bar_style: 'light',
           action_bar_color: '#1d2330',
           navigation_bar_color: '#1d2330'
-        }).catch(e => debugLog('SetViewSettings failed:', e))
-      );
+        })
+      });
     }
     
-    // Отключение свайпа (критично для мобильных)
-    if (Device.isMobile && await window.VKSafe.supports('VKWebAppDisableSwipeBack')) {
-      operations.push(
-        window.VKSafe.send('VKWebAppDisableSwipeBack')
-          .catch(e => debugLog('DisableSwipeBack failed:', e))
-      );
+    // Отключение свайпа назад (критично для мобильных)
+    if (await window.VKSafe.supports('VKWebAppDisableSwipeBack')) {
+      operations.push({
+        name: 'DisableSwipeBack',
+        call: () => window.VKSafe.send('VKWebAppDisableSwipeBack')
+      });
     }
     
-    // Уведомления (опционально)
+    // ИСПРАВЛЕНИЕ: Мобильно-оптимизированные уведомления
     if (await window.VKSafe.supports('VKWebAppAllowNotifications')) {
-      operations.push(
-        window.VKSafe.send('VKWebAppAllowNotifications')
-          .catch(e => {
-            if (e.error_data?.error_code === 4) {
-              debugLog('Notifications denied by user');
-            } else {
-              debugLog('Notifications error:', e);
+      operations.push({
+        name: 'AllowNotifications',
+        call: async () => {
+          try {
+            // На мобильных даем больше времени на обработку уведомлений
+            if (isMobile) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
-          })
-      );
+            return await window.VKSafe.send('VKWebAppAllowNotifications');
+          } catch (error) {
+            // Обрабатываем специфичные ошибки уведомлений
+            if (error.error_data?.error_code === 15) {
+              debugLog('Notifications: App needs moderation approval');
+            } else if (error.error_data?.error_code === 4) {
+              debugLog('Notifications: User denied permission');
+            } else {
+              debugLog('Notifications: Other error', error);
+            }
+            throw error;
+          }
+        }
+      });
     }
     
-    await Promise.allSettled(operations);
+    // Выполняем все операции с увеличенным таймаутом для мобильных
+    const operationTimeout = isMobile ? 8000 : 5000;
+    const results = await Promise.allSettled(
+      operations.map(op => 
+        Promise.race([
+          op.call(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`${op.name} timeout`)), operationTimeout)
+          )
+        ]).catch(error => {
+          debugLog(`${op.name} failed`, error.message);
+          return { error: error.message };
+        })
+      )
+    );
+    
+    debugLog('VK Interface setup results', results);
   }
-  
+
+  // ИСПРАВЛЕНИЕ 5: Мобильно-оптимизированная загрузка данных пользователя
   async function loadUserData() {
-    if (!await window.VKSafe.supports('VKWebAppGetUserInfo')) {
+    const supportsUserInfo = await window.VKSafe.supports('VKWebAppGetUserInfo');
+    if (!supportsUserInfo) {
+      debugLog('VKWebAppGetUserInfo not supported');
       return null;
     }
     
     try {
-      const userData = await window.VKSafe.send('VKWebAppGetUserInfo');
-      window.VK_USER_DATA = userData;
+      // Увеличенный таймаут для мобильных устройств
+      const userDataTimeout = isMobile ? 10000 : 5000;
       
-      // Кеш на 24 часа
+      const userDataPromise = window.VKSafe.send('VKWebAppGetUserInfo');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('User data request timeout')), userDataTimeout)
+      );
+      
+      const userData = await Promise.race([userDataPromise, timeoutPromise]);
+      window.VK_USER_DATA = userData;
+      debugLog('User data loaded', userData);
+      
+      // Кешируем данные пользователя
       try {
         localStorage.setItem('vk_user_cache', JSON.stringify({
           ...userData,
-          cached_at: Date.now()
+          cached_at: Date.now(),
+          mobile_device: isMobile
         }));
       } catch (e) {
-        debugLog('Cache write failed:', e);
+        console.warn('Failed to cache user data:', e);
       }
       
       return userData;
@@ -483,211 +361,310 @@ User-Agent: ${navigator.userAgent}
         const cached = localStorage.getItem('vk_user_cache');
         if (cached) {
           const data = JSON.parse(cached);
-          if (Date.now() - data.cached_at < 86400000) {
+          // Используем кеш только если он не старше 24 часов
+          if (Date.now() - data.cached_at < 24 * 60 * 60 * 1000) {
             window.VK_USER_DATA = data;
             debugLog('Using cached user data');
             return data;
           }
         }
       } catch (e) {
-        // Игнорируем ошибки кеша
+        console.warn('Failed to load cached user data:', e);
       }
       
       return null;
     }
   }
-  
+
+  // Подписка на события VK
   function subscribeToVKEvents() {
-    if (!window.vkBridge?.subscribe) return;
+    if (!window.vkBridge || !window.vkBridge.subscribe) {
+      debugLog('VK Bridge subscribe not available');
+      return;
+    }
     
     window.vkBridge.subscribe((e) => {
-      const { type, data } = e.detail || {};
-      debugLog(`VK Event: ${type}`, data);
+      const eventType = e.detail?.type;
+      const eventData = e.detail?.data;
       
-      switch (type) {
+      debugLog(`VK Event: ${eventType}`, eventData);
+      
+      switch (eventType) {
         case 'VKWebAppViewHide':
           handleAppHide();
           break;
+          
         case 'VKWebAppViewRestore':
           handleAppRestore();
           break;
+          
         case 'VKWebAppUpdateConfig':
-          if (data?.scheme) {
-            document.body.setAttribute('data-vk-scheme', data.scheme);
-          }
+          handleConfigUpdate(eventData);
           break;
+          
         case 'VKWebAppGetUserInfoResult':
-          if (data && !data.error) {
-            window.VK_USER_DATA = data;
+          if (eventData && !eventData.error) {
+            window.VK_USER_DATA = eventData;
+            debugLog('User data updated from event', eventData);
           }
           break;
-        case 'VKWebAppStorageSetResult':
+          
         case 'VKWebAppStorageGetResult':
-          window.SYNC_STATUS.lastSyncTime = Date.now();
+        case 'VKWebAppStorageSetResult':
+          debugLog('Storage operation completed', eventData);
           break;
+          
+        case 'VKWebAppShareResult':
+          debugLog('Share completed', eventData);
+          break;
+          
+        default:
+          debugLog(`Unhandled VK event: ${eventType}`, eventData);
       }
     });
+    
+    debugLog('VK Events subscription initialized');
   }
-  
+
+  // ИСПРАВЛЕНИЕ: Безопасные обработчики событий приложения
   function handleAppHide() {
-    debugLog('App hidden');
+    debugLog('App hidden - pausing game');
     
-    // Синхронизация при сворачивании
-    if (window.progressSyncManager?.forceSync) {
-      window.progressSyncManager.forceSync().catch(e => 
-        debugLog('Background sync failed:', e)
-      );
-    }
-    
-    // Пауза игры
-    if (window.game?.scene) {
-      const scene = window.game.scene.getScene('GameScene');
-      if (scene?.canClick !== undefined) {
-        scene.canClick = false;
-        scene.pausedAt = Date.now();
-      }
-    }
-  }
-  
-  function handleAppRestore() {
-    debugLog('App restored');
-    
-    // Синхронизация при возврате
-    if (window.progressSyncManager?.forceSync) {
-      setTimeout(() => {
-        window.progressSyncManager.forceSync().catch(e => 
-          debugLog('Restore sync failed:', e)
-        );
-      }, 1000);
-    }
-    
-    // Возобновление игры
-    if (window.game?.scene) {
-      const scene = window.game.scene.getScene('GameScene');
-      if (scene?.pausedAt) {
-        setTimeout(() => {
-          if (scene.gameMetrics?.startTime) {
-            scene.gameMetrics.startTime += (Date.now() - scene.pausedAt);
+    if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
+      try {
+        const activeScene = window.game.scene.getActiveScene();
+        if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+          activeScene.canClick = false;
+          
+          // Сохраняем состояние игры
+          if (activeScene.gameMetrics && activeScene.gameMetrics.startTime) {
+            activeScene.pausedAt = Date.now();
+            debugLog('Game paused and saved');
           }
-          scene.canClick = true;
-          scene.pausedAt = null;
-        }, Device.isMobile ? 500 : 300);
+        }
+      } catch (error) {
+        debugLog('Error in handleAppHide:', error);
       }
+    } else {
+      debugLog('Game not ready for app hide handling');
     }
   }
-  
-  //==========================================================================
-  // 7. PROGRESS SYNC MANAGER
-  //==========================================================================
-  
-  async function initProgressSync() {
-    if (!FEATURES.PROGRESS_SYNC) {
-      debugLog('ProgressSync feature disabled');
-      return false;
-    }
+
+  function handleAppRestore() {
+    debugLog('App restored - resuming game');
     
-    try {
-      window.progressSyncManager = new ProgressSyncManager();
-      
-      // Обработчики событий
-      window.progressSyncManager.onSyncStart = () => {
-        window.SYNC_STATUS.syncInProgress = true;
-        debugLog('Sync started');
-      };
-      
-      window.progressSyncManager.onSyncComplete = (data) => {
-        window.SYNC_STATUS.syncInProgress = false;
-        window.SYNC_STATUS.lastSyncTime = Date.now();
-        window.SYNC_STATUS.lastError = null;
-        debugLog('Sync completed', data);
-        
-        window.dispatchEvent(new CustomEvent('progressSynced', { detail: data }));
-      };
-      
-      window.progressSyncManager.onSyncError = (error) => {
-        window.SYNC_STATUS.syncInProgress = false;
-        window.SYNC_STATUS.lastError = error;
-        debugLog('Sync error:', error);
-        
-        window.dispatchEvent(new CustomEvent('syncError', { detail: error }));
-      };
-      
-      // Тестовая загрузка
-      await window.progressSyncManager.loadProgress();
-      
-      window.SYNC_STATUS.initialized = true;
-      debugLog('ProgressSync initialized');
-      return true;
-      
-    } catch (error) {
-      console.error('ProgressSync init failed:', error);
-      window.SYNC_STATUS.lastError = error;
-      
-      // Заглушка для совместимости
-      window.progressSyncManager = {
-        loadProgress: () => Promise.resolve({}),
-        saveProgress: () => Promise.resolve(),
-        forceSync: () => Promise.resolve(),
-        getSyncStatus: () => ({ available: false, error: error.message })
-      };
-      
-      return false;
+    if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
+      try {
+        const activeScene = window.game.scene.getActiveScene();
+        if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+          
+          // Восстанавливаем состояние игры с задержкой (больше для мобильных)
+          const resumeDelay = isMobile ? 500 : 300;
+          setTimeout(() => {
+            if (activeScene.pausedAt && activeScene.gameMetrics) {
+              // Корректируем время игры, исключая время паузы
+              const pauseDuration = Date.now() - activeScene.pausedAt;
+              activeScene.gameMetrics.startTime += pauseDuration;
+              activeScene.pausedAt = null;
+            }
+            
+            activeScene.canClick = true;
+            debugLog('Game resumed');
+          }, resumeDelay);
+        }
+      } catch (error) {
+        debugLog('Error in handleAppRestore:', error);
+      }
+    } else {
+      debugLog('Game not ready for app restore handling');
     }
   }
-  
-  //==========================================================================
-  // 8. PHASER GAME INITIALIZATION
-  //==========================================================================
-  
-  function initGame() {
-    // Проверка готовности DOM
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(initGame, Device.isMobile ? 150 : 100);
-      });
-      return;
-    }
+
+  function handleConfigUpdate(config) {
+    debugLog('VK Config updated', config);
     
-    if (!document.body) {
-      setTimeout(initGame, Device.isMobile ? 100 : 50);
-      return;
+    // Можно адаптировать тему игры под схему VK
+    if (config && config.scheme) {
+      document.body.setAttribute('data-vk-scheme', config.scheme);
     }
-    
-    debugLog('Initializing game', {
-      readyState: document.readyState,
-      device: Device.isMobile ? 'Mobile' : 'Desktop',
-      phaser: !!window.Phaser,
-      data: !!(window.ALL_CARD_KEYS && window.LEVELS),
-      scenes: !!(window.PreloadScene && window.MenuScene && window.GameScene),
-      sync: window.SYNC_STATUS.initialized
+  }
+
+  // ИСПРАВЛЕНИЕ 6: Мобильно-оптимизированная загрузка VK Bridge
+  function loadVKBridge(retries = 3) {
+    return new Promise((resolve, reject) => {
+      if (window.vkBridge) {
+        debugLog('VK Bridge already loaded');
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js';
+      
+      // Увеличенный таймаут для мобильных устройств
+      const loadTimeout = isMobile ? 15000 : 10000;
+      
+      const timeout = setTimeout(() => {
+        script.remove();
+        if (retries > 0) {
+          debugLog(`VK Bridge load timeout, retrying... (${retries} attempts left)`);
+          loadVKBridge(retries - 1).then(resolve).catch(reject);
+        } else {
+          reject(new Error('VK Bridge load timeout'));
+        }
+      }, loadTimeout);
+      
+      script.onload = () => {
+        clearTimeout(timeout);
+        debugLog('VK Bridge script loaded');
+        
+        // Ждем пока vkBridge станет доступен (больше попыток для мобильных)
+        const maxAttempts = isMobile ? 100 : 50;
+        const checkBridge = (attempts = maxAttempts) => {
+          if (window.vkBridge) {
+            debugLog('VK Bridge available');
+            resolve();
+          } else if (attempts > 0) {
+            setTimeout(() => checkBridge(attempts - 1), 100);
+          } else {
+            reject(new Error('VK Bridge not available after loading'));
+          }
+        };
+        
+        checkBridge();
+      };
+      
+      script.onerror = () => {
+        clearTimeout(timeout);
+        script.remove();
+        if (retries > 0) {
+          debugLog(`VK Bridge load error, retrying... (${retries} attempts left)`);
+          setTimeout(() => {
+            loadVKBridge(retries - 1).then(resolve).catch(reject);
+          }, 2000); // Увеличенная задержка между попытками для мобильных
+        } else {
+          reject(new Error('Failed to load VK Bridge script'));
+        }
+      };
+      
+      document.head.appendChild(script);
     });
+  }
+
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Функция показа ошибки с возможностью перезапуска
+  function showErrorFallback(message, details = '') {
+    const gameContainer = document.getElementById('game');
+    if (!gameContainer) return;
     
-    // Валидация зависимостей
-    if (!window.Phaser) {
-      showErrorFallback('Phaser не загружен', 'Библиотека игры недоступна');
+    gameContainer.innerHTML = `
+      <div style="
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        align-items: center; 
+        height: 100vh; 
+        background: #1d2330; 
+        color: #fff; 
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+      ">
+        <h2 style="color: #ff6b6b; font-size: ${isMobile ? '18px' : '24px'}; margin-bottom: 15px;">😔 ${message}</h2>
+        ${details ? `<p style="color: #ccc; font-size: ${isMobile ? '12px' : '14px'}; margin: 10px 0; max-width: 90%;">${details}</p>` : ''}
+        <p style="color: #ccc; font-size: ${isMobile ? '12px' : '14px'}; margin-bottom: 20px;">Проверьте подключение к интернету и попробуйте снова</p>
+        <button onclick="location.reload()" style="
+          padding: ${isMobile ? '15px 25px' : '12px 24px'}; 
+          font-size: ${isMobile ? '18px' : '16px'}; 
+          background: #3498db; 
+          color: white; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer;
+          margin-top: 20px;
+          font-weight: bold;
+          min-width: ${isMobile ? '200px' : '160px'};
+        ">🔄 Перезагрузить</button>
+        
+        ${window.VK_DEBUG ? `
+          <details style="margin-top: 20px; color: #888; font-size: ${isMobile ? '10px' : '12px'}; max-width: 90%;">
+            <summary>Техническая информация</summary>
+            <pre style="text-align: left; margin-top: 10px; font-size: ${isMobile ? '8px' : '10px'}; overflow-x: auto;">
+  DOM Ready: ${document.readyState}
+  Mobile Device: ${isMobile}
+  iOS: ${isIOS}
+  Android: ${isAndroid}
+  Touch Support: ${'ontouchstart' in window}
+  Screen: ${screen.width}x${screen.height}
+  Viewport: ${window.innerWidth}x${window.innerHeight}
+  DPR: ${window.devicePixelRatio || 1}
+  Phaser: ${!!window.Phaser}
+  Game Data: ${!!(window.ALL_CARD_KEYS && window.LEVELS)}
+  Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene)}
+  VK Environment: ${!!isVKEnvironment}
+  User Agent: ${navigator.userAgent}
+            </pre>
+          </details>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ 7: Мобильно-оптимизированная инициализация игры
+ function initGame() {
+    // ИСПРАВЛЕНИЕ 1: Проверяем готовность DOM
+    if (document.readyState === 'loading' || !document.body) {
+      console.log('DOM not ready, waiting...');
+      if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGame);
+        } else {
+        setTimeout(initGame, 100);
+    }
       return;
     }
-    
-    if (!window.ALL_CARD_KEYS || !window.LEVELS) {
-      showErrorFallback('Данные игры не загружены', 'gamedata.js недоступен');
+
+    // ИСПРАВЛЕНИЕ 2: Дополнительная проверка что документ полностью готов
+    if (!document.body) {
+      console.log('Document body not ready, retrying...');
+      setTimeout(initGame, isMobile ? 100 : 50);
       return;
     }
+
+    debugLog('Initializing game...', {
+      readyState: document.readyState,
+      hasBody: !!document.body,
+      isMobile: isMobile,
+      isIOS: isIOS,
+      isAndroid: isAndroid,
+      touchSupport: 'ontouchstart' in window,
+      hasPhaserLib: !!window.Phaser,
+      hasGameData: !!(window.ALL_CARD_KEYS && window.LEVELS),
+      hasScenes: !!(window.PreloadScene && window.MenuScene && window.GameScene),
+      screen: `${screen.width}x${screen.height}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      dpr: window.devicePixelRatio || 1
+    });
+
+    // ИСПРАВЛЕНИЕ 3: Усиленная валидация parent элемента для мобильных
+    let gameContainer = document.getElementById('game');
     
-    if (!window.PreloadScene || !window.MenuScene || !window.GameScene) {
-      showErrorFallback('Сцены игры не загружены', 'scenes/*.js недоступны');
-      return;
-    }
-    
-    // Контейнер игры
-    let container = document.getElementById('game');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'game';
-      container.style.cssText = `
-        width: 100vw; height: 100vh; 
-        position: fixed; top: 0; left: 0; 
-        background: #1d2330; z-index: 1000;
-        ${Device.isMobile ? `
+    // Если контейнер не найден, создаем его немедленно
+    if (!gameContainer) {
+      console.warn('Game container not found! Creating immediately...');
+      
+      gameContainer = document.createElement('div');
+      gameContainer.id = 'game';
+      
+      // ИСПРАВЛЕНИЕ: Мобильно-оптимизированные стили контейнера
+      gameContainer.style.cssText = `
+        width: 100vw; 
+        height: 100vh; 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        background: #1d2330;
+        z-index: 1000;
+        ${isMobile ? `
           touch-action: none;
           -webkit-touch-callout: none;
           -webkit-user-select: none;
@@ -696,49 +673,111 @@ User-Agent: ${navigator.userAgent}
         ` : ''}
       `;
       
-      document.body.appendChild(container);
-      
-      // Мобильные стили body
-      if (Device.isMobile) {
-        document.body.style.cssText += `
-          touch-action: none;
-          overflow: hidden;
-          position: fixed;
-          width: 100%; height: 100%;
-        `;
+      // Убеждаемся что body существует перед appendChild
+      if (document.body) {
+        document.body.appendChild(gameContainer);
         
-        // Предотвращение скролла на iOS
-        if (Device.isIOS) {
-          document.addEventListener('touchmove', e => {
-            if (e.target === document.body) {
+        // ИСПРАВЛЕНИЕ: Мобильные стили для body
+        if (isMobile) {
+          document.body.style.cssText += `
+            touch-action: none;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+          `;
+          
+          // Предотвращаем скролл на iOS
+          if (isIOS) {
+            document.addEventListener('touchmove', (e) => {
               e.preventDefault();
-            }
-          }, { passive: false });
+            }, { passive: false });
+          }
         }
+      } else {
+        console.error('Document body still not available!');
+        setTimeout(initGame, isMobile ? 200 : 100);
+        return;
       }
+      
+      // Проверяем что элемент действительно добавился
+      const verification = document.getElementById('game');
+      if (!verification) {
+        console.error('Failed to create game container, retrying...');
+        setTimeout(initGame, isMobile ? 200 : 100);
+        return;
+      }
+      
+      console.log('Game container created successfully');
     }
+
+    // ИСПРАВЛЕНИЕ 4: Финальная проверка что контейнер доступен
+    if (!gameContainer || !gameContainer.parentNode) {
+      console.error('Game container validation failed, retrying...');
+      setTimeout(initGame, isMobile ? 200 : 100);
+      return;
+    }
+
+    // Проверяем наличие зависимостей
+    if (!window.Phaser) {
+      console.error('Phaser library not loaded');
+      showErrorFallback('Ошибка загрузки библиотеки игры');
+      return;
+    }
+
+    if (!window.ALL_CARD_KEYS || !window.LEVELS) {
+      console.error('Game data not loaded');
+      showErrorFallback('Ошибка загрузки данных игры');
+      return;
+    }
+
+    if (!window.PreloadScene || !window.MenuScene || !window.GameScene) {
+      console.error('Game scenes not loaded');
+      showErrorFallback('Ошибка загрузки сцен игры');
+      return;
+    }
+
+    // ИСПРАВЛЕНИЕ 8: Мобильно-адаптивные размеры игры
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const isPortrait = screenHeight > screenWidth;
     
-    // Размеры игры
+    // Определяем размеры для разных устройств
     let gameWidth, gameHeight;
     
-    if (Device.isMobile) {
-      if (Device.isPortrait) {
+    if (isMobile) {
+      if (isPortrait) {
+        // Портретная ориентация на мобильных
         gameWidth = 720;
         gameHeight = 1280;
       } else {
+        // Ландшафтная ориентация на мобильных
         gameWidth = 1280;
         gameHeight = 720;
       }
     } else {
+      // Десктоп
       gameWidth = 1080;
       gameHeight = 720;
     }
     
-    // Конфигурация Phaser
-    const config = {
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убираем проблемные параметры DPR
+    // const DPR = isMobile ? Math.min(2, window.devicePixelRatio || 1) : Math.min(2, window.devicePixelRatio || 1);
+    
+    debugLog('Game configuration', {
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+      isPortrait: isPortrait,
+      gameWidth: gameWidth,
+      gameHeight: gameHeight,
+      // DPR: DPR,
+      isMobile: isMobile
+    });
+    
+    const gameConfig = {
       type: Phaser.AUTO,
-      parent: container,
-      width: gameWidth,
+      parent: gameContainer, // ИСПРАВЛЕНО: Передаем элемент напрямую
+      width: gameWidth,      // ИСПРАВЛЕНИЕ: Упрощаем до базовых параметров
       height: gameHeight,
       backgroundColor: '#1d2330',
       scale: {
@@ -746,595 +785,645 @@ User-Agent: ${navigator.userAgent}
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: gameWidth,
         height: gameHeight
+        // ИСПРАВЛЕНИЕ: Убираем сложные min/max параметры которые могут ломать игру
+        // min: {
+        //   width: isMobile ? (isPortrait ? 360 : 640) : 800,
+        //   height: isMobile ? (isPortrait ? 640 : 360) : 600
+        // },
+        // max: {
+        //   width: isMobile ? (isPortrait ? 768 : 1366) : 1920,
+        //   height: isMobile ? (isPortrait ? 1366 : 768) : 1080
+        // }
       },
-      render: {
-        antialias: !Device.isMobile,
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убираем resolution параметр
+      // resolution: DPR,
+      render: { 
+        antialias: !isMobile, // Отключаем антиалиасинг на мобильных для производительности
         pixelArt: false
+        // ИСПРАВЛЕНИЕ: Убираем проблемные render параметры
+        // powerPreference: isMobile ? 'default' : 'high-performance',
+        // batchSize: isMobile ? 1000 : 2000,
+        // maxTextures: isMobile ? 8 : 16
       },
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Упрощаем input конфигурацию
+      // input: {
+      //   mouse: !isMobile,
+      //   touch: isMobile,
+      //   keyboard: !isMobile,
+      //   gamepad: false
+      // },
       scene: [
         window.PreloadScene,
         window.MenuScene,
         window.GameScene
       ]
+      // ИСПРАВЛЕНИЕ: Убираем сложные fps и physics настройки
+      // fps: {
+      //   target: isMobile ? 30 : 60,
+      //   forceSetTimeOut: true,
+      //   deltaHistory: isMobile ? 5 : 10
+      // },
+      // physics: {
+      //   default: 'arcade',
+      //   arcade: {
+      //     fps: isMobile ? 30 : 60,
+      //     fixedStep: true
+      //   }
+      // },
+      // ИСПРАВЛЕНИЕ: Упрощаем callbacks - убираем сложный preBoot
+      // callbacks: {
+      //   preBoot: function(game) {
+      //     debugLog('Game pre-boot started');
+          
+      //     if (isMobile) {
+      //       game.canvas.addEventListener('contextmenu', (e) => {
+      //         e.preventDefault();
+      //         return false;
+      //       });
+            
+      //       game.canvas.addEventListener('touchstart', (e) => {
+      //         if (e.touches.length > 1) {
+      //           e.preventDefault();
+      //         }
+      //       }, { passive: false });
+            
+      //       game.canvas.addEventListener('gesturestart', (e) => {
+      //         e.preventDefault();
+      //       });
+      //     }
+      //   },
+        
+      //   postBoot: function(game) {
+      //     // Весь сложный код callback'ов здесь
+      //   }
+      // }
     };
-    
-    // Создание игры
+
+    // ИСПРАВЛЕНИЕ: Создаем игру с упрощенной конфигурацией и добавляем postBoot логику после создания
     try {
-      window.game = new Phaser.Game(config);
+      console.log('Creating Phaser game...');
+      console.log('Game config:', {
+        type: 'AUTO',
+        parent: 'game container element',
+        mobile: isMobile,
+        gameSize: `${gameWidth}x${gameHeight}`
+      });
       
+      window.game = new Phaser.Game(gameConfig);
+      
+      // Дополнительная проверка успешного создания
       if (!window.game) {
         throw new Error('Game creation failed');
       }
       
-      debugLog('Game created');
+      console.log('✅ Game created successfully');
+      debugLog('Game created successfully');
       
-      // Ожидание готовности
-      window.game.events.once('ready', () => {
-        debugLog('Game ready');
+      // ИСПРАВЛЕНИЕ: Добавляем postBoot логику через событие после создания игры
+      window.game.events.once('ready', function() {
+        console.log('🎮 Game ready event triggered');
+        console.log('📱 Mobile device:', isMobile);
+        console.log('🎭 Available scenes:', window.game.scene.scenes.map(s => s.scene.key));
         
-        // Скрытие прелоадера
+        // Скрываем прелоадер
         const preloader = document.getElementById('preloader');
         if (preloader) {
-          preloader.style.transition = 'opacity 0.5s';
-          preloader.style.opacity = '0';
-          setTimeout(() => {
+          if (isMobile) {
+            preloader.style.transition = 'opacity 0.5s ease-out';
+            preloader.style.opacity = '0';
+            setTimeout(() => {
+              preloader.style.display = 'none';
+              document.body.classList.add('game-loaded');
+              console.log('✅ Preloader hidden (mobile), game ready');
+            }, 500);
+          } else {
             preloader.style.display = 'none';
             document.body.classList.add('game-loaded');
-          }, 500);
+            console.log('✅ Preloader hidden (desktop), game ready');
+          }
         }
         
-        // Передача данных в игру
+        // Передаем VK данные в игру
         window.game.registry.set('vkUserData', window.VK_USER_DATA);
         window.game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
         window.game.registry.set('isVKEnvironment', isVKEnvironment);
-        window.game.registry.set('vkBridgeAvailable', window.VKSafe.isAvailable());
-        window.game.registry.set('isMobile', Device.isMobile);
-        window.game.registry.set('isIOS', Device.isIOS);
-        window.game.registry.set('isAndroid', Device.isAndroid);
-        window.game.registry.set('progressSyncManager', window.progressSyncManager);
-        window.game.registry.set('syncStatus', window.SYNC_STATUS);
+        window.game.registry.set('vkBridgeAvailable', window.VKSafe?.isAvailable() || false);
+        window.game.registry.set('isMobile', isMobile);
+        window.game.registry.set('isIOS', isIOS);
+        window.game.registry.set('isAndroid', isAndroid);
         
-        // Запуск первой сцены
+        // ИСПРАВЛЕНИЕ: Запускаем сцену с минимальной задержкой
         setTimeout(() => {
           try {
             window.game.scene.start('PreloadScene');
+            console.log('✅ PreloadScene start command sent');
           } catch (error) {
-            console.error('Failed to start PreloadScene:', error);
-            // Fallback
+            console.error('❌ Failed to start PreloadScene:', error);
             try {
+              console.log('🔄 Trying to start MenuScene directly...');
               window.game.scene.start('MenuScene', { page: 0 });
             } catch (menuError) {
-              showErrorFallback('Ошибка запуска', 'Не удалось загрузить сцены');
+              console.error('❌ Failed to start MenuScene:', menuError);
+              showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
             }
           }
         }, 200);
       });
       
-      // Мобильные обработчики
-      if (Device.isMobile) {
-        // Обработка ориентации
+      // ИСПРАВЛЕНИЕ: Упрощенные мобильные обработчики событий
+      if (isMobile) {
+        // Обработка изменения ориентации
         window.addEventListener('orientationchange', () => {
           setTimeout(() => {
-            window.game?.scale?.refresh();
+            if (window.game && window.game.scale) {
+              window.game.scale.refresh();
+              console.log('📱 Orientation changed, scale refreshed');
+            }
           }, 500);
         });
         
-        // Touch handlers (добавляются после создания canvas)
+        // Добавляем обработчики для предотвращения зума и скролла ПОСЛЕ создания canvas
         setTimeout(() => {
-          if (window.game?.canvas) {
-            window.game.canvas.addEventListener('contextmenu', e => {
+          if (window.game && window.game.canvas) {
+            window.game.canvas.addEventListener('contextmenu', (e) => {
               e.preventDefault();
               return false;
             });
             
-            window.game.canvas.addEventListener('touchstart', e => {
+            window.game.canvas.addEventListener('touchstart', (e) => {
               if (e.touches.length > 1) {
                 e.preventDefault();
               }
             }, { passive: false });
             
-            window.game.canvas.addEventListener('gesturestart', e => {
+            window.game.canvas.addEventListener('gesturestart', (e) => {
               e.preventDefault();
             });
+            
+            console.log('📱 Mobile touch handlers added to canvas');
           }
         }, 1000);
       }
       
-      // Debug панель
-      if (FEATURES.DEBUG_MODE) {
+      // Показываем отладочную информацию
+      if (window.VK_DEBUG) {
         setTimeout(() => {
-          showDebugPanel({
+          showDebugInfo({
             isVK: isVKEnvironment,
-            device: Device.isMobile ? 
-              (Device.isIOS ? 'iOS' : Device.isAndroid ? 'Android' : 'Mobile') : 
-              'Desktop
-              ',
-            platform: window.VK_LAUNCH_PARAMS?.platform || 'N/A',
-            screen: Device.viewport.screen,
-            hasTouch: Device.hasTouch,
-            bridgeReady: window.VK_BRIDGE_READY,
-            hasUser: !!window.VK_USER_DATA,
+            isMobile: isMobile,
+            userId: window.VK_LAUNCH_PARAMS?.user_id,
+            platform: window.VK_LAUNCH_PARAMS?.platform,
+            bridgeAvailable: window.VKSafe?.isAvailable() || false,
+            userDataLoaded: !!window.VK_USER_DATA,
             gameCreated: !!window.game,
-            syncReady: window.SYNC_STATUS.initialized
+            touchSupport: 'ontouchstart' in window
           });
         }, 1500);
       }
       
     } catch (error) {
-      console.error('Game creation failed:', error);
+      console.error('Failed to create Phaser game:', error);
       showErrorFallback('Не удалось создать игру', error.message);
     }
   }
-  
-  //==========================================================================
-  // 9. VK HELPERS (Public API)
-  //==========================================================================
-  
+
+  // Публичные методы для использования в игре
   window.VKHelpers = {
     // Поделиться результатом
-    async shareResult(score, level) {
-      if (!window.VK_BRIDGE_READY) {
-        throw new Error('VK Bridge not ready');
-      }
-      
+    shareResult: function(score, level) {
+      if (!window.VK_BRIDGE_READY) return Promise.reject('VK Bridge not ready');
+
       return window.VKSafe.send('VKWebAppShare', {
-        link: `${window.location.href}?score=${score}&level=${level}`
+        link: window.location.href + `?shared_score=${score}&level=${level}`
       });
     },
-    
+
     // Показать рекламу
-    async showAd() {
-      if (!window.VK_BRIDGE_READY) {
-        throw new Error('VK Bridge not ready');
-      }
-      
+    showAd: function() {
+      if (!window.VK_BRIDGE_READY) return Promise.reject('VK Bridge not ready');
+
       return window.VKSafe.send('VKWebAppShowNativeAds', {
         ad_format: 'interstitial'
       });
     },
-    
-    // Сохранить в облако VK
-    async setStorageData(key, value) {
-      if (!window.VK_BRIDGE_READY) {
-        throw new Error('VK Bridge not ready');
-      }
-      
+
+    // Сохранить данные в облако VK
+    setStorageData: function(key, value) {
+      if (!window.VK_BRIDGE_READY) return Promise.reject('VK Bridge not ready');
+
       return window.VKSafe.send('VKWebAppStorageSet', {
         key: key,
         value: JSON.stringify(value)
       });
     },
-    
-    // Получить из облака VK
-    async getStorageData(keys) {
-      if (!window.VK_BRIDGE_READY) {
-        throw new Error('VK Bridge not ready');
-      }
-      
+
+    // Получить данные из облака VK
+    getStorageData: function(keys) {
+      if (!window.VK_BRIDGE_READY) return Promise.reject('VK Bridge not ready');
+
       return window.VKSafe.send('VKWebAppStorageGet', {
         keys: Array.isArray(keys) ? keys : [keys]
       });
     },
-    
-    // Проверка поддержки
-    isSupported(method) {
+
+    // Проверка доступности функций
+    isSupported: function(method) {
       return window.VKSafe.supports(method);
     },
-    
-    // Информация об устройстве
-    getDeviceInfo() {
-      return {
-        isMobile: Device.isMobile,
-        isIOS: Device.isIOS,
-        isAndroid: Device.isAndroid,
-        isPortrait: Device.isPortrait,
-        hasTouch: Device.hasTouch,
-        viewport: Device.viewport,
-        dpr: Device.dpr
-      };
+
+    // ИСПРАВЛЕНИЕ: Дополнительные мобильные утилиты
+    isMobileDevice: function() {
+      return isMobile;
     },
-    
-    // Статус синхронизации
-    getSyncStatus() {
+
+    getDeviceInfo: function() {
       return {
-        ...window.SYNC_STATUS,
-        managerAvailable: !!window.progressSyncManager
+        isMobile: isMobile,
+        isIOS: isIOS,
+        isAndroid: isAndroid,
+        isPortrait: window.innerHeight > window.innerWidth,
+        touchSupport: 'ontouchstart' in window,
+        screen: `${screen.width}x${screen.height}`,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        dpr: window.devicePixelRatio || 1
       };
-    },
-    
-    // Принудительная синхронизация
-    async forceSyncNow() {
-      if (!window.progressSyncManager?.forceSync) {
-        throw new Error('Sync manager not available');
-      }
-      return window.progressSyncManager.forceSync();
     }
   };
-  
-  //==========================================================================
-  // 10. TOAST NOTIFICATIONS
-  //==========================================================================
-  
-  window.showToast = function(message, type = 'info', duration = 3000) {
-    let container = document.getElementById('toast-container');
-    
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'toast-container';
-      container.style.cssText = `
-        position: fixed;
-        top: ${Device.isMobile ? '60px' : '20px'};
-        right: 20px;
-        z-index: 100000;
-        pointer-events: none;
-      `;
-      document.body.appendChild(container);
-    }
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.style.cssText = `
-      background: rgba(30, 39, 51, 0.95);
-      color: white;
-      padding: 14px 18px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-      transform: translateX(400px);
-      transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      border-left: 4px solid ${getToastColor(type)};
-      pointer-events: auto;
-      max-width: 300px;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    `;
-    
-    const icon = document.createElement('span');
-    icon.textContent = getToastIcon(type);
-    icon.style.fontSize = '18px';
-    
-    const text = document.createElement('span');
-    text.textContent = message;
-    text.style.flex = '1';
-    
-    toast.appendChild(icon);
-    toast.appendChild(text);
-    container.appendChild(toast);
-    
-    // Анимация появления
-    requestAnimationFrame(() => {
-      toast.style.transform = 'translateX(0)';
-    });
-    
-    // Автоудаление
-    setTimeout(() => {
-      toast.style.transform = 'translateX(400px)';
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
-  };
-  
-  function getToastIcon(type) {
-    const icons = {
-      info: 'ℹ️',
-      success: '✅',
-      warning: '⚠️',
-      error: '❌'
-    };
-    return icons[type] || icons.info;
-  }
-  
-  function getToastColor(type) {
-    const colors = {
-      info: '#3498db',
-      success: '#27ae60',
-      warning: '#f39c12',
-      error: '#e74c3c'
-    };
-    return colors[type] || colors.info;
-  }
-  
-  //==========================================================================
-  // 11. MAIN ENTRY POINT
-  //==========================================================================
-  
+
+  // ИСПРАВЛЕНИЕ: Улучшенная функция main с мобильными оптимизациями
   async function main() {
-    debugLog('Application starting', {
+    debugLog('Starting application', { 
       isVK: isVKEnvironment,
-      device: Device.isMobile ? 'Mobile' : 'Desktop',
-      features: FEATURES,
-      readyState: document.readyState
+      isMobile: isMobile,
+      isIOS: isIOS,
+      isAndroid: isAndroid,
+      debug: window.VK_DEBUG,
+      userAgent: navigator.userAgent,
+      readyState: document.readyState,
+      touchSupport: 'ontouchstart' in window
     });
-    
-    // Ожидание готовности DOM
+
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Ждем полной готовности DOM с учетом мобильных особенностей
     if (document.readyState === 'loading') {
+      console.log('Waiting for DOM to be ready...');
       await new Promise(resolve => {
-        document.addEventListener('DOMContentLoaded', resolve, { once: true });
+        const handler = () => {
+          document.removeEventListener('DOMContentLoaded', handler);
+          resolve();
+        };
+        document.addEventListener('DOMContentLoaded', handler);
       });
-      
-      // Дополнительная стабилизация для мобильных
-      await new Promise(r => setTimeout(r, Device.isMobile ? 200 : 100));
     }
-    
-    // Ожидание body
+
+    // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Убеждаемся что body существует (критично для мобильных)
     if (!document.body) {
+      console.log('Waiting for document.body...');
       await new Promise(resolve => {
-        const check = () => {
+        const checkBody = () => {
           if (document.body) {
             resolve();
           } else {
-            setTimeout(check, 20);
+            setTimeout(checkBody, isMobile ? 20 : 10);
           }
         };
-        check();
+        checkBody();
       });
     }
-    
-    debugLog('DOM ready');
-    
-    // Инициализация ProgressSync (если доступен)
-    if (FEATURES.PROGRESS_SYNC) {
-      await initProgressSync();
-    }
-    
-    // Инициализация VK (если в VK окружении)
+
+    console.log('DOM fully ready, proceeding with initialization...');
+    console.log('📱 Device detection:', {
+      isMobile: isMobile,
+      isIOS: isIOS,
+      isAndroid: isAndroid,
+      touchSupport: 'ontouchstart' in window
+    });
+
     if (isVKEnvironment) {
       try {
+        // Загружаем VK Bridge с учетом мобильных особенностей
         await loadVKBridge();
-        const vkReady = await initVKBridge();
+        debugLog('VK Bridge loaded successfully');
         
-        if (!vkReady) {
-          console.warn('VK init failed, continuing in standalone mode');
+        // Инициализируем VK с увеличенным таймаутом для мобильных
+        const vkInitialized = await initVKBridge();
+        
+        if (!vkInitialized) {
+          console.warn('VK initialization failed, starting in standalone mode');
         }
         
-        // Повторная попытка инициализации Sync после VK
-        if (FEATURES.PROGRESS_SYNC && !window.SYNC_STATUS.initialized && window.VK_BRIDGE_READY) {
-          await initProgressSync();
-        }
       } catch (error) {
         console.error('VK setup failed:', error);
+        debugLog('VK setup failed, falling back to standalone');
       }
+    } else {
+      debugLog('Not VK environment, starting directly');
     }
+
+    // ИСПРАВЛЕНИЕ: Увеличенная задержка для стабилизации на мобильных
+    const stabilizationDelay = isMobile ? 300 : 100;
+    await new Promise(resolve => setTimeout(resolve, stabilizationDelay));
     
-    // Стабилизация перед запуском игры
-    await new Promise(r => setTimeout(r, Device.isMobile ? 300 : 100));
-    
-    // Запуск игры
+    // Запускаем игру
     initGame();
   }
-  
-  //==========================================================================
-  // 12. LIFECYCLE HANDLERS
-  //==========================================================================
-  
-  // Обработка закрытия страницы
+
+  // Глобальные обработчики
   window.addEventListener('beforeunload', () => {
-    debugLog('Page unloading');
+    debugLog('Page unloading, cleaning up game...');
     
-    // Принудительная синхронизация
-    if (window.progressSyncManager?.forceSync) {
-      try {
-        window.progressSyncManager.forceSync();
-      } catch (e) {
-        debugLog('Unload sync failed:', e);
-      }
-    }
-    
-    // Очистка игры
     if (window.game) {
+      // Останавливаем все сцены
       window.game.scene.scenes.forEach(scene => {
-        scene.events?.emit('shutdown');
+        if (scene.events) {
+          scene.events.emit('shutdown');
+        }
       });
+      
+      // Уничтожаем игру
       window.game.destroy(true);
       window.game = null;
     }
   });
-  
-  // Обработка видимости страницы
+
+  // ИСПРАВЛЕНИЕ: Мобильно-оптимизированная обработка потери фокуса страницы
   document.addEventListener('visibilitychange', () => {
-    if (!window.game?.scene) return;
-    
-    if (document.hidden) {
-      debugLog('Page hidden');
-      
-      const scene = window.game.scene.getScene('GameScene');
-      if (scene) {
-        scene.canClick = false;
+    // Безопасная проверка существования объектов игры
+    if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
+      if (document.hidden) {
+        debugLog('Page hidden, pausing game...');
         
-        if (Device.isMobile && window.game.loop) {
-          window.game.loop.sleep();
+        try {
+          // Пауза активной сцены
+          const activeScene = window.game.scene.getActiveScene();
+          if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+            activeScene.canClick = false;
+            debugLog('Game input disabled due to page visibility change');
+          }
+          
+          // ИСПРАВЛЕНИЕ: Дополнительная пауза для мобильных устройств
+          if (isMobile && window.game.loop) {
+            window.game.loop.sleep();
+            debugLog('Mobile: Game loop paused');
+          }
+        } catch (error) {
+          debugLog('Error pausing game:', error);
+        }
+      } else {
+        debugLog('Page visible, resuming game...');
+        
+        try {
+          const activeScene = window.game.scene.getActiveScene();
+          if (activeScene && activeScene.scene && activeScene.scene.key === 'GameScene') {
+            // Увеличенная задержка перед возобновлением на мобильных
+            const resumeDelay = isMobile ? 1000 : 500;
+            setTimeout(() => {
+              if (activeScene.gameMetrics && activeScene.gameMetrics.startTime) {
+                activeScene.canClick = true;
+                debugLog('Game input re-enabled');
+              }
+            }, resumeDelay);
+          }
+          
+          // ИСПРАВЛЕНИЕ: Возобновление игрового цикла на мобильных
+          if (isMobile && window.game.loop) {
+            window.game.loop.wake();
+            debugLog('Mobile: Game loop resumed');
+          }
+        } catch (error) {
+          debugLog('Error resuming game:', error);
         }
       }
     } else {
-      debugLog('Page visible');
-      
-      const scene = window.game.scene.getScene('GameScene');
-      if (scene) {
-        setTimeout(() => {
-          scene.canClick = true;
-          
-          if (Device.isMobile && window.game.loop) {
-            window.game.loop.wake();
-          }
-        }, Device.isMobile ? 1000 : 500);
-      }
+      debugLog('Game or scene manager not ready for visibility handling');
     }
   });
-  
-  //==========================================================================
-  // 13. DEBUG UTILITIES (Development only)
-  //==========================================================================
-  
-  if (FEATURES.DEBUG_MODE) {
-    window.DebugAgreement = {
-      reset() {
-        ['acceptedAgreement', 'agreementVersion', 'agreementAcceptedAt', 
-         'vk_agreement_shown', 'firstLaunchShown'].forEach(key => {
-          localStorage.removeItem(key);
-        });
-        console.log('✅ Agreement data cleared. Reload: location.reload()');
-      },
-      
-      status() {
-        const status = {
-          accepted: localStorage.getItem('acceptedAgreement'),
-          version: localStorage.getItem('agreementVersion'),
-          acceptedAt: localStorage.getItem('agreementAcceptedAt'),
-          vkShown: localStorage.getItem('vk_agreement_shown'),
-          firstLaunch: localStorage.getItem('firstLaunchShown')
-        };
-        console.table(status);
-        return status;
-      },
-      
-      show() {
-        const menuScene = window.game?.scene?.getScene('MenuScene');
-        if (menuScene?.showUserAgreement) {
-          menuScene.showUserAgreement();
-        } else {
-          console.error('MenuScene not ready');
-        }
-      },
-      
-      accept() {
-        localStorage.setItem('acceptedAgreement', 'true');
-        localStorage.setItem('agreementVersion', '2025-09-29');
-        localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
-        console.log('✅ Agreement accepted');
-      }
-    };
-    
-    if (FEATURES.PROGRESS_SYNC) {
-      window.DebugSync = {
-        status() {
-          console.table(window.SYNC_STATUS);
-          if (window.progressSyncManager) {
-            console.log('Manager:', window.progressSyncManager.getSyncStatus());
-          }
-          return window.SYNC_STATUS;
-        },
-        
-        async forceSync() {
-          if (!window.progressSyncManager) {
-            throw new Error('Sync manager not available');
-          }
-          console.log('🔄 Forcing sync...');
-          const result = await window.progressSyncManager.forceSync();
-          console.log('✅ Sync completed:', result);
-          return result;
-        },
-        
-        async loadData() {
-          if (!window.progressSyncManager) {
-            throw new Error('Sync manager not available');
-          }
-          const data = await window.progressSyncManager.loadProgress();
-          console.log('📊 Loaded:', data);
-          return data;
-        },
-        
-        async saveTestData() {
-          if (!window.progressSyncManager) {
-            throw new Error('Sync manager not available');
-          }
-          
-          const testData = {
-            levels: {
-              0: { stars: 3, bestTime: 45, errors: 0, timestamp: Date.now() },
-              1: { stars: 2, bestTime: 67, errors: 1, timestamp: Date.now() }
-            },
-            stats: {
-              gamesPlayed: 2,
-              totalTime: 112,
-              totalErrors: 1,
-              bestTime: 45,
-              lastPlayed: Date.now()
-            },
-            achievements: { first_win: true, perfect_game: true },
-            version: '1.0',
-            timestamp: Date.now()
-          };
-          
-          await window.progressSyncManager.saveProgress(testData, true);
-          console.log('✅ Test data saved');
-          return testData;
-        },
-        
-        async clearData() {
-          if (!window.progressSyncManager) {
-            throw new Error('Sync manager not available');
-          }
-          await window.progressSyncManager.clearAllData();
-          console.log('✅ Data cleared');
-        }
-      };
-    }
-    
+
+  // ИСПРАВЛЕНИЕ: Запуск с обработкой ошибок и мобильной диагностикой
+  main().catch(error => {
+    console.error('Application startup failed:', error);
+    console.error('Mobile context:', {
+      isMobile: isMobile,
+      isIOS: isIOS,
+      isAndroid: isAndroid,
+      userAgent: navigator.userAgent,
+      screen: `${screen.width}x${screen.height}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`
+    });
+    showErrorFallback('Ошибка запуска приложения', error.message);
+  });
+
+  // ИСПРАВЛЕНИЕ: Расширенные отладочные утилиты с мобильной диагностикой
+  if (window.VK_DEBUG) {
     window.VKUtils = {
-      async testMethod(method, params = {}) {
+      async testVKMethod(method, params = {}) {
         if (!window.VKSafe.isAvailable()) {
           console.error('VK Bridge not available');
           return null;
         }
+        
         try {
           const result = await window.VKSafe.send(method, params);
-          console.log(`${method} ✅`, result);
+          console.log(`${method} success:`, result);
           return result;
         } catch (error) {
-          console.error(`${method} ❌`, error);
+          console.error(`${method} failed:`, error);
           return null;
         }
       },
-      
+
       async getUserInfo() {
-        return this.testMethod('VKWebAppGetUserInfo');
+        return await this.testVKMethod('VKWebAppGetUserInfo');
       },
-      
+
+      async testStorage() {
+        const testData = { 
+          test: 'value', 
+          timestamp: Date.now(),
+          random: Math.random(),
+          mobile: isMobile,
+          device: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'
+        };
+        
+        console.log('Testing VK Storage...');
+        
+        const saveResult = await this.testVKMethod('VKWebAppStorageSet', {
+          key: 'test_key_mobile',
+          value: JSON.stringify(testData)
+        });
+        
+        if (!saveResult) return;
+        
+        const loadResult = await this.testVKMethod('VKWebAppStorageGet', {
+          keys: ['test_key_mobile']
+        });
+        
+        if (loadResult && loadResult.keys && loadResult.keys[0]) {
+          const loaded = JSON.parse(loadResult.keys[0].value);
+          console.log('Storage test successful:', loaded);
+          return loaded;
+        }
+        
+        console.error('Storage test failed');
+        return null;
+      },
+
       showVKData() {
         console.group('VK Data');
         console.log('Launch Params:', window.VK_LAUNCH_PARAMS);
         console.log('User Data:', window.VK_USER_DATA);
-        console.log('Bridge Ready:', window.VK_BRIDGE_READY);
+        console.log('Bridge Available:', window.VKSafe.isAvailable());
         console.log('Environment:', isVKEnvironment);
+        console.log('Debug Mode:', window.VK_DEBUG);
         console.groupEnd();
       },
-      
-      showDeviceInfo() {
-        console.group('Device Info');
-        console.log('Mobile:', Device.isMobile);
-        console.log('iOS:', Device.isIOS);
-        console.log('Android:', Device.isAndroid);
-        console.log('Touch:', Device.hasTouch);
-        console.log('Portrait:', Device.isPortrait);
-        console.log('Viewport:', Device.viewport);
-        console.log('DPR:', Device.dpr);
+
+      // ИСПРАВЛЕНИЕ: Мобильная диагностика
+      showMobileInfo() {
+        console.group('📱 Mobile Diagnostics');
+        console.log('Is Mobile:', isMobile);
+        console.log('Is iOS:', isIOS);
+        console.log('Is Android:', isAndroid);
+        console.log('Touch Support:', 'ontouchstart' in window);
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Screen Size:', `${screen.width}x${screen.height}`);
+        console.log('Viewport Size:', `${window.innerWidth}x${window.innerHeight}`);
+        console.log('Device Pixel Ratio:', window.devicePixelRatio || 1);
+        console.log('Orientation:', window.innerHeight > window.innerWidth ? 'Portrait' : 'Landscape');
+        
+        if (window.game) {
+          console.log('Game Canvas:', `${window.game.canvas.width}x${window.game.canvas.height}`);
+          console.log('Game Scale:', `${window.game.scale.width}x${window.game.scale.height}`);
+          console.log('Touch Enabled:', window.game.input.touch?.enabled);
+          console.log('Mouse Enabled:', window.game.input.mouse?.enabled);
+        }
+        console.groupEnd();
+      },
+
+      // Тест производительности на мобильных
+      async performanceTest() {
+        if (!isMobile) {
+          console.log('Performance test is designed for mobile devices');
+          return;
+        }
+
+        console.group('📊 Mobile Performance Test');
+        
+        const start = performance.now();
+        
+        // Тест создания и уничтожения объектов
+        const objects = [];
+        for (let i = 0; i < 1000; i++) {
+          objects.push({ id: i, data: Math.random() });
+        }
+        
+        const createTime = performance.now() - start;
+        console.log('Object Creation Time:', `${createTime.toFixed(2)}ms`);
+        
+        // Тест обработки массивов
+        const arrayStart = performance.now();
+        objects.sort((a, b) => a.data - b.data);
+        const sortTime = performance.now() - arrayStart;
+        console.log('Array Sort Time:', `${sortTime.toFixed(2)}ms`);
+        
+        // Тест памяти (приблизительный)
+        if (performance.memory) {
+          console.log('Memory Usage:', {
+            used: `${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
+            total: `${(performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
+            limit: `${(performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB`
+          });
+        }
+        
         console.groupEnd();
       }
     };
-    
-    console.log(`
-%c🎮 VK Mini Apps - Debug Mode
-%cCommands:
-  DebugAgreement.reset()      - сброс соглашения
-  DebugAgreement.status()     - статус соглашения
-  ${FEATURES.PROGRESS_SYNC ? `DebugSync.forceSync()      - синхронизация
-  DebugSync.status()          - статус синхронизации` : ''}
-  VKUtils.showVKData()        - данные VK
-  VKUtils.showDeviceInfo()    - информация об устройстве
-`, 
-      'color: #667eea; font-size: 16px; font-weight: bold;',
-      'color: #aaa; font-size: 12px;'
-    );
+
+    console.log('🛠️ VK Debug utilities loaded:');
+    console.log('📞 VKUtils.testVKMethod(method, params) - test VK methods');
+    console.log('👤 VKUtils.getUserInfo() - get user data');
+    console.log('💾 VKUtils.testStorage() - test storage');
+    console.log('📊 VKUtils.showVKData() - show VK data');
+    console.log('📱 VKUtils.showMobileInfo() - show mobile diagnostics');
+    console.log('⚡ VKUtils.performanceTest() - test mobile performance');
   }
-  
-  //==========================================================================
-  // 14. START APPLICATION
-  //==========================================================================
-  
-  main().catch(error => {
-    console.error('Application startup failed:', error);
-    showErrorFallback('Ошибка запуска', error.message);
-  });
-  
+
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ДОБАВИТЬ В САМЫЙ КОНЕЦ main.js (после всех функций)
+
+// Debug commands for agreement testing (всегда доступны)
+window.DebugAgreement = {
+  reset: function() {
+    localStorage.removeItem('acceptedAgreement');
+    localStorage.removeItem('agreementVersion');
+    localStorage.removeItem('agreementAcceptedAt');
+    localStorage.removeItem('vk_agreement_shown');
+    localStorage.removeItem('firstLaunchShown');
+    console.log('✅ Agreement data cleared');
+    console.log('📄 Reload page: location.reload()');
+  },
+
+  status: function() {
+    const status = {
+      accepted: localStorage.getItem('acceptedAgreement'),
+      version: localStorage.getItem('agreementVersion'),
+      acceptedAt: localStorage.getItem('agreementAcceptedAt'),
+      vkShown: localStorage.getItem('vk_agreement_shown'),
+      firstLaunch: localStorage.getItem('firstLaunchShown')
+    };
+    console.table(status);
+    return status;
+  },
+
+  show: function() {
+    if (window.game && window.game.scene) {
+      const menuScene = window.game.scene.getScene('MenuScene');
+      if (menuScene && menuScene.showUserAgreement) {
+        menuScene.showUserAgreement();
+      } else if (menuScene && menuScene.showAgeRating) {
+        menuScene.showAgeRating();
+      } else {
+        console.error('MenuScene not ready or methods missing');
+      }
+    } else {
+      console.error('Game not initialized');
+    }
+  },
+
+  accept: function() {
+    localStorage.setItem('acceptedAgreement', 'true');
+    localStorage.setItem('agreementVersion', '2025-09-13');
+    localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
+    console.log('✅ Agreement accepted');
+  }
+};
+
+// Автоматически показываем команды в консоли
+console.log(`
+🔧 DEBUG COMMANDS доступны:
+
+DebugAgreement.reset()  - сбросить соглашение
+DebugAgreement.status() - проверить статус  
+DebugAgreement.show()   - показать соглашение
+DebugAgreement.accept() - принять соглашение
+
+Пример: DebugAgreement.reset(); location.reload();
+`);
