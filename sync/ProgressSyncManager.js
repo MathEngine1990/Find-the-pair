@@ -1,5 +1,5 @@
 /**
- * ProgressSyncManager.js - Центральный менеджер синхронизации прогресса
+ * ProgressSyncManager.js - Исправленная версия с типобезопасностью
  * для VK Mini Apps с поддержкой multi-platform sync
  */
 
@@ -276,20 +276,18 @@ class ProgressSyncManager {
       try {
         const result = await window.VKHelpers.getStorageData([this.vkKey]);
         
-        if (result.keys && result.keys[0] && result.keys[0].value) {
+        if (result?.keys?.[0]?.value) {
           const rawValue = result.keys[0].value;
           
-          // ИСПРАВЛЕНИЕ: Проверяем тип данных
-          let data;
-          if (typeof rawValue === 'string') {
-            data = this.decompressData(rawValue);
-          } else if (typeof rawValue === 'object') {
-            data = rawValue;
-          } else {
-            console.warn('⚠️ Unexpected data type from VK:', typeof rawValue);
+          // ИСПРАВЛЕНИЕ: Универсальная десериализация с проверкой типов
+          let data = this.safeParseData(rawValue);
+          
+          if (!data) {
+            console.warn('⚠️ Failed to parse VK data, using defaults');
             return this.getDefaultProgressData();
           }
           
+          // ИСПРАВЛЕНИЕ: Безопасная миграция без мутации
           return this.migrateDataIfNeeded(data);
         }
         
@@ -307,6 +305,33 @@ class ProgressSyncManager {
     }
   }
 
+  /**
+   * НОВЫЙ МЕТОД: Безопасный парсинг данных с обработкой всех типов
+   */
+  safeParseData(data) {
+    // Уже объект - возвращаем как есть
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      return data;
+    }
+    
+    // Строка - пытаемся распарсить
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        
+        // Проверяем что получился объект
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (error) {
+        console.error('❌ JSON parse failed:', error);
+      }
+    }
+    
+    // Все остальные случаи - возвращаем null
+    return null;
+  }
+
   compressData(data) {
     const str = JSON.stringify(data);
     
@@ -319,14 +344,11 @@ class ProgressSyncManager {
 
   decompressData(compressed) {
     try {
-      // ИСПРАВЛЕНИЕ: Безопасная десериализация
-      if (typeof compressed === 'object') {
-        return compressed;
-      }
-      return JSON.parse(compressed);
+      // Безопасная десериализация
+      return this.safeParseData(compressed) || this.getDefaultProgressData();
     } catch (error) {
       console.error('❌ Failed to decompress data:', error);
-      throw error;
+      return this.getDefaultProgressData();
     }
   }
 
@@ -338,33 +360,54 @@ class ProgressSyncManager {
     return true;
   }
 
+  /**
+   * ИСПРАВЛЕННЫЙ МЕТОД: Безопасная миграция без мутации
+   */
   migrateDataIfNeeded(data) {
-    // ИСПРАВЛЕНИЕ: Проверяем что data это объект
-    if (typeof data === 'string') {
-      console.warn('⚠️ Data is string, parsing...');
-      try {
-        data = JSON.parse(data);
-      } catch (error) {
-        console.error('❌ Failed to parse data string:', error);
+    // Дополнительная проверка типа на входе
+    if (!data || typeof data === 'string') {
+      const parsed = this.safeParseData(data);
+      if (!parsed) {
+        console.warn('⚠️ Invalid data for migration, using defaults');
         return this.getDefaultProgressData();
       }
+      data = parsed;
     }
     
-    if (!data || typeof data !== 'object') {
+    // Проверяем что это объект
+    if (typeof data !== 'object' || Array.isArray(data)) {
       console.warn('⚠️ Invalid data structure, returning defaults');
       return this.getDefaultProgressData();
     }
     
+    // ИСПРАВЛЕНИЕ: Всегда создаём новый объект, никогда не мутируем оригинал
     if (!data.version || data.version !== this.version) {
-      console.log(`🔄 Migrating data from ${data.version} to ${this.version}`);
-      // Создаем новый объект вместо мутации
-      return {
+      console.log(`🔄 Migrating data from v${data.version || 'unknown'} to v${this.version}`);
+      
+      // Создаём новый объект с правильной версией
+      const migrated = {
         ...data,
-        version: this.version
+        version: this.version,
+        // Добавляем недостающие поля
+        deviceId: data.deviceId || this.getDeviceId(),
+        timestamp: data.timestamp || Date.now(),
+        lastModified: Date.now(),
+        levels: data.levels || {},
+        achievements: data.achievements || {},
+        stats: data.stats || {
+          gamesPlayed: 0,
+          totalTime: 0,
+          totalErrors: 0,
+          bestTime: null,
+          lastPlayed: 0
+        }
       };
+      
+      return migrated;
     }
     
-    return data;
+    // Данные уже актуальной версии - возвращаем копию для безопасности
+    return { ...data };
   }
 
   getDefaultProgressData() {
@@ -372,6 +415,7 @@ class ProgressSyncManager {
       version: this.version,
       timestamp: Date.now(),
       deviceId: this.getDeviceId(),
+      lastModified: Date.now(),
       levels: {},
       achievements: {},
       stats: {
@@ -441,6 +485,11 @@ class ProgressSyncManager {
   handleSyncError(error) {
     console.error('❌ Sync error:', error);
     
+    // Добавляем детальную информацию об ошибке
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
+    
     if (this.onSyncError) {
       this.onSyncError(error);
     }
@@ -465,6 +514,7 @@ class ProgressSyncManager {
 
   async clearAllData() {
     localStorage.removeItem(this.localKey);
+    localStorage.removeItem('device_id');
     
     if (this.isVKAvailable()) {
       try {
@@ -474,6 +524,30 @@ class ProgressSyncManager {
       }
     }
   }
+  
+  /**
+   * НОВЫЙ МЕТОД: Валидация структуры данных
+   */
+  validateDataStructure(data) {
+    const requiredFields = ['version', 'timestamp', 'deviceId'];
+    const optionalFields = ['levels', 'achievements', 'stats', 'lastModified'];
+    
+    // Проверка обязательных полей
+    for (const field of requiredFields) {
+      if (!data.hasOwnProperty(field)) {
+        console.warn(`Missing required field: ${field}`);
+        return false;
+      }
+    }
+    
+    // Проверка типов
+    if (typeof data.version !== 'string') return false;
+    if (typeof data.timestamp !== 'number') return false;
+    if (typeof data.deviceId !== 'string') return false;
+    
+    return true;
+  }
 }
 
+// Экспорт для использования
 window.ProgressSyncManager = ProgressSyncManager;
