@@ -10,21 +10,18 @@ class ProgressSyncManager {
     this.vkKey = 'findpair_progress';
     this.achievementsKey = 'findpair_achievements';
     
-    // Состояние синхронизации
     this.isSyncing = false;
     this.lastSyncTime = 0;
     this.syncQueue = [];
     
-    // Настройки
     this.settings = {
-      syncInterval: 30000, // 30 секунд
+      syncInterval: 30000,
       retryAttempts: 3,
       retryDelay: 1000,
       debounceDelay: 2000,
-      compressionThreshold: 1024 // байт
+      compressionThreshold: 1024
     };
     
-    // Callbacks
     this.onSyncStart = null;
     this.onSyncComplete = null;
     this.onSyncError = null;
@@ -34,25 +31,16 @@ class ProgressSyncManager {
   }
 
   async init() {
-    // Инициализация менеджера
     console.log('🔄 ProgressSyncManager initialized');
-    
-    // Загружаем начальные данные
     await this.loadInitialData();
-    
-    // Запускаем автосинхронизацию
     this.startAutoSync();
-    
-    // Подписываемся на события VK
     this.subscribeToVKEvents();
   }
 
   async loadInitialData() {
     try {
-      // Сначала загружаем локальные данные
       const localData = this.loadFromLocal();
       
-      // Затем пытаемся синхронизироваться с VK
       if (this.isVKAvailable()) {
         const synced = await this.performSync();
         if (synced) {
@@ -61,7 +49,6 @@ class ProgressSyncManager {
         }
       }
       
-      // Если VK недоступен, используем локальные данные
       console.log('📱 Using local data only');
       
     } catch (error) {
@@ -70,12 +57,9 @@ class ProgressSyncManager {
     }
   }
 
-  // === ОСНОВНЫЕ МЕТОДЫ СИНХРОНИЗАЦИИ ===
-
   async saveProgress(progressData, forceSync = false) {
     const timestamp = Date.now();
     
-    // Добавляем метаданные
     const enrichedData = {
       ...progressData,
       version: this.version,
@@ -84,22 +68,18 @@ class ProgressSyncManager {
       lastModified: timestamp
     };
 
-    // Валидируем данные
     if (!this.validateProgressData(enrichedData)) {
       throw new Error('Invalid progress data structure');
     }
 
-    // Сохраняем локально (всегда)
     this.saveToLocal(enrichedData);
 
-    // Добавляем в очередь синхронизации
     if (forceSync) {
       await this.performSync();
     } else {
       this.queueSync();
     }
 
-    // Уведомляем слушателей
     if (this.onProgressUpdate) {
       this.onProgressUpdate(enrichedData);
     }
@@ -109,12 +89,10 @@ class ProgressSyncManager {
 
   async loadProgress() {
     try {
-      // Сначала пытаемся синхронизироваться
       if (this.isVKAvailable() && this.shouldSync()) {
         await this.performSync();
       }
       
-      // Загружаем актуальные данные
       return this.loadFromLocal();
       
     } catch (error) {
@@ -138,14 +116,11 @@ class ProgressSyncManager {
     try {
       console.log('🔄 Starting sync...');
       
-      // Загружаем данные из VK
       const vkData = await this.loadFromVK();
       const localData = this.loadFromLocal();
       
-      // Выполняем merge
       const mergedData = this.mergeProgressData(localData, vkData);
       
-      // Сохраняем результат в оба места
       await this.saveToVK(mergedData);
       this.saveToLocal(mergedData);
       
@@ -169,8 +144,6 @@ class ProgressSyncManager {
     }
   }
 
-  // === MERGE ЛОГИКА ===
-
   mergeProgressData(localData, vkData) {
     if (!localData && !vkData) {
       return this.getDefaultProgressData();
@@ -188,7 +161,6 @@ class ProgressSyncManager {
       lastModified: Date.now()
     };
 
-    // Мержим прогресс по уровням (лучший результат побеждает)
     const allLevels = new Set([
       ...Object.keys(localData.levels || {}),
       ...Object.keys(vkData.levels || {})
@@ -203,13 +175,11 @@ class ProgressSyncManager {
       merged.levels[levelIndex] = this.mergeLevelData(local, vk);
     }
 
-    // Мержим достижения (OR логика - если есть хотя бы в одном месте)
     merged.achievements = {
       ...vkData.achievements,
       ...localData.achievements
     };
 
-    // Мержим общую статистику (сумма или максимум)
     merged.stats = this.mergeStats(localData.stats, vkData.stats);
 
     console.log('✅ Merge completed');
@@ -220,11 +190,6 @@ class ProgressSyncManager {
     if (!local && !vk) return null;
     if (!vk) return local;
     if (!local) return vk;
-
-    // Берем лучший результат по приоритетам:
-    // 1. Больше звезд
-    // 2. При равных звездах - лучшее время
-    // 3. При равном времени - меньше ошибок
     
     if (local.stars !== vk.stars) {
       return local.stars > vk.stars ? local : vk;
@@ -252,8 +217,6 @@ class ProgressSyncManager {
       )
     };
   }
-
-  // === STORAGE ОПЕРАЦИИ ===
 
   saveToLocal(data) {
     try {
@@ -314,8 +277,19 @@ class ProgressSyncManager {
         const result = await window.VKHelpers.getStorageData([this.vkKey]);
         
         if (result.keys && result.keys[0] && result.keys[0].value) {
-          const compressed = result.keys[0].value;
-          const data = this.decompressData(compressed);
+          const rawValue = result.keys[0].value;
+          
+          // ИСПРАВЛЕНИЕ: Проверяем тип данных
+          let data;
+          if (typeof rawValue === 'string') {
+            data = this.decompressData(rawValue);
+          } else if (typeof rawValue === 'object') {
+            data = rawValue;
+          } else {
+            console.warn('⚠️ Unexpected data type from VK:', typeof rawValue);
+            return this.getDefaultProgressData();
+          }
+          
           return this.migrateDataIfNeeded(data);
         }
         
@@ -333,14 +307,10 @@ class ProgressSyncManager {
     }
   }
 
-  // === UTILITIES ===
-
   compressData(data) {
     const str = JSON.stringify(data);
     
-    // Простая компрессия для больших объектов
     if (str.length > this.settings.compressionThreshold) {
-      // Можно добавить реальную компрессию (LZ4, gzip)
       console.log(`📦 Data size: ${str.length} bytes`);
     }
     
@@ -349,6 +319,10 @@ class ProgressSyncManager {
 
   decompressData(compressed) {
     try {
+      // ИСПРАВЛЕНИЕ: Безопасная десериализация
+      if (typeof compressed === 'object') {
+        return compressed;
+      }
       return JSON.parse(compressed);
     } catch (error) {
       console.error('❌ Failed to decompress data:', error);
@@ -361,16 +335,35 @@ class ProgressSyncManager {
     if (!data.version) return false;
     if (!data.timestamp) return false;
     
-    // Дополнительные проверки структуры...
     return true;
   }
 
   migrateDataIfNeeded(data) {
+    // ИСПРАВЛЕНИЕ: Проверяем что data это объект
+    if (typeof data === 'string') {
+      console.warn('⚠️ Data is string, parsing...');
+      try {
+        data = JSON.parse(data);
+      } catch (error) {
+        console.error('❌ Failed to parse data string:', error);
+        return this.getDefaultProgressData();
+      }
+    }
+    
+    if (!data || typeof data !== 'object') {
+      console.warn('⚠️ Invalid data structure, returning defaults');
+      return this.getDefaultProgressData();
+    }
+    
     if (!data.version || data.version !== this.version) {
       console.log(`🔄 Migrating data from ${data.version} to ${this.version}`);
-      // Логика миграции данных...
-      data.version = this.version;
+      // Создаем новый объект вместо мутации
+      return {
+        ...data,
+        version: this.version
+      };
     }
+    
     return data;
   }
 
@@ -400,10 +393,7 @@ class ProgressSyncManager {
     return deviceId;
   }
 
-  // === AUTO-SYNC & EVENTS ===
-
   queueSync() {
-    // Debounce логика
     clearTimeout(this.syncTimeout);
     this.syncTimeout = setTimeout(() => {
       if (this.isVKAvailable() && this.shouldSync()) {
@@ -426,7 +416,6 @@ class ProgressSyncManager {
         const eventType = e.detail?.type;
         
         if (eventType === 'VKWebAppViewRestore') {
-          // Синхронизируемся при возврате в приложение
           setTimeout(() => {
             if (this.shouldSync()) {
               this.performSync();
@@ -455,22 +444,16 @@ class ProgressSyncManager {
     if (this.onSyncError) {
       this.onSyncError(error);
     }
-
-    // Стратегии восстановления...
   }
 
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // === PUBLIC API ===
-
-  // Принудительная синхронизация
   async forceSync() {
     return await this.performSync();
   }
 
-  // Получение статуса синхронизации
   getSyncStatus() {
     return {
       isSyncing: this.isSyncing,
@@ -480,7 +463,6 @@ class ProgressSyncManager {
     };
   }
 
-  // Очистка всех данных
   async clearAllData() {
     localStorage.removeItem(this.localKey);
     
@@ -494,5 +476,4 @@ class ProgressSyncManager {
   }
 }
 
-// Экспорт для использования в игре
 window.ProgressSyncManager = ProgressSyncManager;
