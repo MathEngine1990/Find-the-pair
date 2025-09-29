@@ -1,18 +1,26 @@
 /**
- * ProgressSyncManager.js - Исправленная версия с типобезопасностью
- * для VK Mini Apps с поддержкой multi-platform sync
+ * ProgressSyncManager.js - ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ
+ * Синглтон для управления синхронизацией прогресса VK Mini Apps
  */
 
 class ProgressSyncManager {
   constructor() {
+    // Проверка синглтона
+    if (ProgressSyncManager.instance) {
+      console.log('📦 Returning existing ProgressSyncManager instance');
+      return ProgressSyncManager.instance;
+    }
+    
     this.version = '1.0';
     this.localKey = 'findpair_progress';
     this.vkKey = 'findpair_progress';
     this.achievementsKey = 'findpair_achievements';
     
     this.isSyncing = false;
+    this.isInitialized = false;
     this.lastSyncTime = 0;
     this.syncQueue = [];
+    this.autoSyncInterval = null;
     
     this.settings = {
       syncInterval: 30000,
@@ -27,14 +35,32 @@ class ProgressSyncManager {
     this.onSyncError = null;
     this.onProgressUpdate = null;
     
-    this.init();
+    // Сохраняем экземпляр
+    ProgressSyncManager.instance = this;
+    
+    // НЕ вызываем init() в конструкторе
+    console.log('🆕 ProgressSyncManager singleton created');
   }
 
   async init() {
-    console.log('🔄 ProgressSyncManager initialized');
-    await this.loadInitialData();
-    this.startAutoSync();
-    this.subscribeToVKEvents();
+    if (this.isInitialized) {
+      console.log('⚠️ ProgressSyncManager already initialized');
+      return;
+    }
+    
+    console.log('🔄 ProgressSyncManager initializing...');
+    this.isInitialized = true;
+    
+    try {
+      await this.loadInitialData();
+      this.startAutoSync();
+      this.subscribeToVKEvents();
+      console.log('✅ ProgressSyncManager initialized successfully');
+    } catch (error) {
+      console.error('❌ ProgressSyncManager initialization failed:', error);
+      this.isInitialized = false;
+      throw error;
+    }
   }
 
   async loadInitialData() {
@@ -54,50 +80,6 @@ class ProgressSyncManager {
     } catch (error) {
       console.error('❌ Failed to load initial data:', error);
       this.handleSyncError(error);
-    }
-  }
-
-  async saveProgress(progressData, forceSync = false) {
-    const timestamp = Date.now();
-    
-    const enrichedData = {
-      ...progressData,
-      version: this.version,
-      timestamp,
-      deviceId: this.getDeviceId(),
-      lastModified: timestamp
-    };
-
-    if (!this.validateProgressData(enrichedData)) {
-      throw new Error('Invalid progress data structure');
-    }
-
-    this.saveToLocal(enrichedData);
-
-    if (forceSync) {
-      await this.performSync();
-    } else {
-      this.queueSync();
-    }
-
-    if (this.onProgressUpdate) {
-      this.onProgressUpdate(enrichedData);
-    }
-
-    return enrichedData;
-  }
-
-  async loadProgress() {
-    try {
-      if (this.isVKAvailable() && this.shouldSync()) {
-        await this.performSync();
-      }
-      
-      return this.loadFromLocal();
-      
-    } catch (error) {
-      console.warn('⚠️ Sync failed, using local data:', error);
-      return this.loadFromLocal();
     }
   }
 
@@ -144,79 +126,118 @@ class ProgressSyncManager {
     }
   }
 
-  mergeProgressData(localData, vkData) {
-    if (!localData && !vkData) {
+  async loadFromVK() {
+    if (!this.isVKAvailable()) {
+      throw new Error('VK Storage not available');
+    }
+
+    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
+      try {
+        const result = await window.VKHelpers.getStorageData([this.vkKey]);
+        
+        if (result?.keys?.[0]?.value) {
+          const rawValue = result.keys[0].value;
+          
+          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Универсальный парсер
+          let data = this.parseVKData(rawValue);
+          
+          if (!data) {
+            console.warn('⚠️ Failed to parse VK data, using defaults');
+            return this.getDefaultProgressData();
+          }
+          
+          // Миграция БЕЗ мутации
+          return this.safelyMigrateData(data);
+        }
+        
+        return this.getDefaultProgressData();
+        
+      } catch (error) {
+        console.warn(`⚠️ VK load attempt ${attempt} failed:`, error);
+        
+        if (attempt === this.settings.retryAttempts) {
+          throw error;
+        }
+        
+        await this.delay(this.settings.retryDelay * attempt);
+      }
+    }
+  }
+
+  /**
+   * НОВЫЙ МЕТОД: Безопасный парсер VK данных
+   */
+  parseVKData(rawValue) {
+    // Случай 1: Уже объект
+    if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      console.log('📦 VK data is already an object');
+      return { ...rawValue }; // Возвращаем копию
+    }
+    
+    // Случай 2: JSON строка
+    if (typeof rawValue === 'string') {
+      try {
+        const parsed = JSON.parse(rawValue);
+        
+        // Проверяем что распарсился объект
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          console.log('📦 VK data parsed from JSON string');
+          return parsed;
+        } else {
+          console.warn('⚠️ Parsed data is not a valid object');
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ JSON parse failed:', error);
+        console.error('Raw value was:', rawValue.substring(0, 100) + '...');
+        return null;
+      }
+    }
+    
+    // Случай 3: Неподдерживаемый тип
+    console.warn('⚠️ Unsupported VK data type:', typeof rawValue);
+    return null;
+  }
+
+  /**
+   * НОВЫЙ МЕТОД: Безопасная миграция без мутации
+   */
+  safelyMigrateData(data) {
+    // Гарантируем что работаем с объектом
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      console.warn('⚠️ Invalid data for migration');
       return this.getDefaultProgressData();
     }
     
-    if (!vkData) return localData;
-    if (!localData) return vkData;
-
-    console.log('🔀 Merging progress data...');
-    
-    const merged = {
+    // ВСЕГДА создаём новый объект
+    const migrated = {
       version: this.version,
-      timestamp: Math.max(localData.timestamp || 0, vkData.timestamp || 0),
-      deviceId: localData.deviceId || this.getDeviceId(),
-      lastModified: Date.now()
+      timestamp: data.timestamp || Date.now(),
+      deviceId: data.deviceId || this.getDeviceId(),
+      lastModified: Date.now(),
+      levels: data.levels || {},
+      achievements: data.achievements || {},
+      stats: data.stats || {
+        gamesPlayed: 0,
+        totalTime: 0,
+        totalErrors: 0,
+        bestTime: null,
+        lastPlayed: 0
+      }
     };
-
-    const allLevels = new Set([
-      ...Object.keys(localData.levels || {}),
-      ...Object.keys(vkData.levels || {})
-    ]);
-
-    merged.levels = {};
     
-    for (const levelIndex of allLevels) {
-      const local = localData.levels?.[levelIndex];
-      const vk = vkData.levels?.[levelIndex];
-      
-      merged.levels[levelIndex] = this.mergeLevelData(local, vk);
-    }
-
-    merged.achievements = {
-      ...vkData.achievements,
-      ...localData.achievements
-    };
-
-    merged.stats = this.mergeStats(localData.stats, vkData.stats);
-
-    console.log('✅ Merge completed');
-    return merged;
-  }
-
-  mergeLevelData(local, vk) {
-    if (!local && !vk) return null;
-    if (!vk) return local;
-    if (!local) return vk;
-    
-    if (local.stars !== vk.stars) {
-      return local.stars > vk.stars ? local : vk;
+    // Логирование миграции
+    if (!data.version || data.version !== this.version) {
+      console.log(`🔄 Data migrated from v${data.version || 'unknown'} to v${this.version}`);
     }
     
-    if (local.bestTime !== vk.bestTime) {
-      return local.bestTime < vk.bestTime ? local : vk;
-    }
-    
-    return local.errors < vk.errors ? local : vk;
+    return migrated;
   }
 
-  mergeStats(localStats = {}, vkStats = {}) {
-    return {
-      gamesPlayed: (localStats.gamesPlayed || 0) + (vkStats.gamesPlayed || 0),
-      totalTime: (localStats.totalTime || 0) + (vkStats.totalTime || 0),
-      totalErrors: (localStats.totalErrors || 0) + (vkStats.totalErrors || 0),
-      bestTime: Math.min(
-        localStats.bestTime || Infinity,
-        vkStats.bestTime || Infinity
-      ),
-      lastPlayed: Math.max(
-        localStats.lastPlayed || 0,
-        vkStats.lastPlayed || 0
-      )
-    };
-  }
+  /**
+   * УДАЛЁН проблемный метод migrateDataIfNeeded
+   * Заменён на safelyMigrateData
+   */
 
   saveToLocal(data) {
     try {
@@ -235,7 +256,7 @@ class ProgressSyncManager {
       if (!compressed) return this.getDefaultProgressData();
       
       const data = this.decompressData(compressed);
-      return this.migrateDataIfNeeded(data);
+      return this.safelyMigrateData(data);
     } catch (error) {
       console.error('❌ Failed to load from localStorage:', error);
       return this.getDefaultProgressData();
@@ -267,71 +288,6 @@ class ProgressSyncManager {
     }
   }
 
-  async loadFromVK() {
-    if (!this.isVKAvailable()) {
-      throw new Error('VK Storage not available');
-    }
-
-    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
-      try {
-        const result = await window.VKHelpers.getStorageData([this.vkKey]);
-        
-        if (result?.keys?.[0]?.value) {
-          const rawValue = result.keys[0].value;
-          
-          // ИСПРАВЛЕНИЕ: Универсальная десериализация с проверкой типов
-          let data = this.safeParseData(rawValue);
-          
-          if (!data) {
-            console.warn('⚠️ Failed to parse VK data, using defaults');
-            return this.getDefaultProgressData();
-          }
-          
-          // ИСПРАВЛЕНИЕ: Безопасная миграция без мутации
-          return this.migrateDataIfNeeded(data);
-        }
-        
-        return this.getDefaultProgressData();
-        
-      } catch (error) {
-        console.warn(`⚠️ VK load attempt ${attempt} failed:`, error);
-        
-        if (attempt === this.settings.retryAttempts) {
-          throw error;
-        }
-        
-        await this.delay(this.settings.retryDelay * attempt);
-      }
-    }
-  }
-
-  /**
-   * НОВЫЙ МЕТОД: Безопасный парсинг данных с обработкой всех типов
-   */
-  safeParseData(data) {
-    // Уже объект - возвращаем как есть
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
-      return data;
-    }
-    
-    // Строка - пытаемся распарсить
-    if (typeof data === 'string') {
-      try {
-        const parsed = JSON.parse(data);
-        
-        // Проверяем что получился объект
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return parsed;
-        }
-      } catch (error) {
-        console.error('❌ JSON parse failed:', error);
-      }
-    }
-    
-    // Все остальные случаи - возвращаем null
-    return null;
-  }
-
   compressData(data) {
     const str = JSON.stringify(data);
     
@@ -344,11 +300,145 @@ class ProgressSyncManager {
 
   decompressData(compressed) {
     try {
-      // Безопасная десериализация
-      return this.safeParseData(compressed) || this.getDefaultProgressData();
+      if (typeof compressed === 'object') {
+        return { ...compressed }; // Возвращаем копию
+      }
+      
+      if (typeof compressed === 'string') {
+        return JSON.parse(compressed);
+      }
+      
+      console.warn('⚠️ Unexpected data type for decompression');
+      return null;
     } catch (error) {
       console.error('❌ Failed to decompress data:', error);
+      return null;
+    }
+  }
+
+  mergeProgressData(localData, vkData) {
+    if (!localData && !vkData) {
       return this.getDefaultProgressData();
+    }
+    
+    if (!vkData) return localData;
+    if (!localData) return vkData;
+
+    console.log('🔀 Merging progress data...');
+    
+    const merged = {
+      version: this.version,
+      timestamp: Math.max(localData.timestamp || 0, vkData.timestamp || 0),
+      deviceId: localData.deviceId || this.getDeviceId(),
+      lastModified: Date.now(),
+      levels: {},
+      achievements: {},
+      stats: {}
+    };
+
+    // Merge levels
+    const allLevels = new Set([
+      ...Object.keys(localData.levels || {}),
+      ...Object.keys(vkData.levels || {})
+    ]);
+
+    for (const levelIndex of allLevels) {
+      const local = localData.levels?.[levelIndex];
+      const vk = vkData.levels?.[levelIndex];
+      
+      merged.levels[levelIndex] = this.mergeLevelData(local, vk);
+    }
+
+    // Merge achievements
+    merged.achievements = {
+      ...vkData.achievements,
+      ...localData.achievements
+    };
+
+    // Merge stats
+    merged.stats = this.mergeStats(localData.stats, vkData.stats);
+
+    console.log('✅ Merge completed');
+    return merged;
+  }
+
+  mergeLevelData(local, vk) {
+    if (!local && !vk) return null;
+    if (!vk) return local;
+    if (!local) return vk;
+    
+    // Возвращаем лучший результат
+    if ((local.stars || 0) !== (vk.stars || 0)) {
+      return (local.stars || 0) > (vk.stars || 0) ? local : vk;
+    }
+    
+    if ((local.bestTime || Infinity) !== (vk.bestTime || Infinity)) {
+      return (local.bestTime || Infinity) < (vk.bestTime || Infinity) ? local : vk;
+    }
+    
+    return (local.errors || Infinity) < (vk.errors || Infinity) ? local : vk;
+  }
+
+  mergeStats(localStats = {}, vkStats = {}) {
+    return {
+      gamesPlayed: Math.max(localStats.gamesPlayed || 0, vkStats.gamesPlayed || 0),
+      totalTime: Math.max(localStats.totalTime || 0, vkStats.totalTime || 0),
+      totalErrors: Math.max(localStats.totalErrors || 0, vkStats.totalErrors || 0),
+      bestTime: Math.min(
+        localStats.bestTime || Infinity,
+        vkStats.bestTime || Infinity
+      ) === Infinity ? null : Math.min(
+        localStats.bestTime || Infinity,
+        vkStats.bestTime || Infinity
+      ),
+      lastPlayed: Math.max(
+        localStats.lastPlayed || 0,
+        vkStats.lastPlayed || 0
+      )
+    };
+  }
+
+  async saveProgress(progressData, forceSync = false) {
+    const timestamp = Date.now();
+    
+    const enrichedData = {
+      ...progressData,
+      version: this.version,
+      timestamp,
+      deviceId: this.getDeviceId(),
+      lastModified: timestamp
+    };
+
+    if (!this.validateProgressData(enrichedData)) {
+      throw new Error('Invalid progress data structure');
+    }
+
+    this.saveToLocal(enrichedData);
+
+    if (forceSync) {
+      await this.performSync();
+    } else {
+      this.queueSync();
+    }
+
+    if (this.onProgressUpdate) {
+      this.onProgressUpdate(enrichedData);
+    }
+
+    return enrichedData;
+  }
+
+  async loadProgress() {
+    try {
+      if (this.isVKAvailable() && this.shouldSync()) {
+        await this.performSync();
+      }
+      
+      return this.loadFromLocal();
+      
+    } catch (error) {
+      console.warn('⚠️ Sync failed, using local data:', error);
+      return this.loadFromLocal();
     }
   }
 
@@ -358,56 +448,6 @@ class ProgressSyncManager {
     if (!data.timestamp) return false;
     
     return true;
-  }
-
-  /**
-   * ИСПРАВЛЕННЫЙ МЕТОД: Безопасная миграция без мутации
-   */
-  migrateDataIfNeeded(data) {
-    // Дополнительная проверка типа на входе
-    if (!data || typeof data === 'string') {
-      const parsed = this.safeParseData(data);
-      if (!parsed) {
-        console.warn('⚠️ Invalid data for migration, using defaults');
-        return this.getDefaultProgressData();
-      }
-      data = parsed;
-    }
-    
-    // Проверяем что это объект
-    if (typeof data !== 'object' || Array.isArray(data)) {
-      console.warn('⚠️ Invalid data structure, returning defaults');
-      return this.getDefaultProgressData();
-    }
-    
-    // ИСПРАВЛЕНИЕ: Всегда создаём новый объект, никогда не мутируем оригинал
-    if (!data.version || data.version !== this.version) {
-      console.log(`🔄 Migrating data from v${data.version || 'unknown'} to v${this.version}`);
-      
-      // Создаём новый объект с правильной версией
-      const migrated = {
-        ...data,
-        version: this.version,
-        // Добавляем недостающие поля
-        deviceId: data.deviceId || this.getDeviceId(),
-        timestamp: data.timestamp || Date.now(),
-        lastModified: Date.now(),
-        levels: data.levels || {},
-        achievements: data.achievements || {},
-        stats: data.stats || {
-          gamesPlayed: 0,
-          totalTime: 0,
-          totalErrors: 0,
-          bestTime: null,
-          lastPlayed: 0
-        }
-      };
-      
-      return migrated;
-    }
-    
-    // Данные уже актуальной версии - возвращаем копию для безопасности
-    return { ...data };
   }
 
   getDefaultProgressData() {
@@ -447,11 +487,26 @@ class ProgressSyncManager {
   }
 
   startAutoSync() {
-    setInterval(() => {
+    // Очищаем старый интервал если есть
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+    }
+    
+    this.autoSyncInterval = setInterval(() => {
       if (this.isVKAvailable() && this.shouldSync()) {
         this.performSync();
       }
     }, this.settings.syncInterval);
+    
+    console.log('⏰ Auto-sync started');
+  }
+
+  stopAutoSync() {
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+      this.autoSyncInterval = null;
+      console.log('⏰ Auto-sync stopped');
+    }
   }
 
   subscribeToVKEvents() {
@@ -485,7 +540,6 @@ class ProgressSyncManager {
   handleSyncError(error) {
     console.error('❌ Sync error:', error);
     
-    // Добавляем детальную информацию об ошибке
     if (error.stack) {
       console.error('Stack trace:', error.stack);
     }
@@ -508,7 +562,8 @@ class ProgressSyncManager {
       isSyncing: this.isSyncing,
       lastSyncTime: this.lastSyncTime,
       isVKAvailable: this.isVKAvailable(),
-      queueLength: this.syncQueue.length
+      queueLength: this.syncQueue.length,
+      isInitialized: this.isInitialized
     };
   }
 
@@ -524,30 +579,41 @@ class ProgressSyncManager {
       }
     }
   }
-  
+
   /**
-   * НОВЫЙ МЕТОД: Валидация структуры данных
+   * Метод для безопасного уничтожения синглтона
    */
-  validateDataStructure(data) {
-    const requiredFields = ['version', 'timestamp', 'deviceId'];
-    const optionalFields = ['levels', 'achievements', 'stats', 'lastModified'];
+  destroy() {
+    this.stopAutoSync();
     
-    // Проверка обязательных полей
-    for (const field of requiredFields) {
-      if (!data.hasOwnProperty(field)) {
-        console.warn(`Missing required field: ${field}`);
-        return false;
-      }
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
     }
     
-    // Проверка типов
-    if (typeof data.version !== 'string') return false;
-    if (typeof data.timestamp !== 'number') return false;
-    if (typeof data.deviceId !== 'string') return false;
+    this.onSyncStart = null;
+    this.onSyncComplete = null;
+    this.onSyncError = null;
+    this.onProgressUpdate = null;
     
-    return true;
+    ProgressSyncManager.instance = null;
+    this.isInitialized = false;
+    
+    console.log('🗑️ ProgressSyncManager destroyed');
+  }
+
+  /**
+   * Статический метод для получения экземпляра
+   */
+  static getInstance() {
+    if (!ProgressSyncManager.instance) {
+      ProgressSyncManager.instance = new ProgressSyncManager();
+    }
+    return ProgressSyncManager.instance;
   }
 }
 
-// Экспорт для использования
+// Статическое свойство для хранения экземпляра
+ProgressSyncManager.instance = null;
+
+// Экспорт класса
 window.ProgressSyncManager = ProgressSyncManager;
