@@ -288,7 +288,7 @@ setTimeout(() => this.init().catch(console.error), 0);
 }
 
   compressData(data) {
-    const str = JSON.stringify(data);
+    const str = JSON.stringify(progressData);
     
     if (str.length > this.settings.compressionThreshold) {
       console.log(`📦 Data size: ${str.length} bytes`);
