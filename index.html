@@ -553,7 +553,7 @@ if (detectMobile && isLowEnd) {
     });
 
     // ДОБАВЛЕНО: Оптимизация для мобильных устройств
-    if (isMobile) {
+    if (detectMobile) {
       // Предотвращаем масштабирование
       document.addEventListener('touchstart', function(e) {
         if (e.touches.length > 1) {
