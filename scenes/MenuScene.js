@@ -565,7 +565,13 @@ async initSyncManager() {
       this.syncManager = new ProgressSyncManager();
       await this.syncManager.init(); // Явная инициализация
     }
-  }}
+  } catch (error) {
+    console.error('❌ Failed to initialize sync manager:', error);
+    // Fallback - синхронизация будет недоступна
+    this.syncManager = null;
+    this.showSyncError(error);
+  }
+}
   
 
   // НОВЫЙ МЕТОД: Принудительная синхронизация
