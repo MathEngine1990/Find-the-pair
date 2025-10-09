@@ -35,7 +35,7 @@ html, body {
   text-size-adjust: none;
   
   /* ИСПРАВЛЕНО: Убираем safe-area padding для body */
-  padding: 0 !important;
+  /*padding: 0 !important;
 }
 
 #game { 
@@ -50,7 +50,7 @@ html, body {
   display: block !important;
   
   /* КРИТИЧНО: Убираем safe-area padding - они создают серые полосы */
-  padding: 0 !important;
+  /*padding: 0 !important;
   box-sizing: border-box;
   
   background: #1d2330;
@@ -99,6 +99,12 @@ canvas {
   /* УБИРАЕМ фильтры - они могут влиять на производительность */
   filter: none !important;
   -webkit-filter: none !important;
+
+
+   @supports (padding: env(safe-area-inset-top)) {
+  .with-safe-area { /* Применяем только к элементам с классом */
+    padding-top: env(safe-area-inset-top) !important;
+  }
 }
 
 /* =====================================================
