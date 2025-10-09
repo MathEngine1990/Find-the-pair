@@ -601,15 +601,7 @@ class ProgressSyncManager {
     console.log('🗑️ ProgressSyncManager destroyed');
   }
 
-  /**
-   * Статический метод для получения экземпляра
-   */
-  static getInstance() {
-    if (!ProgressSyncManager.instance) {
-      ProgressSyncManager.instance = new ProgressSyncManager();
-    }
-    return ProgressSyncManager.instance;
-  }
+
 }
 
 // Статическое свойство для хранения экземпляра
