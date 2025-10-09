@@ -17,7 +17,9 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     fontFamily,
     fontSize: `${fs}px`,
     fontStyle: (window.THEME?.buttonStyle || 'bold'),
-    color
+    color,
+        stroke: '#000000',
+        strokeThickness: 2
   }).setOrigin(0.5).setScrollFactor(0);
   
   const zone = scene.add.zone(0, 0, w, h)
