@@ -831,25 +831,14 @@ window.alert = showGameNotification;
 // ИСПРАВЛЕНО: Используем правильный parent и размеры
 const gameConfig = {
   type: Phaser.AUTO,
-  parent: gameContainer,  // ← ВАЖНО: используем gameContainer, не 'game'
-  width: gameWidth,       // ← ВАЖНО: используем вычисленные размеры
-  height: gameHeight,
+  parent: 'game',
+  width: window.innerWidth,
+  height: window.innerHeight,
   backgroundColor: '#1d2330',
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: gameWidth,
-    height: gameHeight
-  },
-  render: { 
-    antialias: !isMobile,
-    pixelArt: false
-  },
-  scene: [
-    window.PreloadScene,
-    window.MenuScene,
-    window.GameScene
-  ]
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER
+  }
 };
 
 try {
