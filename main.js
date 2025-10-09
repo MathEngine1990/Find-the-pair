@@ -828,8 +828,7 @@ window.alert = showGameNotification;
       isMobile: isMobile
     });
     
-    // main.js (строки 800-850)
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
 
 const config = {
     type: Phaser.AUTO,
