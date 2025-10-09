@@ -577,62 +577,59 @@ this.syncManager.loadProgress().then(data => {
     }
   }
 
-  updateSingleLevelButton(button, levelIndex, progressLevels) {
+  // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
+updateSingleLevelButton(button, levelIndex, progressLevels) {
     const levelProgress = progressLevels[levelIndex];
     
+    // КРИТИЧНО: Удаляем старые контейнеры
     if (button.starsContainer) {
-      button.starsContainer.destroy();
-      button.starsContainer = null;
+        button.starsContainer.destroy();
+        button.starsContainer = null;
+    }
+    if (button.statsContainer) {
+        button.statsContainer.destroy();
+        button.statsContainer = null;
     }
     
-    button.starsContainer = this.add.container(button.x, button.y + 35);
+    // Создаём новые контейнеры с фиксированными позициями
+    const btnX = button.x;
+    const btnY = button.y;
+    const btnH = button.displayHeight || button.height;
     
-    const starSize = 18;
+    // Звёзды всегда на фиксированной позиции относительно кнопки
+    button.starsContainer = this.add.container(btnX, btnY + btnH * 0.32);
+    button.starsContainer.setDepth(button.depth + 1);
+    
+    const starSize = Math.max(18, Math.round(btnH * 0.12));
     const starSpacing = starSize + 4;
     const stars = levelProgress ? levelProgress.stars : 0;
     
     for (let star = 1; star <= 3; star++) {
-      const starX = (star - 2) * starSpacing;
-      const filled = star <= stars;
-      const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
-        fontSize: starSize + 'px',
-        color: filled ? '#FFD700' : '#666666'
-      }).setOrigin(0.5);
-      
-      button.starsContainer.add(starText);
+        const starX = (star - 2) * starSpacing;
+        const filled = star <= stars;
+        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+            fontSize: starSize + 'px',
+            color: filled ? '#FFD700' : '#666666'
+        }).setOrigin(0.5);
+        
+        button.starsContainer.add(starText);
     }
     
-    button.starsContainer.setDepth(10);
-    
-    if (button.statsContainer) {
-      button.statsContainer.destroy();
-      button.statsContainer = null;
-    }
-    
-    button.statsContainer = this.add.container(button.x, button.y + 57);
+    // Статистика на фиксированной позиции
+    button.statsContainer = this.add.container(btnX, btnY + btnH * 0.42);
+    button.statsContainer.setDepth(button.depth + 1);
     
     if (levelProgress) {
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
-      const statsDisplay = this.add.text(0, 0, statsText, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px',
-        color: '#CCCCCC'
-      }).setOrigin(0.5);
-      
-      button.statsContainer.add(statsDisplay);
-    } else {
-      const hintText = this.add.text(0, 0, 'Не пройден', {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '11px',  
-        color: '#888888',
-        fontStyle: 'italic'
-      }).setOrigin(0.5);
-      
-      button.statsContainer.add(hintText);
+        const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
+        const statsDisplay = this.add.text(0, 0, statsText, {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: Math.max(14, Math.round(starSize * 0.7)) + 'px', // Минимум 14px
+            color: '#CCCCCC'
+        }).setOrigin(0.5);
+        
+        button.statsContainer.add(statsDisplay);
     }
-    
-    button.statsContainer.setDepth(10);
-  }
+}
 
   showToast(message, color = '#3498DB', duration = 2000) {
     const { W, H } = this.getSceneWH();
