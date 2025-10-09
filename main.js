@@ -759,28 +759,39 @@
       isMobile: isMobile
     });
     
-    const gameConfig = {
-      type: Phaser.AUTO,
-      parent: gameContainer,
-      width: gameWidth,
-      height: gameHeight,
-      backgroundColor: '#1d2330',
-      scale: {
-        mode: Phaser.Scale.FIT,
+    const config = {
+    type: Phaser.AUTO,
+    parent: 'game',
+    width: 1920,
+    height: 1080,
+    // КРИТИЧНО: EXPAND mode для заполнения всего экрана
+    scale: {
+        mode: Phaser.Scale.EXPAND, // Изменено с FIT на EXPAND
+        parent: 'game',
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: gameWidth,
-        height: gameHeight
-      },
-      render: { 
-        antialias: !isMobile,
-        pixelArt: false
-      },
-      scene: [
-        window.PreloadScene,
-        window.MenuScene,
-        window.GameScene
-      ]
-    };
+        width: 1920,
+        height: 1080,
+        expandParent: true
+    },
+    // ИСПРАВЛЕНО: Высокое качество рендеринга
+    render: {
+        antialias: true,
+        pixelArt: false,
+        roundPixels: false,
+        transparent: false,
+        clearBeforeRender: true,
+        preserveDrawingBuffer: true,
+        premultipliedAlpha: true,
+        failIfMajorPerformanceCaveat: false,
+        powerPreference: 'high-performance',
+        batchSize: 4096,
+        maxTextures: 16,
+        mipmapFilter: 'LINEAR'
+    },
+    // ДОБАВЛЕНО: Высокое DPI разрешение
+    resolution: Math.min(2, window.devicePixelRatio || 1),
+    backgroundColor: '#1d2330'
+};
 
     try {
       console.log('Creating Phaser game...');
