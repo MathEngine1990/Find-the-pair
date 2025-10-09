@@ -63,14 +63,19 @@ async initializeSyncManager() {
       console.log('🔄 Sync started');
       this.isSyncing = true;
       this.showSyncIndicator();
+      this.updateSyncButton();
+      this.showSyncButtonAnimation();
     };
     
     this.syncManager.onSyncComplete = (data) => {
       console.log('✅ Sync completed');
       this.isSyncing = false;
       this.hideSyncIndicator();
+      this.updateSyncButton();
+      this.hideSyncButtonAnimation();
       if (data) {
         this.progress = data;
+        this.refreshUI();
       }
     };
     
@@ -78,6 +83,8 @@ async initializeSyncManager() {
       console.warn('⚠️ Sync error:', error);
       this.isSyncing = false;
       this.hideSyncIndicator();
+      this.updateSyncButton();
+      this.hideSyncButtonAnimation();
       this.showSyncError(error);
     };
     
@@ -1358,3 +1365,6 @@ hideSyncButtonAnimation() {
     okButton.setDepth(1003);
   }
 };
+
+
+
