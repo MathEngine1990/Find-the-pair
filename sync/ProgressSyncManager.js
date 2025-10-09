@@ -135,7 +135,8 @@ class ProgressSyncManager {
 
     for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
       try {
-        const result = await window.VKSafe.send('VKWebAppStorageGet', {
+        // ИСПРАВЛЕНО: Используем безопасный метод VK Bridge
+        const result = await this.safeVKCall('VKWebAppStorageGet', {
           keys: [this.vkKey]
         });
         
@@ -159,6 +160,25 @@ class ProgressSyncManager {
     }
   }
 
+  // НОВЫЙ МЕТОД: Безопасный вызов VK Bridge
+  async safeVKCall(method, params = {}) {
+    if (!window.vkBridge) {
+      throw new Error('VK Bridge not available');
+    }
+    
+    try {
+      return await window.vkBridge.send(method, params);
+    } catch (error) {
+      // Обработка специфичных ошибок VK
+      if (error.error_data?.error_code === 6) {
+        // Слишком много запросов
+        await this.delay(1000);
+        return await window.vkBridge.send(method, params);
+      }
+      throw error;
+    }
+  }
+
   saveToLocal(data) {
     try {
       const compressed = this.compressData(data);
@@ -166,8 +186,32 @@ class ProgressSyncManager {
       console.log('💾 Saved to localStorage');
     } catch (error) {
       console.error('❌ Failed to save to localStorage:', error);
-      throw error;
+      
+      // ИСПРАВЛЕНО: Попытка очистить старые данные при переполнении
+      if (error.name === 'QuotaExceededError') {
+        this.cleanupLocalStorage();
+        try {
+          localStorage.setItem(this.localKey, compressed);
+        } catch (retryError) {
+          throw retryError;
+        }
+      } else {
+        throw error;
+      }
     }
+  }
+
+  // НОВЫЙ МЕТОД: Очистка localStorage при переполнении
+  cleanupLocalStorage() {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('findpair_') && !key.includes('progress')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    console.log(`🧹 Cleaned up ${keysToRemove.length} old localStorage items`);
   }
 
   loadFromLocal() {
@@ -191,7 +235,8 @@ class ProgressSyncManager {
 
     for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
       try {
-        await window.VKSafe.send('VKWebAppStorageSet', {
+        // ИСПРАВЛЕНО: Используем безопасный метод
+        await this.safeVKCall('VKWebAppStorageSet', {
           key: this.vkKey,
           value: JSON.stringify(progressData)
         });
@@ -219,7 +264,13 @@ class ProgressSyncManager {
       
       // Проверка размера
       if (compressed.length > this.settings.compressionThreshold) {
-        console.log(`📦 Data size: ${compressed.length} bytes (compression threshold: ${this.settings.compressionThreshold})`);
+        console.log(`📦 Data size: ${compressed.length} bytes`);
+        
+        // ИСПРАВЛЕНО: Оптимизация данных при превышении порога
+        if (compressed.length > 10000) {
+          data = this.optimizeData(data);
+          return JSON.stringify(data);
+        }
       }
       
       return compressed;
@@ -227,6 +278,21 @@ class ProgressSyncManager {
       console.error('Failed to compress data:', error);
       throw error;
     }
+  }
+
+  // НОВЫЙ МЕТОД: Оптимизация данных
+  optimizeData(data) {
+    const optimized = { ...data };
+    
+    // Удаляем старые записи уровней (оставляем только последние 50)
+    if (optimized.levels && Object.keys(optimized.levels).length > 50) {
+      const sortedLevels = Object.entries(optimized.levels)
+        .sort((a, b) => (b[1].lastPlayed || 0) - (a[1].lastPlayed || 0))
+        .slice(0, 50);
+      optimized.levels = Object.fromEntries(sortedLevels);
+    }
+    
+    return optimized;
   }
 
   decompressData(compressed) {
@@ -290,7 +356,7 @@ class ProgressSyncManager {
       stats: {}
     };
 
-    // Merge levels
+    // Merge levels - ИСПРАВЛЕНО: корректное слияние
     const allLevels = new Set([
       ...Object.keys(localData.levels || {}),
       ...Object.keys(vkData.levels || {})
@@ -300,13 +366,16 @@ class ProgressSyncManager {
       const local = localData.levels?.[levelIndex];
       const vk = vkData.levels?.[levelIndex];
       
-      merged.levels[levelIndex] = this.mergeLevelData(local, vk);
+      const mergedLevel = this.mergeLevelData(local, vk);
+      if (mergedLevel) {
+        merged.levels[levelIndex] = mergedLevel;
+      }
     }
 
-    // Merge achievements
+    // Merge achievements - берём объединение
     merged.achievements = {
-      ...vkData.achievements,
-      ...localData.achievements
+      ...(vkData.achievements || {}),
+      ...(localData.achievements || {})
     };
 
     // Merge stats
@@ -321,16 +390,29 @@ class ProgressSyncManager {
     if (!vk) return local;
     if (!local) return vk;
     
-    // Возвращаем лучший результат
-    if ((local.stars || 0) !== (vk.stars || 0)) {
-      return (local.stars || 0) > (vk.stars || 0) ? local : vk;
-    }
+    // ИСПРАВЛЕНО: Более детальное слияние данных уровня
+    const merged = {
+      stars: Math.max(local.stars || 0, vk.stars || 0),
+      bestTime: Math.min(
+        local.bestTime || Infinity,
+        vk.bestTime || Infinity
+      ) === Infinity ? null : Math.min(
+        local.bestTime || Infinity,
+        vk.bestTime || Infinity
+      ),
+      errors: Math.min(
+        local.errors || Infinity,
+        vk.errors || Infinity
+      ) === Infinity ? null : Math.min(
+        local.errors || Infinity,
+        vk.errors || Infinity
+      ),
+      attempts: Math.max(local.attempts || 0, vk.attempts || 0),
+      completed: local.completed || vk.completed || false,
+      lastPlayed: Math.max(local.lastPlayed || 0, vk.lastPlayed || 0)
+    };
     
-    if ((local.bestTime || Infinity) !== (vk.bestTime || Infinity)) {
-      return (local.bestTime || Infinity) < (vk.bestTime || Infinity) ? local : vk;
-    }
-    
-    return (local.errors || Infinity) < (vk.errors || Infinity) ? local : vk;
+    return merged;
   }
 
   mergeStats(localStats = {}, vkStats = {}) {
@@ -394,6 +476,35 @@ class ProgressSyncManager {
       console.warn('⚠️ Sync failed, using local data:', error);
       return this.loadFromLocal();
     }
+  }
+
+  // НОВЫЙ МЕТОД: Сохранение прогресса уровня
+  async saveLevelProgress(levelIndex, levelData) {
+    const progress = await this.loadProgress();
+    
+    progress.levels[levelIndex] = {
+      ...progress.levels[levelIndex],
+      ...levelData,
+      lastPlayed: Date.now()
+    };
+    
+    progress.stats.gamesPlayed = (progress.stats.gamesPlayed || 0) + 1;
+    progress.stats.lastPlayed = Date.now();
+    
+    return await this.saveProgress(progress);
+  }
+
+  // НОВЫЙ МЕТОД: Сохранение достижений
+  async saveAchievement(achievementId, data = {}) {
+    const progress = await this.loadProgress();
+    
+    progress.achievements[achievementId] = {
+      unlocked: true,
+      unlockedAt: Date.now(),
+      ...data
+    };
+    
+    return await this.saveProgress(progress, true); // Форсируем синхронизацию для достижений
   }
 
   validateProgressData(data) {
@@ -469,11 +580,20 @@ class ProgressSyncManager {
         const eventType = e.detail?.type;
         
         if (eventType === 'VKWebAppViewRestore') {
+          // Синхронизация при возвращении в приложение
           setTimeout(() => {
             if (this.shouldSync()) {
               this.performSync();
             }
           }, 1000);
+        }
+        
+        // ДОБАВЛЕНО: Обработка изменения темы
+        if (eventType === 'VKWebAppUpdateConfig') {
+          const scheme = e.detail?.data?.scheme;
+          if (scheme) {
+            document.body.setAttribute('data-scheme', scheme);
+          }
         }
       });
     }
@@ -481,13 +601,16 @@ class ProgressSyncManager {
 
   shouldSync() {
     const timeSinceLastSync = Date.now() - this.lastSyncTime;
-    return timeSinceLastSync > this.settings.syncInterval;
+    return timeSinceLastSync > 5000; // Минимум 5 секунд между синхронизациями
   }
 
   isVKAvailable() {
-    return window.VK_BRIDGE_READY && 
-           window.VKSafe && 
-           window.VKSafe.isAvailable();
+    // ИСПРАВЛЕНО: Более надёжная проверка
+    return !!(
+      window.VK_BRIDGE_READY && 
+      window.vkBridge &&
+      typeof window.vkBridge.send === 'function'
+    );
   }
 
   handleSyncError(error) {
@@ -507,6 +630,7 @@ class ProgressSyncManager {
   }
 
   async forceSync() {
+    console.log('🔄 Force sync requested');
     return await this.performSync();
   }
 
@@ -516,17 +640,19 @@ class ProgressSyncManager {
       lastSyncTime: this.lastSyncTime,
       isVKAvailable: this.isVKAvailable(),
       queueLength: this.syncQueue.length,
-      isInitialized: this.isInitialized
+      isInitialized: this.isInitialized,
+      timeSinceLastSync: Date.now() - this.lastSyncTime
     };
   }
 
   async clearAllData() {
     localStorage.removeItem(this.localKey);
     localStorage.removeItem('device_id');
+    localStorage.removeItem(this.achievementsKey);
     
     if (this.isVKAvailable()) {
       try {
-        await window.VKSafe.send('VKWebAppStorageSet', {
+        await this.safeVKCall('VKWebAppStorageSet', {
           key: this.vkKey,
           value: '{}'
         });
@@ -534,6 +660,8 @@ class ProgressSyncManager {
         console.warn('Failed to clear VK data:', error);
       }
     }
+    
+    console.log('🗑️ All data cleared');
   }
 
   destroy() {
@@ -560,3 +688,14 @@ ProgressSyncManager.instance = null;
 
 // Экспорт класса
 window.ProgressSyncManager = ProgressSyncManager;
+
+// ДОБАВЛЕНО: Автоматическая инициализация при готовности VK Bridge
+if (window.VK_BRIDGE_READY) {
+  window.progressSyncManager = new ProgressSyncManager();
+} else {
+  window.addEventListener('vk-bridge-ready', () => {
+    if (!window.progressSyncManager) {
+      window.progressSyncManager = new ProgressSyncManager();
+    }
+  });
+}
