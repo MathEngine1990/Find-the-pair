@@ -204,6 +204,21 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
+
+     // ИСПРАВЛЕНО: Используем seed для детерминированного перемешивания
+  const pool = [];
+  const selectedKeys = Phaser.Utils.Array.Shuffle(
+    [...window.ALL_CARD_KEYS]
+  ).slice(0, pairCount);
+  
+  selectedKeys.forEach(key => {
+    pool.push(key, key); // Добавляем пары
+  });
+  
+  // Применяем seeded shuffle
+  this.gameState.deck = this.shuffleWithSeed(pool, this.gameSeed);
+  
+  console.log('Deck created with seed:', this.gameSeed);
   }
 
   // НОВЫЙ МЕТОД: Инициализация менеджера синхронизации
@@ -876,71 +891,47 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   onCardClick(card) {
-    if (!this.canClick || this._processingCards) return;
-    if (card.getData('opened') || card.getData('matched')) return;
-
-    // Защита от быстрых кликов
-    const now = Date.now();
-    if (this._lastClickTime && now - this._lastClickTime < 250) {
-      console.log('Click ignored - too fast');
-      return;
-    }
-    this._lastClickTime = now;
-    
-    // Блокируем дальнейшие клики на время обработки
-    this._processingCards = true;
-    
-    this.gameMetrics.attempts++;
-
-    // ИСПРАВЛЕНО: Используем новый метод смены текстуры
-    this.setCardTexture(card, card.getData('key'));
-    card.setData('opened', true);
-    this.opened.push(card);
-
-    if (this.opened.length === 2) {
-      this.canClick = false;
-      
-      const checkTimer = this.time.delayedCall(450, () => {
-        const [a, b] = this.opened;
-        if (a.getData('key') === b.getData('key')) {
-          // Трекинг времени матчей
-          const matchTime = (Date.now() - this.gameMetrics.startTime) / 1000;
-          this.gameMetrics.matchTimes.push(matchTime);
+  // ИСПРАВЛЕНО: Тройная защита от race conditions
+  if (!this.canClick || this._processingCards) return;
+  if (card.getData('opened') || card.getData('matched')) return;
+  if (card.getData('isAnimating')) return; // Новая проверка
+  
+  const now = Date.now();
+  if (this._lastClickTime && now - this._lastClickTime < 300) {
+    return;
+  }
+  
+  // Помечаем карту как анимирующуюся
+  card.setData('isAnimating', true);
+  this._lastClickTime = now;
+  this._processingCards = true;
+  
+  // Анимация переворота
+  this.tweens.add({
+    targets: card,
+    scaleX: 0,
+    duration: 150,
+    onComplete: () => {
+      this.setCardTexture(card, card.getData('key'));
+      this.tweens.add({
+        targets: card,
+        scaleX: card.getData('scaleX') || 1,
+        duration: 150,
+        onComplete: () => {
+          card.setData('isAnimating', false);
+          card.setData('opened', true);
+          this.opened.push(card);
           
-          if (this.gameMetrics.timeToFirstMatch === null) {
-            this.gameMetrics.timeToFirstMatch = matchTime;
+          if (this.opened.length === 2) {
+            this.checkPair();
+          } else {
+            this._processingCards = false;
           }
-          
-          a.setData('matched', true).setAlpha(window.THEME.cardDimAlpha).disableInteractive();
-          b.setData('matched', true).setAlpha(window.THEME.cardDimAlpha).disableInteractive();
-          a.setData('opened', false); 
-          b.setData('opened', false);
-        } else {
-          this.mistakeCount++;
-          this.gameMetrics.errors++;
-          if (this.mistakeText) this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
-          
-          // ИСПРАВЛЕНО: Используем новый метод для возврата к задней стороне
-          this.setCardTexture(a, 'back');
-          this.setCardTexture(b, 'back');
-          a.setData('opened', false);
-          b.setData('opened', false);
-        }
-        
-        this.opened = [];
-        this.canClick = true;
-        this._processingCards = false;
-
-        if (this.cards.every(c => c.getData('matched'))) {
-          this.showWin();
         }
       });
-      
-      this.gameTimer = checkTimer;
-    } else {
-      this._processingCards = false;
     }
-  }
+  });
+}
 
   // УЛУЧШЕННЫЙ МЕТОД: Экран победы с интеграцией ProgressSyncManager
   async showWin() {
