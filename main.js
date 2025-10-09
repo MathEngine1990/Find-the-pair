@@ -133,6 +133,71 @@
     `;
   }
 
+  // КРИТИЧНО: Заменяем все window.alert на игровые уведомления
+function showGameNotification(message, type = 'info') {
+    // Если игра ещё не создана, сохраняем сообщение
+    if (!window.game || !window.game.scene) {
+        console.warn('Game notification pending:', message);
+        window.pendingNotifications = window.pendingNotifications || [];
+        window.pendingNotifications.push({ message, type });
+        return;
+    }
+    
+    const activeScene = window.game.scene.getScenes(true)[0];
+    if (!activeScene) return;
+    
+    const { width, height } = activeScene.scale;
+    
+    // Создаём уведомление в активной сцене
+    const notification = activeScene.add.container(width/2, height*0.85)
+        .setDepth(9999);
+    
+    // Фон уведомления
+    const bg = activeScene.add.graphics();
+    const bgColor = type === 'error' ? 0xE74C3C : 
+                    type === 'success' ? 0x27AE60 : 0x3498DB;
+    
+    bg.fillStyle(bgColor, 0.95);
+    bg.fillRoundedRect(-200, -30, 400, 60, 10);
+    
+    // Текст уведомления
+    const text = activeScene.add.text(0, 0, message, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '16px',
+        color: '#FFFFFF',
+        wordWrap: { width: 380 },
+        align: 'center'
+    }).setOrigin(0.5);
+    
+    notification.add([bg, text]);
+    notification.setAlpha(0);
+    
+    // Анимация появления
+    activeScene.tweens.add({
+        targets: notification,
+        alpha: 1,
+        y: height * 0.8,
+        duration: 300,
+        ease: 'Power2.easeOut',
+        onComplete: () => {
+            // Автоскрытие через 3 секунды
+            activeScene.time.delayedCall(3000, () => {
+                activeScene.tweens.add({
+                    targets: notification,
+                    alpha: 0,
+                    y: height * 0.85,
+                    duration: 300,
+                    ease: 'Power2.easeIn',
+                    onComplete: () => notification.destroy()
+                });
+            });
+        }
+    });
+}
+
+// Заменяем все вызовы alert
+window.alert = showGameNotification;
+
   // ========================================
   // VK BRIDGE ОБЕРТКА
   // ========================================
