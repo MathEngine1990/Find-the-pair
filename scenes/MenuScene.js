@@ -593,20 +593,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     }
   }
 
-  async initSyncManager() {
-    try {
-      // Используем глобальный синглтон если доступен
-      if (window.progressSyncManager) {
-        this.syncManager = window.progressSyncManager;
-      } else {
-        this.syncManager = new ProgressSyncManager();
-        await this.syncManager.init(); // Явная инициализация
-      }
-    } catch (error) {
-      console.error('❌ Failed to initialize sync manager:', error);
-      this.syncManager = null;
-    }
-  }
+
 
   // НОВЫЙ МЕТОД: Принудительная синхронизация
   async forceSyncProgress() {
