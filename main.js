@@ -863,6 +863,7 @@ const gameConfig = {
     MenuScene || window.MenuScene,
     GameScene || window.GameScene
   ].filter(Boolean) // Фильтруем undefined сцены
+    };
 
 
     
