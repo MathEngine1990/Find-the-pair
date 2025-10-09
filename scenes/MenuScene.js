@@ -567,11 +567,9 @@ async initSyncManager() {
     }
   } catch (error) {
     console.error('❌ Failed to initialize sync manager:', error);
-    // Fallback - синхронизация будет недоступна
     this.syncManager = null;
-    this.showSyncError(error);
   }
-}
+}  // Одна закрывающая скобка для метода
   
 
   // НОВЫЙ МЕТОД: Принудительная синхронизация
