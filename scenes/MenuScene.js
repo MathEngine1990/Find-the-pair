@@ -565,7 +565,7 @@ async initSyncManager() {
       this.syncManager = new ProgressSyncManager();
       await this.syncManager.init(); // Явная инициализация
     }
-
+  }}
   
 
   // НОВЫЙ МЕТОД: Принудительная синхронизация
