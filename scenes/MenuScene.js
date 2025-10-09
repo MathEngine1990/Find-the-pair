@@ -629,9 +629,12 @@ hideSyncButtonAnimation() {
   }
 
   // НОВЫЙ МЕТОД: Обновить UI после синхронизации
-  refreshUI() {
+ refreshUI() {
     // Пропускаем обновление если сцена не активна
     if (!this.scene.isActive()) return;
+    
+    // Пропускаем если это первая загрузка (кнопки еще не созданы)
+    if (!this.levelButtons || this.levelButtons.length === 0) return;
     
     console.log('🔄 Refreshing MenuScene UI');
     
@@ -686,6 +689,7 @@ hideSyncButtonAnimation() {
     // Обновляем звезды
     if (button.starsContainer) {
       button.starsContainer.destroy();
+      button.starsContainer = null; // Добавить обнуление
     }
     
     button.starsContainer = this.add.container(button.x, button.y + 35);
@@ -710,7 +714,13 @@ hideSyncButtonAnimation() {
     // Обновляем статистику
     if (button.statsContainer) {
       button.statsContainer.destroy();
+      button.statsContainer = null;
     }
+
+// Добавляем контейнер в массив для правильной очистки
+    this.levelButtons.push(button.starsContainer);
+    // Добавляем контейнер в массив для правильной очистки
+    this.levelButtons.push(button.statsContainer);
     
     button.statsContainer = this.add.container(button.x, button.y + 57);
     
