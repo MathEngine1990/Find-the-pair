@@ -1108,7 +1108,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     btn.starsContainer.add(starText); // Добавляем В КОНТЕЙНЕР
   }
   
-  btn.starsContainer.setDepth(btn.depth + 1);
+  btn.starsContainer.setDepth(10);
   
   // Создаем контейнер для статистики
   btn.statsContainer = this.add.container(x, y + h*0.32 + 22);
@@ -1138,7 +1138,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     btn.statsContainer.add(hintText); // Добавляем В КОНТЕЙНЕР
   }
   
-  btn.statsContainer.setDepth(btn.depth + 1);
+  btn.statsContainer.setDepth(10);
   
   // НЕ добавляем контейнеры в массив levelButtons!
 }
