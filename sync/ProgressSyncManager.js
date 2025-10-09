@@ -129,45 +129,35 @@ setTimeout(() => this.init().catch(console.error), 0);
   }
 
   async loadFromVK() {
-    if (!this.isVKAvailable()) {
-      throw new Error('VK Storage not available');
-    }
+  if (!this.isVKAvailable()) {
+    throw new Error('VK Storage not available');
+  }
 
-    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
-      try {
-        const result = await window.VKSafe.send('VKWebAppStorageGet', {
+  for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
+    try {
+      const result = await window.VKSafe.send('VKWebAppStorageGet', {
         keys: [this.vkKey]
       });
-        
-        if (result?.keys?.length > 0) {
-          const data = result.keys[0].value;
-        return data ? JSON.parse(data) : this.getDefaultProgressData();
-          
-          // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Универсальный парсер
-          let data = this.parseVKData(rawValue);
-          
-          if (!data) {
-            console.warn('⚠️ Failed to parse VK data, using defaults');
-            return this.getDefaultProgressData();
-          }
-          
-          // Миграция БЕЗ мутации
-          return this.safelyMigrateData(data);
-        }
-        
-        return this.getDefaultProgressData();
-        
-      } catch (error) {
-        console.warn(`⚠️ VK load attempt ${attempt} failed:`, error);
-        
-        if (attempt === this.settings.retryAttempts) {
-          throw error;
-        }
-        
-        await this.delay(this.settings.retryDelay * attempt);
+      
+      if (result?.keys?.length > 0) {
+        const rawData = result.keys[0].value;  // Переименовать в rawData
+        const parsedData = rawData ? JSON.parse(rawData) : this.getDefaultProgressData();  // Использовать parsedData
+        return parsedData;
       }
+      
+      return this.getDefaultProgressData();
+      
+    } catch (error) {
+      console.warn(`VK Storage load attempt ${attempt} failed:`, error);
+      
+      if (attempt === this.settings.retryAttempts) {
+        throw error;
+      }
+      
+      await this.delay(this.settings.retryDelay * attempt);
     }
   }
+}
 
   /**
    * НОВЫЙ МЕТОД: Безопасный парсер VK данных
