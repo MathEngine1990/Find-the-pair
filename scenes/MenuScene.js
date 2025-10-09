@@ -33,15 +33,15 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.ensureGradientBackground();
 
     console.log('Initializing sync manager...');
-    // Инициализация ProgressSyncManager
-    try {
-      await this.initializeSyncManager();
-      console.log('Sync manager initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize sync manager:', error);
-      // Продолжаем без синхронизации
-      this.progress = this.getProgress();
-    }
+    // НЕ ждем инициализации, делаем ее асинхронно
+this.initializeSyncManager().then(() => {
+    console.log('Sync manager initialized');
+}).catch(error => {
+    console.error('Sync manager failed:', error);
+});
+
+// Используем локальные данные сразу
+this.progress = this.getProgressLocal();
 
     console.log('Drawing menu...');
     this.drawMenu(this.levelPage);
@@ -103,8 +103,15 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       };
       
       // Загружаем прогресс через менеджер
-      this.progress = await this.syncManager.loadProgress();
-      console.log('📊 Progress loaded via sync manager:', this.progress);
+      // Загружаем асинхронно, не блокируя UI
+this.syncManager.loadProgress().then(data => {
+    this.progress = data;
+    console.log('📊 Progress loaded via sync manager:', this.progress);
+    this.refreshUI();
+}).catch(error => {
+    console.error('Failed to load progress:', error);
+});
+     // console.log('📊 Progress loaded via sync manager:', this.progress);
       
     } catch (error) {
       console.error('❌ Failed to init sync manager:', error);
@@ -137,20 +144,31 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
   getProgress() {
     try {
-      if (this.progress && Object.keys(this.progress).length > 0 && this.progress.levels) {
+      // Если есть синхронизированные данные - используем их
+      if (this.progress && this.progress.levels) {
         return this.progress.levels;
       }
       
-      const saved = localStorage.getItem('findpair_progress');
-      if (!saved) return {};
-      
-      const parsed = JSON.parse(saved);
-      return parsed.levels || parsed; // Поддержка старого формата
+      // Иначе загружаем локальные
+      return this.getProgressLocal();
     } catch (e) {
       console.warn('Error loading progress:', e);
       return {};
     }
-  }
+}
+
+  getProgressLocal() {
+    try {
+      const saved = localStorage.getItem('findpair_progress');
+      if (!saved) return {};
+      
+      const parsed = JSON.parse(saved);
+      return parsed.levels || parsed || {};
+    } catch (e) {
+      console.warn('Error loading local progress:', e);
+      return {};
+    }
+}
 
   getStats() {
     const progressLevels = this.getProgress();
