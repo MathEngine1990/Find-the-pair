@@ -1596,16 +1596,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       });
     }
     
-    // Упорство (много игр подряд)
-    this.sessionStats.gamesPlayed++;
-    if (this.sessionStats.gamesPlayed >= 5 && !this.achievements.persistent) {
-      this.achievements.persistent = true;
-      newAchievements.push({
-        id: 'persistent',
-        title: 'Упорство!',
-        description: 'Сыграйте 5 игр подряд'
-      });
-    }
+    
     
     // Сохраняем достижения
     if (newAchievements.length > 0) {
