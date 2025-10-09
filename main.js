@@ -824,38 +824,44 @@ window.alert = showGameNotification;
       isMobile: isMobile
     });
     
-    const config = {
+    // main.js (строки 800-850)
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+const config = {
     type: Phaser.AUTO,
     parent: 'game',
-    width: 1920,
-    height: 1080,
-    // КРИТИЧНО: EXPAND mode для заполнения всего экрана
+    // ИСПРАВЛЕНО: Базовое разрешение для мобильных
+    width: isMobile ? 720 : 1920,
+    height: isMobile ? 1280 : 1080,
     scale: {
-        mode: Phaser.Scale.EXPAND, // Изменено с FIT на EXPAND
+        // КРИТИЧНО: FIT для мобильных, чтобы заполнить экран
+        mode: isMobile ? Phaser.Scale.FIT : Phaser.Scale.FIT,
         parent: 'game',
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1920,
-        height: 1080,
-        expandParent: true
+        // ВАЖНО: Убираем фиксированные размеры
+        width: '100%',
+        height: '100%',
+        // КРИТИЧНО: Разрешаем расширение родителя
+        expandParent: true,
+        // Минимальные и максимальные размеры
+        min: {
+            width: 320,
+            height: 480
+        },
+        max: {
+            width: 1920,
+            height: 1920
+        }
     },
-    // ИСПРАВЛЕНО: Высокое качество рендеринга
+    backgroundColor: '#1d2330',
     render: {
         antialias: true,
         pixelArt: false,
         roundPixels: false,
-        transparent: false,
-        clearBeforeRender: true,
-        preserveDrawingBuffer: true,
-        premultipliedAlpha: true,
-        failIfMajorPerformanceCaveat: false,
-        powerPreference: 'high-performance',
-        batchSize: 4096,
-        maxTextures: 16,
-        mipmapFilter: 'LINEAR'
+        transparent: false
     },
-    // ДОБАВЛЕНО: Высокое DPI разрешение
-    resolution: Math.min(2, window.devicePixelRatio || 1),
-    backgroundColor: '#1d2330'
+    // Убираем высокое DPI для мобильных
+    resolution: 1
 };
 
     try {
