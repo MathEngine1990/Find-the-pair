@@ -726,8 +726,13 @@ window.alert = showGameNotification;
       gameContainer.id = 'game';
       
       gameContainer.style.cssText = `
-        width: 100vw; 
-        height: 100vh; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
         position: fixed; 
         top: 0; 
         left: 0; 
@@ -800,9 +805,10 @@ window.alert = showGameNotification;
       return;
     }
 
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
+    
     const isPortrait = screenHeight > screenWidth;
+
+    
     
     let gameWidth, gameHeight;
     
@@ -841,6 +847,20 @@ const gameConfig = {
   }
 };
 
+    render: { 
+    antialias: !isMobile,
+    pixelArt: false
+  },
+  // ДОБАВИТЬ эти строки:
+  physics: {
+    default: 'arcade',
+    arcade: { debug: false }
+  },
+  disableContextMenu: true,
+  banner: false, // Отключаем баннер Phaser в консоли
+
+
+    
 try {
   console.log('Creating Phaser game...');
   console.log('Game config:', {
@@ -851,6 +871,12 @@ try {
   });
   
   window.game = new Phaser.Game(gameConfig);  // ← Используем gameConfig
+
+   scene: [
+    PreloadScene || window.PreloadScene,
+    MenuScene || window.MenuScene,
+    GameScene || window.GameScene
+  ].filter(Boolean) // Фильтруем undefined сцены
   
   if (!window.game) {
     throw new Error('Game creation failed');
@@ -858,6 +884,20 @@ try {
   
   console.log('✅ Game created successfully');
   debugLog('Game created successfully');
+
+  // Строка 893 - ДОБАВИТЬ обработку resize
+window.game.scale.on('resize', (gameSize, baseSize, displaySize, previousWidth, previousHeight) => {
+  console.log('Game resized to:', gameSize.width, 'x', gameSize.height);
+  
+  // Форсируем canvas на полный экран
+  if (window.game.canvas) {
+    window.game.canvas.style.width = '100%';
+    window.game.canvas.style.height = '100%';
+    window.game.canvas.style.position = 'absolute';
+    window.game.canvas.style.top = '0';
+    window.game.canvas.style.left = '0';
+  }
+});
       
       window.game.events.once('ready', function() {
         console.log('🎮 Game ready event triggered');
@@ -908,9 +948,10 @@ try {
       
       if (isMobile) {
         window.addEventListener('orientationchange', () => {
-          setTimeout(() => {
-            if (window.game && window.game.scale) {
-              window.game.scale.refresh();
+  setTimeout(() => {
+    if (window.game && window.game.scale) {
+      // Форсируем обновление размеров
+      window.game.scale.resize(window.innerWidth, window.innerHeight);
               console.log('📱 Orientation changed, scale refreshed');
             }
           }, 500);
