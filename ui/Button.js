@@ -27,9 +27,10 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     .setScrollFactor(0);
 
 
-  const children = [img, txt, zone];
+  
   const cont = scene.add.container(Math.round(x), Math.round(y), children);
-
+  const children = [img, txt, zone];
+  
   cont.setSize(w, h);
 
   zone.on('pointerdown', () => onClick && onClick());
