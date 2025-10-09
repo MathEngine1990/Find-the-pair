@@ -20,8 +20,11 @@ html, body {
 
 #game { 
   /* ИСПРАВЛЕНО: Оптимальное позиционирование для ультра-разрешения */
-  width: 100vw; 
-  height: 100vh; 
+  position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,6 +36,14 @@ html, body {
 
 /* КРИТИЧНО: Стили для canvas ультра-высокого качества */
 canvas {
+  position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
   /* ИСПРАВЛЕНО: Максимальное качество рендеринга */
   image-rendering: auto !important;
   image-rendering: high-quality;
