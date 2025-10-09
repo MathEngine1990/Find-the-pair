@@ -210,23 +210,27 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // НОВЫЙ МЕТОД: Универсальная функция для установки размера карты
   setCardSize(card, width, height) {
-    if (!card || !card.scene) return;
-    
-    // Используем scale вместо displaySize для более точного контроля
-    const originalWidth = card.texture.source[0].width;
-    const originalHeight = card.texture.source[0].height;
-    
-    const scaleX = width / originalWidth;
-    const scaleY = height / originalHeight;
-    
-    card.setScale(scaleX, scaleY);
-    
-    // Сохраняем размеры в данных карты для последующего использования
-    card.setData('targetWidth', width);
-    card.setData('targetHeight', height);
-    card.setData('scaleX', scaleX);
-    card.setData('scaleY', scaleY);
+  if (!card || !card.scene || !card.texture) return;
+  
+  // ИСПРАВЛЕНО: Безопасное получение размеров текстуры
+  const source = card.texture.source;
+  if (!source || !source[0]) {
+    console.warn('Card texture not ready');
+    return;
   }
+  
+  const originalWidth = source[0].width || 100;
+  const originalHeight = source[0].height || 100;
+  
+  const scaleX = width / originalWidth;
+  const scaleY = height / originalHeight;
+  
+  card.setScale(scaleX, scaleY);
+  card.setData('targetWidth', width);
+  card.setData('targetHeight', height);
+  card.setData('scaleX', scaleX);
+  card.setData('scaleY', scaleY);
+}
 
   // НОВЫЙ МЕТОД: Восстановление размера карты
   restoreCardSize(card) {
