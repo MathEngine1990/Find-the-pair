@@ -941,7 +941,7 @@ const pairCount = Math.floor(total / 2);
   });
 }
 
-  // ДОБАВИТЬ ПОСЛЕ onCardClick (строка ~930):
+
 checkPair() {
   if (this.opened.length !== 2) return;
   
