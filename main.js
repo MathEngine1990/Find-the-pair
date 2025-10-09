@@ -908,6 +908,8 @@
     try {
       if (!window.progressSyncManager) {
         window.progressSyncManager = new ProgressSyncManager();
+        // Инициализируем явно
+      await window.progressSyncManager.init();
         
         window.progressSyncManager.onSyncError = (error) => {
           console.error('🔄 Global sync error:', error);
