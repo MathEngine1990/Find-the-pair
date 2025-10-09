@@ -327,7 +327,7 @@
     const DPR = window.devicePixelRatio || 1;
     
     // ДОБАВЛЕНО: Определение платформы для оптимизации
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     const isLowEnd = navigator.hardwareConcurrency <= 2 || navigator.deviceMemory <= 2;
     
     // УЛУЧШЕНО: Адаптивное разрешение на основе устройства
