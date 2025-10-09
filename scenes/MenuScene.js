@@ -276,12 +276,18 @@ this.syncManager.loadProgress().then(data => {
     }
   }
 
-  drawMenu(page){
+  drawMenu(page = 0) {
     console.log('Drawing menu, page:', page);
     this.clearMenu();
     const { W, H } = this.getSceneWH();
     console.log('Scene dimensions:', W, H);
-    this.levelPage = page;
+    
+    // КРИТИЧНО: Определяем мобильное устройство
+    const isMobile = W < 768 || H < 600 || 
+                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const scaleFactor = isMobile ? 1.8 : 1.0; // Увеличиваем все размеры для мобильных
+    
+    this.levelPage = Math.max(0, Math.min(page, Math.ceil(window.LEVELS.length / 9) - 1));
 
     // Проверяем принятие соглашения
     const acceptedAgreement = localStorage.getItem('acceptedAgreement');
@@ -289,84 +295,100 @@ this.syncManager.loadProgress().then(data => {
     const CURRENT_VERSION = '2025-09-13';
     
     // ДЛЯ ОТЛАДКИ: Автоматически принимаем соглашение
-    // В продакшн версии закомментируйте эти строки!
-    if (!acceptedAgreement) {
-      console.log('Auto-accepting agreement for debugging');
-      localStorage.setItem('acceptedAgreement', 'true');
-      localStorage.setItem('agreementVersion', CURRENT_VERSION);
+    if (!acceptedAgreement && window.VK_DEBUG) {
+        console.log('Auto-accepting agreement for debugging');
+        localStorage.setItem('acceptedAgreement', 'true');
+        localStorage.setItem('agreementVersion', CURRENT_VERSION);
     }
 
     if (!acceptedAgreement || agreementVersion !== CURRENT_VERSION) {
-      console.log('Showing user agreement');
-      this.showUserAgreement();
-      return;
+        console.log('Showing user agreement');
+        this.showUserAgreement();
+        return;
     }
 
     console.log('Creating menu content...');
 
-    const COLS=3, ROWS=3, PER_PAGE=COLS*ROWS;
+    // ИСПРАВЛЕНО: Адаптивная сетка для мобильных
+    const COLS = isMobile ? 3 : 3;
+    const ROWS = isMobile ? 3 : 3;
+    const PER_PAGE = COLS * ROWS;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
-    // Заголовок
-    const titlePx = Math.round(Phaser.Math.Clamp(H * 0.06, 20, 40));
-    const title = this.add.text(W/2, H*0.08, 'Сколько пар играть?', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: `${titlePx}px`,
-      fontStyle: 'bold',
-      color: '#FFFFFF',
-      align: 'center'
+    // КРИТИЧНО: Увеличенный размер заголовка
+    const titlePx = Math.round(Phaser.Math.Clamp(
+        H * (isMobile ? 0.055 : 0.06) * scaleFactor, 
+        isMobile ? 32 : 20,
+        isMobile ? 48 : 40
+    ));
+    
+    const title = this.add.text(W/2, H * 0.08, 'Сколько пар играть?', {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: `${titlePx}px`,
+        fontStyle: 'bold',
+        color: '#FFFFFF',
+        align: 'center'
     }).setOrigin(0.5);
-    title.setStroke('#000000', Math.max(2, Math.round(titlePx * 0.08)));
-    title.setShadow(2, 2, '#000000', 6, false, true);
+    title.setStroke('#000000', Math.max(3, Math.round(titlePx * 0.1)));
+    title.setShadow(2, 2, '#000000', 8, false, true);
     this.levelButtons.push(title);
 
-    // Персонализация для VK
+    // Персонализация для VK (если есть)
     if (this.vkUserData && this.vkUserData.first_name) {
-      const greeting = this.add.text(W/2, H*0.04, `Привет, ${this.vkUserData.first_name}!`, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(titlePx * 0.6) + 'px',
-        color: '#FFD700',
-        fontStyle: 'bold'
-      }).setOrigin(0.5);
-      greeting.setStroke('#000000', 2);
-      this.levelButtons.push(greeting);
+        const greetingSize = Math.round(titlePx * 0.7);
+        const greeting = this.add.text(W/2, H * 0.04, `Привет, ${this.vkUserData.first_name}!`, {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: greetingSize + 'px',
+            color: '#FFD700',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        greeting.setStroke('#000000', 2);
+        this.levelButtons.push(greeting);
     }
 
-    // Статистика
+    // Статистика (с увеличенным шрифтом)
     const stats = this.getStats();
     if (stats.completedLevels > 0) {
-      let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
-      
-      if (stats.gamesPlayed > 0) {
-        statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
-        if (stats.perfectGames > 0) {
-          statsText += ` | Идеальных: ${stats.perfectGames}`;
+        let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
+        
+        if (stats.gamesPlayed > 0) {
+            statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
+            if (stats.perfectGames > 0) {
+                statsText += ` | Идеальных: ${stats.perfectGames}`;
+            }
+            if (stats.bestTime) {
+                statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
+            }
         }
-        if (stats.bestTime) {
-          statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
-        }
-      }
-      
-      const statsDisplay = this.add.text(W/2, H*0.14, statsText, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(titlePx * 0.4) + 'px',
-        color: '#E0E0E0',
-        align: 'center',
-        fontStyle: 'normal'
-      }).setOrigin(0.5);
-      statsDisplay.setStroke('#000000', 1);
-      this.levelButtons.push(statsDisplay);
+        
+        const statsSize = Math.max(
+            isMobile ? 16 : 14,
+            Math.round(titlePx * 0.5)
+        );
+        
+        const statsDisplay = this.add.text(W/2, H * 0.14, statsText, {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: statsSize + 'px',
+            color: '#E0E0E0',
+            align: 'center',
+            lineSpacing: isMobile ? 8 : 4
+        }).setOrigin(0.5);
+        statsDisplay.setStroke('#000000', 1);
+        this.levelButtons.push(statsDisplay);
     }
 
-    // Кнопка синхронизации
+    // Кнопка синхронизации (если есть)
     if (this.syncManager) {
-      this.createSyncButton(W, H, titlePx);
+        this.createSyncButton(W, H, titlePx);
     }
 
-    // Область для кнопок уровней
-    const topY = H*0.20, bottomY = H*0.78;
+    // КРИТИЧНО: Увеличенная область для кнопок на мобильных
+    const topY = H * (isMobile ? 0.18 : 0.20);
+    const bottomY = H * (isMobile ? 0.82 : 0.78);
     const areaH = bottomY - topY;
-    const areaW = Math.min(W*0.90, 1080);
+    const areaW = Math.min(W * (isMobile ? 0.95 : 0.90), isMobile ? W : 1080);
+    
+    // ИСПРАВЛЕНО: Увеличенные размеры ячеек
     const cellH = areaH / ROWS;
     const cellW = areaW / COLS;
     const gridLeft = (W - areaW) / 2;
@@ -376,56 +398,160 @@ this.syncManager.loadProgress().then(data => {
     const endIdx = Math.min(startIdx + PER_PAGE, window.LEVELS.length);
     const pageLevels = window.LEVELS.slice(startIdx, endIdx);
 
-    console.log('Creating level buttons:', pageLevels.length);
+    console.log('Creating level buttons:', pageLevels.length, 'Mobile:', isMobile);
 
-    // Создание кнопок уровней
+    // КРИТИЧНО: Создание увеличенных кнопок уровней
     pageLevels.forEach((lvl, i) => {
-      const levelIndex = startIdx + i;
-      const r = (i / COLS) | 0, c = i % COLS;
-      const x = gridLeft + c * cellW + cellW/2;
-      const y = gridTop + r * cellH + cellH/2;
-      const w = Math.min(320, cellW*0.9);
-      const h = Math.min(200, cellH*0.86);
+        const levelIndex = startIdx + i;
+        const r = Math.floor(i / COLS);
+        const c = i % COLS;
+        const x = gridLeft + c * cellW + cellW/2;
+        const y = gridTop + r * cellH + cellH/2;
+        
+        // ИСПРАВЛЕНО: Увеличенные размеры кнопок для мобильных
+        const btnW = Math.min(
+            isMobile ? cellW * 0.92 : 320, 
+            cellW * 0.9
+        );
+        const btnH = Math.min(
+            isMobile ? cellH * 0.88 : 200, 
+            cellH * 0.86
+        );
 
-      this.createLevelButton(x, y, w, h, lvl, levelIndex);
+        this.createLevelButton(x, y, btnW, btnH, lvl, levelIndex, scaleFactor);
     });
 
-    // Навигация
-    const yNav = H*0.86;
-    const size = Math.max(52, Math.round(H*0.06));
+    // ИСПРАВЛЕНО: Увеличенная навигация
+    const yNav = H * (isMobile ? 0.88 : 0.86);
+    const navSize = Math.max(
+        isMobile ? 60 : 52, 
+        Math.round(H * 0.07 * scaleFactor)
+    );
+    
     const prevActive = this.levelPage > 0;
     const nextActive = this.levelPage < PAGES - 1;
 
-    const prevBtn = window.makeIconButton(this, W*0.30, yNav, size, '‹', () => {
-      if (prevActive) this.drawMenu(this.levelPage - 1);
+    // Кнопка "Назад"
+    const prevBtn = window.makeIconButton(this, W * 0.25, yNav, navSize, '‹', () => {
+        if (prevActive) this.drawMenu(this.levelPage - 1);
     });
-    prevBtn.setAlpha(prevActive?1:0.45); 
+    prevBtn.setAlpha(prevActive ? 1 : 0.45);
     this.levelButtons.push(prevBtn);
 
-    const pageTxt = this.add.text(W*0.5, yNav, `${this.levelPage+1} / ${PAGES}`, {
-      fontFamily: 'Arial, sans-serif', 
-      fontSize: Math.round(Math.min(Math.max(size*0.30,14),22)) + 'px',
-      color:'#FFFFFF', 
-      fontStyle: 'bold'
+    // Текст страницы с увеличенным шрифтом
+    const pageTextSize = Math.max(
+        isMobile ? 20 : 16,
+        Math.round(navSize * 0.35)
+    );
+    
+    const pageTxt = this.add.text(W * 0.5, yNav, `${this.levelPage + 1} / ${PAGES}`, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: pageTextSize + 'px',
+        color: '#FFFFFF',
+        fontStyle: 'bold'
     }).setOrigin(0.5);
-    pageTxt.setStroke('#000000', 1);
+    pageTxt.setStroke('#000000', 2);
     this.levelButtons.push(pageTxt);
 
-    const nextBtn = window.makeIconButton(this, W*0.70, yNav, size, '›', () => {
-      if (nextActive) this.drawMenu(this.levelPage + 1);
+    // Кнопка "Вперед"
+    const nextBtn = window.makeIconButton(this, W * 0.75, yNav, navSize, '›', () => {
+        if (nextActive) this.drawMenu(this.levelPage + 1);
     });
-    nextBtn.setAlpha(nextActive?1:0.45); 
+    nextBtn.setAlpha(nextActive ? 1 : 0.45);
     this.levelButtons.push(nextBtn);
 
-    // Колесо мыши
-    this._wheelHandler = (_p, _objs, _dx, dy) => {
-      if (dy > 0 && nextActive) this.drawMenu(this.levelPage + 1);
-      else if (dy < 0 && prevActive) this.drawMenu(this.levelPage - 1);
-    };
-    this.input.on('wheel', this._wheelHandler);
+    // Колесо мыши (для десктопа)
+    if (!isMobile) {
+        this._wheelHandler = (_p, _objs, _dx, dy) => {
+            if (dy > 0 && nextActive) this.drawMenu(this.levelPage + 1);
+            else if (dy < 0 && prevActive) this.drawMenu(this.levelPage - 1);
+        };
+        this.input.on('wheel', this._wheelHandler);
+    }
     
     console.log('Menu drawn, total buttons:', this.levelButtons.length);
-  }
+}
+
+// ДОПОЛНИТЕЛЬНО: Обновите метод createLevelButton
+createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
+    const isMobile = w > 150; // Простая проверка размера
+    
+    const btn = window.makeImageButton(this, x, y, w, h, '', () => {
+        if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
+        this.scene.start('GameScene', { level: levelIndex });
+    });
+    
+    // КРИТИЧНО: Увеличенный размер текста на кнопках
+    const fontSize = Math.max(
+        24,  // Минимум 24px
+        Math.round(h * 0.35 * scaleFactor)
+    );
+    
+    // Основной текст уровня (числа пар)
+    const levelText = this.add.text(0, -h*0.1, lvl.label, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: fontSize + 'px',
+        fontStyle: 'bold',
+        color: '#FFFFFF'
+    }).setOrigin(0.5);
+    
+    btn.add(levelText);
+    btn.levelIndex = levelIndex;
+    
+    // Размер звёздочек (увеличен)
+    const starSize = Math.max(22, Math.round(h * 0.15 * scaleFactor));
+    
+    // Создаём контейнеры для звёзд и статистики с правильными позициями
+    const progressLevels = this.getProgress();
+    const levelProgress = progressLevels[levelIndex];
+    
+    // Звёздочки - фиксированная позиция
+    btn.starsContainer = this.add.container(x, y + h * 0.25);
+    btn.starsContainer.setDepth(btn.depth + 1);
+    
+    const starSpacing = starSize + 4;
+    const stars = levelProgress ? levelProgress.stars : 0;
+    
+    for (let star = 1; star <= 3; star++) {
+        const starX = (star - 2) * starSpacing;
+        const filled = star <= stars;
+        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+            fontSize: starSize + 'px',
+            color: filled ? '#FFD700' : '#666666',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        btn.starsContainer.add(starText);
+    }
+    
+    // Статистика под звёздами
+    if (levelProgress && levelProgress.bestTime) {
+        const statsSize = Math.max(
+            isMobile ? 16 : 14,
+            Math.round(starSize * 0.65)
+        );
+        
+        const accuracy = levelProgress.accuracy || 100;
+        const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+        
+        btn.statsContainer = this.add.container(x, y + h * 0.38);
+        btn.statsContainer.setDepth(btn.depth + 1);
+        
+        const statsDisplay = this.add.text(0, 0, statsText, {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: statsSize + 'px',
+            color: '#CCCCCC'
+        }).setOrigin(0.5);
+        
+        btn.statsContainer.add(statsDisplay);
+    }
+
+  // Добавляем звёзды и статистику
+    this.updateSingleLevelButton(btn, levelIndex, this.getProgress());
+    
+    this.levelButtons.push(btn);
+    return btn;
+}
 
   createSyncButton(W, H, titlePx) {
     const syncStatus = this.syncManager.getSyncStatus();
