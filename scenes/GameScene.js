@@ -1,6 +1,35 @@
 //---scenes/GameScene.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ ProgressSyncManager
 
 window.GameScene = class GameScene extends Phaser.Scene {
+
+  destroy() {
+  console.log('GameScene destroy called');
+  
+  // ИСПРАВЛЕНО: Полная очистка всех таймеров
+  const timers = [
+    'memorizeTimer', 'flipTimer', 'gameTimer', 
+    'checkTimer', 'hideTimer'
+  ];
+  
+  timers.forEach(timerName => {
+    if (this[timerName]) {
+      if (this[timerName].destroy) {
+        this[timerName].destroy();
+      } else if (this[timerName].remove) {
+        this[timerName].remove();
+      }
+      this[timerName] = null;
+    }
+  });
+  
+  // Очистка time events
+  if (this.time) {
+    this.time.removeAllEvents();
+  }
+  
+  // Остальная очистка...
+  super.destroy();
+}
   
   constructor() { 
     super('GameScene'); 
