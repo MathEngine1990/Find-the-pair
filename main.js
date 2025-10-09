@@ -733,9 +733,6 @@ window.alert = showGameNotification;
   height: 100%;
   margin: 0;
   padding: 0;
-        position: fixed; 
-        top: 0; 
-        left: 0; 
         background: #1d2330;
         z-index: 1000;
         ${isMobile ? `
@@ -751,12 +748,18 @@ window.alert = showGameNotification;
         document.body.appendChild(gameContainer);
         
         if (isMobile) {
-          document.body.style.cssText += `
+          document.body.style.cssText = `
             touch-action: none;
             overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
+              margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #1d2330;
           `;
           
           if (isIOS) {
@@ -806,7 +809,7 @@ window.alert = showGameNotification;
     }
 
     
-    const isPortrait = screenHeight > screenWidth;
+    //const isPortrait = screenHeight > screenWidth;
 
     
     
@@ -826,12 +829,9 @@ window.alert = showGameNotification;
     }
     
     debugLog('Game configuration', {
-  screenWidth: screenWidth,
-  screenHeight: screenHeight,
-  isPortrait: isPortrait,
-  gameWidth: gameWidth,
-  gameHeight: gameHeight,
-  isMobile: isMobile
+  isMobile: isMobile,
+  screen: `${screen.width}x${screen.height}`,
+  viewport: `${window.innerWidth}x${window.innerHeight}`
 });
 
 // ИСПРАВЛЕНО: Используем правильный parent и размеры
@@ -845,7 +845,7 @@ const gameConfig = {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.NO_CENTER
   }
-};
+},
 
     render: { 
     antialias: !isMobile,
@@ -858,6 +858,11 @@ const gameConfig = {
   },
   disableContextMenu: true,
   banner: false, // Отключаем баннер Phaser в консоли
+     scene: [
+    PreloadScene || window.PreloadScene,
+    MenuScene || window.MenuScene,
+    GameScene || window.GameScene
+  ].filter(Boolean) // Фильтруем undefined сцены
 
 
     
@@ -872,11 +877,7 @@ try {
   
   window.game = new Phaser.Game(gameConfig);  // ← Используем gameConfig
 
-   scene: [
-    PreloadScene || window.PreloadScene,
-    MenuScene || window.MenuScene,
-    GameScene || window.GameScene
-  ].filter(Boolean) // Фильтруем undefined сцены
+
   
   if (!window.game) {
     throw new Error('Game creation failed');
