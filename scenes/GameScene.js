@@ -205,6 +205,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
 
+// ДОБАВИТЬ ПЕРЕД СТРОКОЙ 212:
+const total = this.currentLevel.cols * this.currentLevel.rows;
+const pairCount = Math.floor(total / 2);
+    
      // ИСПРАВЛЕНО: Используем seed для детерминированного перемешивания
   const pool = [];
   const selectedKeys = Phaser.Utils.Array.Shuffle(
@@ -933,8 +937,112 @@ window.GameScene = class GameScene extends Phaser.Scene {
   });
 }
 
+  // ДОБАВИТЬ ПОСЛЕ onCardClick (строка ~930):
+checkPair() {
+  if (this.opened.length !== 2) return;
+  
+  const [card1, card2] = this.opened;
+  this.gameMetrics.attempts++;
+  
+  // Блокируем новые клики во время проверки
+  this.canClick = false;
+  
+  // Проверяем совпадение
+  if (card1.getData('key') === card2.getData('key')) {
+    // ✅ СОВПАДЕНИЕ
+    console.log('Match found!');
+    
+    // Помечаем как найденные
+    card1.setData('matched', true);
+    card2.setData('matched', true);
+    
+    // Затемняем карты
+    card1.setAlpha(window.THEME?.cardDimAlpha || 0.5).disableInteractive();
+    card2.setAlpha(window.THEME?.cardDimAlpha || 0.5).disableInteractive();
+    
+    // Очищаем массив открытых
+    this.opened = [];
+    
+    // Разблокируем клики
+    this._processingCards = false;
+    this.canClick = true;
+    
+    // Записываем время до первого совпадения
+    if (!this.gameMetrics.timeToFirstMatch) {
+      this.gameMetrics.timeToFirstMatch = Date.now() - this.gameMetrics.startTime;
+    }
+    this.gameMetrics.matchTimes.push(Date.now() - this.gameMetrics.startTime);
+    
+    // Проверяем победу
+    const allMatched = this.cards.every(card => card.getData('matched'));
+    if (allMatched) {
+      this.showWin();
+    }
+    
+  } else {
+    // ❌ НЕ СОВПАДЕНИЕ
+    console.log('No match');
+    
+    this.gameMetrics.errors++;
+    this.mistakeCount++;
+    
+    // Обновляем счетчик ошибок
+    if (this.mistakeText) {
+      this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
+    }
+    
+    // Закрываем карты через 800ms
+    this.time.delayedCall(800, () => {
+      if (card1 && card1.scene) {
+        this.tweens.add({
+          targets: card1,
+          scaleX: 0,
+          duration: 150,
+          onComplete: () => {
+            this.setCardTexture(card1, 'back');
+            this.tweens.add({
+              targets: card1,
+              scaleX: card1.getData('scaleX') || 1,
+              duration: 150,
+              onComplete: () => {
+                card1.setData('opened', false);
+              }
+            });
+          }
+        });
+      }
+      
+      if (card2 && card2.scene) {
+        this.tweens.add({
+          targets: card2,
+          scaleX: 0,
+          duration: 150,
+          onComplete: () => {
+            this.setCardTexture(card2, 'back');
+            this.tweens.add({
+              targets: card2,
+              scaleX: card2.getData('scaleX') || 1,
+              duration: 150,
+              onComplete: () => {
+                card2.setData('opened', false);
+              }
+            });
+          }
+        });
+      }
+      
+      // Очищаем массив и разблокируем
+      this.opened = [];
+      this._processingCards = false;
+      this.canClick = true;
+    });
+  }
+}
+
   // УЛУЧШЕННЫЙ МЕТОД: Экран победы с интеграцией ProgressSyncManager
   async showWin() {
+      this.clearVictoryScreen(); // ← Убираем старые серые фоны
+    
     this.canClick = false;
     this.gameState.gameStarted = false;
     this.gameState.showingVictory = true;
@@ -973,10 +1081,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.victoryContainer.setDepth(100);
 
     // Полупрозрачный фон
-    const overlay = this.add.graphics();
-    overlay.fillStyle(0x000000, 0.8);
-    overlay.fillRect(0, 0, W, H);
-    this.victoryContainer.add(overlay);
+const overlay = this.add.graphics();
+overlay.fillStyle(0x000000, 0.9); // ← Увеличить прозрачность до 0.9
+overlay.fillRect(0, 0, W, H);
+this.victoryContainer.add(overlay);
 
     // Красивое окно результатов
     const panelW = Math.min(500, W * 0.9);
@@ -1481,8 +1589,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
   // Анимация звёздочек
   showStarsAnimation(x, y, progressResult) {
     const { stars, improved } = progressResult;
-    const starSize = 32;
-    const starSpacing = 50;
+    const starSize = 40;
+    const starSpacing = 60;
     
     for (let i = 1; i <= 3; i++) {
       const starX = x + (i - 2) * starSpacing;
@@ -1490,7 +1598,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
       const star = this.add.text(starX, y, filled ? '★' : '☆', {
         fontSize: `${starSize}px`,
         color: filled ? '#FFD700' : '#666666'
-      }).setOrigin(0.5);
+      }).setOrigin(0.5)
+        .setDepth(102); // ← ДОБАВИТЬ depth
       
       // Добавляем звезду в контейнер если он существует
       if (this.victoryContainer) {
@@ -1519,12 +1628,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
     
     // Текст с количеством звёзд
     const starsText = `${stars}/3 ⭐`;
-    const starsLabel = this.add.text(x, y + 40, starsText, {
+    const starsLabel = this.add.text(x, y + 50, starsText, {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '16px',
+      fontSize: '18px',
       color: '#F39C12',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5)
+      .setDepth(102); // ← ДОБАВИТЬ depth
     
     if (this.victoryContainer) {
       this.victoryContainer.add(starsLabel);
