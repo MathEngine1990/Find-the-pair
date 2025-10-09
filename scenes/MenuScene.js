@@ -12,8 +12,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.vkUserData = data?.userData || window.VK_USER_DATA;
     this.isVKEnvironment = data?.isVK || !!window.VK_LAUNCH_PARAMS;
     
-    // Определяем мобильное устройство
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 
     // ДОБАВЛЕНО: Инициализация синхронизации
     this.syncManager = null;
@@ -64,19 +63,14 @@ async initializeSyncManager() {
       console.log('🔄 Sync started');
       this.isSyncing = true;
       this.showSyncIndicator();
-      this.updateSyncButton(); // ДОБАВЛЕНО: Обновляем кнопку
-      this.showSyncButtonAnimation(); // ДОБАВЛЕНО: Показываем анимацию
     };
     
     this.syncManager.onSyncComplete = (data) => {
       console.log('✅ Sync completed');
       this.isSyncing = false;
       this.hideSyncIndicator();
-      this.updateSyncButton(); // ДОБАВЛЕНО: Обновляем кнопку
-      this.hideSyncButtonAnimation(); // ДОБАВЛЕНО: Скрываем анимацию
       if (data) {
         this.progress = data;
-        this.refreshUI();
       }
     };
     
@@ -84,8 +78,6 @@ async initializeSyncManager() {
       console.warn('⚠️ Sync error:', error);
       this.isSyncing = false;
       this.hideSyncIndicator();
-      this.updateSyncButton(); // ДОБАВЛЕНО: Обновляем кнопку
-      this.hideSyncButtonAnimation(); // ДОБАВЛЕНО: Скрываем анимацию
       this.showSyncError(error);
     };
     
