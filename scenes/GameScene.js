@@ -205,9 +205,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
 
-// ДОБАВИТЬ ПЕРЕД СТРОКОЙ 212:
-const total = this.currentLevel.cols * this.currentLevel.rows;
-const pairCount = Math.floor(total / 2);
+
     
      // ИСПРАВЛЕНО: Используем seed для детерминированного перемешивания
   const pool = [];
@@ -679,6 +677,10 @@ const pairCount = Math.floor(total / 2);
       this.scene.start('MenuScene', { page: this.levelPage });
       return;
     }
+
+    // ДОБАВИТЬ ПЕРЕД СТРОКОЙ 212:
+const total = this.currentLevel.cols * this.currentLevel.rows;
+const pairCount = Math.floor(total / 2);
 
     // Расширенные метрики игры
     this.gameMetrics = {
