@@ -556,7 +556,15 @@ hideSyncButtonAnimation() {
   }
 }
 
-
+async initSyncManager() {
+  try {
+    // Используем глобальный синглтон если доступен
+    if (window.progressSyncManager) {
+      this.syncManager = window.progressSyncManager;
+    } else {
+      this.syncManager = new ProgressSyncManager();
+      await this.syncManager.init(); // Явная инициализация
+    }
 
   
 
