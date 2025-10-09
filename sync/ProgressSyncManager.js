@@ -38,8 +38,10 @@ class ProgressSyncManager {
     // Сохраняем экземпляр
     ProgressSyncManager.instance = this;
     
-    // НЕ вызываем init() в конструкторе
-    console.log('🆕 ProgressSyncManager singleton created');
+    // Автоинициализация при создании
+console.log('🆕 ProgressSyncManager singleton created');
+// Запускаем инициализацию асинхронно
+setTimeout(() => this.init().catch(console.error), 0);
   }
 
   async init() {
@@ -133,10 +135,13 @@ class ProgressSyncManager {
 
     for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
       try {
-        const result = await window.VKHelpers.getStorageData([this.vkKey]);
+        const result = await window.VKSafe.send('VKWebAppStorageGet', {
+        keys: [this.vkKey]
+      });
         
-        if (result?.keys?.[0]?.value) {
-          const rawValue = result.keys[0].value;
+        if (result?.keys?.length > 0) {
+          const data = result.keys[0].value;
+        return data ? JSON.parse(data) : this.getDefaultProgressData();
           
           // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Универсальный парсер
           let data = this.parseVKData(rawValue);
@@ -263,7 +268,7 @@ class ProgressSyncManager {
     }
   }
 
-  async saveToVK(data) {
+  async saveToVK(progressData) {
     if (!this.isVKAvailable()) {
       throw new Error('VK Storage not available');
     }
@@ -272,7 +277,10 @@ class ProgressSyncManager {
     
     for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
       try {
-        await window.VKHelpers.setStorageData(this.vkKey, compressed);
+        await window.VKSafe.send('VKWebAppStorageSet', {
+        key: this.vkKey,
+        value: JSON.stringify(progressData)
+      });
         console.log('☁️ Saved to VK Storage');
         return;
         
@@ -531,11 +539,10 @@ class ProgressSyncManager {
   }
 
   isVKAvailable() {
-    return window.VKHelpers && 
-           window.VK_BRIDGE_READY && 
-           window.VKSafe && 
-           window.VKSafe.isAvailable();
-  }
+  return window.VK_BRIDGE_READY && 
+         window.VKSafe && 
+         window.VKSafe.isAvailable();
+}
 
   handleSyncError(error) {
     console.error('❌ Sync error:', error);
