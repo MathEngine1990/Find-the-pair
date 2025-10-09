@@ -260,14 +260,16 @@ setTimeout(() => this.init().catch(console.error), 0);
 
   async saveToVK(progressData) {
   if (!this.isVKAvailable()) {
-    throw new Error('VK Storage not available');
+    console.warn('VK Storage not available');
+    return false;
   }
 
   for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
     try {
+      // ИСПРАВЛЕНО: используем progressData вместо data
       await window.VKSafe.send('VKWebAppStorageSet', {
         key: this.vkKey,
-        value: JSON.stringify(progressData)  // ✅ ИСПРАВЛЕНО: используем progressData
+        value: JSON.stringify(progressData)  // ← ВОТ ТУТ БЫЛА ОШИБКА
       });
       
       console.log('✅ Saved to VK Storage');
