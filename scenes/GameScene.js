@@ -23,18 +23,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.achievements = this.getAchievements();
     this.vkAchievementManager = window.VKAchievementManager || null;
     
-    this.sessionStats = {
-      gamesPlayed: 0,
-      totalTime: 0,
-      totalErrors: 0,
-      perfectGames: 0
-    };
 
     // Состояние игры для сохранения при resize
     this.gameState = {
       deck: null,           
-      openedCards: [],      
-      matchedCards: [],     
+      openedCards: [],  
       gameStarted: false,   
       canResize: true,      
       isMemorizationPhase: false,
@@ -141,7 +134,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
     this._wheelHandler = null;
     this.bgImage = null;
-    this._texId = 0;
 
     // Таймеры для управления
     this.memorizeTimer = null;
