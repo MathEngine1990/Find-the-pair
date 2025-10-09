@@ -580,7 +580,10 @@ setTimeout(() => this.init().catch(console.error), 0);
     
     if (this.isVKAvailable()) {
       try {
-        await window.VKHelpers.setStorageData(this.vkKey, '{}');
+        await window.VKSafe.send('VKWebAppStorageSet', {
+        key: this.vkKey,
+        value: '{}'
+      });
       } catch (error) {
         console.warn('Failed to clear VK data:', error);
       }
