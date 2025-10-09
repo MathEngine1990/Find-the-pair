@@ -66,8 +66,7 @@ canvas {
   width: 100% !important;
   height: 100% !important;
   
-  /* УБИРАЕМ transform - он создает проблемы с масштабированием */
-  transform: none !important;
+
   -webkit-transform: none !important;
   
   /* Максимальное качество рендеринга */
@@ -91,7 +90,6 @@ canvas {
   
   /* Убираем лишние стили */
   display: block !important;
-  margin: 0 !important;
   padding: 0 !important;
   border: none !important;
   outline: none !important;
