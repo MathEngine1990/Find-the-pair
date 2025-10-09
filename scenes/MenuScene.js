@@ -534,6 +534,50 @@ this.syncManager.loadProgress().then(data => {
     }
   }
 
+  showFullText() {
+    const { W, H } = this.getSceneWH();
+    
+    // Создаём полноэкранное модальное окно
+    const overlay = this.add.graphics()
+        .fillStyle(0x000000, 0.95)
+        .fillRect(0, 0, W, H)
+        .setDepth(2000)
+        .setInteractive();
+
+    const container = this.add.container(W/2, H/2).setDepth(2001);
+    
+    // Контент соглашения
+    const content = this.add.text(0, -H*0.3, 
+        'ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ\n\n' +
+        '1. Общие положения\n' +
+        'Данное соглашение регулирует использование игры "Память: Найди пару".\n\n' +
+        '2. Сбор данных\n' +
+        'Приложение собирает: ID пользователя, игровую статистику.\n\n' +
+        '3. Возрастные ограничения\n' +
+        'Возрастное ограничение: 0+\n\n' +
+        '4. Контакты\n' +
+        'По вопросам: support@findpair-game.example', 
+        {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: Math.max(16, Math.round(H * 0.025)) + 'px',
+            color: '#FFFFFF',
+            wordWrap: { width: Math.min(W * 0.8, 800) },
+            align: 'left'
+        }
+    ).setOrigin(0.5, 0);
+    
+    // Кнопка закрытия
+    const closeBtn = window.makeImageButton(
+        this, 0, H*0.35, 200, 50, 'Закрыть',
+        () => {
+            container.destroy();
+            overlay.destroy();
+        }
+    );
+    
+    container.add([content, closeBtn]);
+}
+  
   refreshUI() {
     if (!this.scene.isActive()) return;
     if (!this.levelButtons || this.levelButtons.length === 0) return;
