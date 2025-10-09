@@ -1139,6 +1139,16 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
   }
   
   btn.statsContainer.setDepth(10);
+
+    // В конце createLevelButton() добавьте:
+console.log('Button created:', {
+  levelIndex,
+  hasStarsContainer: !!btn.starsContainer,
+  starsCount: btn.starsContainer.list.length,
+  hasStatsContainer: !!btn.statsContainer,
+  statsCount: btn.statsContainer.list.length,
+  buttonDepth: btn.depth
+});
   
   // НЕ добавляем контейнеры в массив levelButtons!
 }
