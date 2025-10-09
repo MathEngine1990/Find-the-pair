@@ -718,53 +718,146 @@ window.GameScene = class GameScene extends Phaser.Scene {
   // ИСПРАВЛЕНО: Создание layout карт с улучшенной системой размеров
   createCardLayout(deck) {
     const level = this.currentLevel;
-    const { W, H } = this.getSceneWH();
-    const hudH = Math.min(100, Math.round(H * 0.12));
-    const gameAreaH = H - hudH - 20;
     
-    // ИСПРАВЛЕНО: Фиксируем размеры карт при первом создании
-    if (!this.gameState.cardWidth || !this.gameState.cardHeight) {
-      const maxCardW = Math.min(140, (W - 40) / level.cols - 10);
-      const maxCardH = Math.min(190, gameAreaH / level.rows - 10);
-      
-      this.gameState.cardWidth = Math.min(maxCardW, maxCardH * 0.7);
-      this.gameState.cardHeight = Math.min(maxCardH, maxCardW / 0.7);
-      
-      console.log('Card dimensions fixed:', this.gameState.cardWidth, 'x', this.gameState.cardHeight);
+    // КРИТИЧНО: Используем реальные размеры viewport без вычетов
+    const { width: W, height: H } = this.scale;
+    
+    // ИСПРАВЛЕНО: Адаптивный HUD - меньше места занимает
+    const hudH = Math.min(80, Math.round(H * 0.1)); // Было: 0.12
+    const gameAreaH = H - hudH - 10; // Было: - 20
+    
+    // КРИТИЧНО: Динамический расчет размеров карт под любой экран
+    // Учитываем padding в процентах от ширины экрана
+    const horizontalPadding = W * 0.02; // 2% отступ по краям
+    const verticalPadding = H * 0.02;
+    
+    const availableW = W - (horizontalPadding * 2);
+    const availableH = gameAreaH - (verticalPadding * 2);
+    
+    // ИСПРАВЛЕНО: Расчет оптимального размера карт с учетом промежутков
+    const gapSize = Math.min(8, W * 0.01); // Адаптивный gap
+    const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
+    const cardMaxH = (availableH - (level.rows - 1) * gapSize) / level.rows;
+    
+    // КРИТИЧНО: Сохраняем пропорции карт, но максимально используем экран
+    const aspectRatio = 0.7; // Соотношение ширины к высоте
+    let cardW, cardH;
+    
+    if (cardMaxW / cardMaxH > aspectRatio) {
+        // Ограничены по высоте
+        cardH = cardMaxH;
+        cardW = cardH * aspectRatio;
+    } else {
+        // Ограничены по ширине
+        cardW = cardMaxW;
+        cardH = cardW / aspectRatio;
     }
     
-    // Используем зафиксированные размеры
-    const cardW = this.gameState.cardWidth;
-    const cardH = this.gameState.cardHeight;
+    // ИСПРАВЛЕНО: Ограничения для читаемости на больших экранах
+    const maxAbsoluteCardW = Math.min(150, W * 0.15);
+    const maxAbsoluteCardH = Math.min(200, H * 0.2);
     
-    const totalW = level.cols * cardW + (level.cols - 1) * 8;
-    const totalH = level.rows * cardH + (level.rows - 1) * 8;
+    cardW = Math.min(cardW, maxAbsoluteCardW);
+    cardH = Math.min(cardH, maxAbsoluteCardH);
     
+    // Округляем для четкости
+    cardW = Math.floor(cardW);
+    cardH = Math.floor(cardH);
+    
+    // Сохраняем размеры для последующих операций
+    this.gameState.cardWidth = cardW;
+    this.gameState.cardHeight = cardH;
+    this.gameState.gapSize = gapSize;
+    
+    console.log('Adaptive card dimensions:', cardW, 'x', cardH, 'gap:', gapSize);
+    
+    // КРИТИЧНО: Центрируем сетку карт на весь экран
+    const totalW = level.cols * cardW + (level.cols - 1) * gapSize;
+    const totalH = level.rows * cardH + (level.rows - 1) * gapSize;
+    
+    // ИСПРАВЛЕНО: Точное центрирование без отступов
     const offsetX = (W - totalW) / 2;
-    const offsetY = hudH + 20 + (gameAreaH - totalH) / 2;
-
-    for (let row = 0; row < level.rows; row++) {
-      for (let col = 0; col < level.cols; col++) {
-        const index = row * level.cols + col;
-        const key = deck[index];
-        
-        const x = offsetX + col * (cardW + 8) + cardW/2;
-        const y = offsetY + row * (cardH + 8) + cardH/2;
-        
-        const card = this.add.image(x, y, key) // Начинаем лицом
-          .setData('key', key)
-          .setData('opened', false)
-          .setData('matched', false)
-          .setInteractive({ useHandCursor: true })
-          .on('pointerdown', () => this.onCardClick(card));
-        
-        // ИСПРАВЛЕНО: Используем новый метод установки размера
-        this.setCardSize(card, cardW, cardH);
-        
-        this.cards.push(card);
-      }
+    const offsetY = hudH + (gameAreaH - totalH) / 2;
+    
+    // ОПТИМИЗАЦИЯ: Создаем контейнер для всех карт
+    if (!this.cardsContainer) {
+        this.cardsContainer = this.add.container(0, 0);
     }
-  }
+    this.cardsContainer.removeAll(true);
+    
+    for (let row = 0; row < level.rows; row++) {
+        for (let col = 0; col < level.cols; col++) {
+            const index = row * level.cols + col;
+            const key = deck[index];
+            
+            const x = offsetX + col * (cardW + gapSize) + cardW/2;
+            const y = offsetY + row * (cardH + gapSize) + cardH/2;
+            
+            const card = this.add.image(x, y, key)
+                .setData('key', key)
+                .setData('opened', false)
+                .setData('matched', false)
+                .setData('index', index) // Добавляем индекс для отладки
+                .setInteractive({ useHandCursor: true })
+                .on('pointerdown', () => this.onCardClick(card));
+            
+            // Используем улучшенный метод установки размера
+            this.setCardSize(card, cardW, cardH);
+            
+            // ОПТИМИЗАЦИЯ: Добавляем в контейнер для групповых операций
+            this.cardsContainer.add(card);
+            this.cards.push(card);
+        }
+    }
+    
+    // ИСПРАВЛЕНО: Масштабируем контейнер при необходимости
+    // Это поможет при экстремальных соотношениях сторон
+    if (totalW > W || totalH > gameAreaH) {
+        const scaleX = W / totalW * 0.95; // 95% для небольшого отступа
+        const scaleY = gameAreaH / totalH * 0.95;
+        const scale = Math.min(scaleX, scaleY, 1); // Не увеличиваем больше 1
+        
+        this.cardsContainer.setScale(scale);
+        console.log('Container scaled to:', scale);
+    }
+}
+
+  // НОВЫЙ МЕТОД: Получение реальных размеров viewport
+getSceneWH() {
+    // КРИТИЧНО: Используем scale вместо game.config
+    const { width, height } = this.scale;
+    return { W: width, H: height };
+}
+
+// УЛУЧШЕННЫЙ МЕТОД: Обработка resize
+handleResize(gameSize) {
+    console.log('Resize to:', gameSize.width, 'x', gameSize.height);
+    
+    // Пересчитываем layout только если игра не активна
+    if (!this.gameState.gameStarted && !this.gameState.isMemorizationPhase) {
+        this.createCardLayout(this.gameState.deck);
+    } else if (this.cardsContainer) {
+        // ОПТИМИЗАЦИЯ: Просто масштабируем контейнер при активной игре
+        const { width: W, height: H } = gameSize;
+        const hudH = Math.min(80, Math.round(H * 0.1));
+        const gameAreaH = H - hudH - 10;
+        
+        const totalW = this.gameState.cardWidth * this.currentLevel.cols + 
+                       this.gameState.gapSize * (this.currentLevel.cols - 1);
+        const totalH = this.gameState.cardHeight * this.currentLevel.rows + 
+                       this.gameState.gapSize * (this.currentLevel.rows - 1);
+        
+        const scaleX = W / totalW * 0.95;
+        const scaleY = gameAreaH / totalH * 0.95;
+        const scale = Math.min(scaleX, scaleY, 1);
+        
+        this.cardsContainer.setScale(scale);
+        
+        // Центрируем контейнер
+        this.cardsContainer.x = (W - totalW * scale) / 2;
+        this.cardsContainer.y = hudH + (gameAreaH - totalH * scale) / 2;
+    }
+}
 
   // 5-секундный показ карт для запоминания
   showCardsForMemorization() {
