@@ -666,23 +666,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       return;
     }
 
-    // ДОБАВИТЬ ПЕРЕД СТРОКОЙ 212:
-const total = this.currentLevel.cols * this.currentLevel.rows;
-const pairCount = Math.floor(total / 2);
 
-      const pool = [];
-  const selectedKeys = Phaser.Utils.Array.Shuffle(
-    [...window.ALL_CARD_KEYS]
-  ).slice(0, pairCount);
-  
-  selectedKeys.forEach(key => {
-    pool.push(key, key); // Добавляем пары
-  });
-  
-  // Применяем seeded shuffle
-  this.gameState.deck = this.shuffleWithSeed(pool, this.gameSeed);
-  
-  console.log('Deck created with seed:', this.gameSeed);
 
     // Расширенные метрики игры
     this.gameMetrics = {
