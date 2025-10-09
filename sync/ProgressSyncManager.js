@@ -66,24 +66,29 @@ class ProgressSyncManager {
   }
 
   async loadInitialData() {
-    try {
-      const localData = this.loadFromLocal();
-      
-      if (this.isVKAvailable()) {
+  try {
+    const localData = this.loadFromLocal();
+    
+    // ИСПРАВЛЕНО: Проверяем доступность VK перед синхронизацией
+    if (this.isVKAvailable() && window.vkBridge) {
+      try {
         const synced = await this.performSync();
         if (synced) {
           console.log('✅ Initial sync completed');
           return;
         }
+      } catch (vkError) {
+        console.log('📱 VK sync not available, using local data');
       }
-      
-      console.log('📱 Using local data only');
-      
-    } catch (error) {
-      console.error('❌ Failed to load initial data:', error);
-      this.handleSyncError(error);
     }
+    
+    console.log('📱 Using local data only');
+    
+  } catch (error) {
+    console.error('❌ Failed to load initial data:', error);
+    // Не вызываем handleSyncError для избежания зацикливания
   }
+}
 
   async performSync() {
     if (this.isSyncing) {
@@ -689,13 +694,28 @@ ProgressSyncManager.instance = null;
 // Экспорт класса
 window.ProgressSyncManager = ProgressSyncManager;
 
-// ДОБАВЛЕНО: Автоматическая инициализация при готовности VK Bridge
-if (window.VK_BRIDGE_READY) {
-  window.progressSyncManager = new ProgressSyncManager();
-} else {
-  window.addEventListener('vk-bridge-ready', () => {
-    if (!window.progressSyncManager) {
-      window.progressSyncManager = new ProgressSyncManager();
-    }
-  });
+// ИСПРАВЛЕНО: Безопасная автоматическая инициализация
+if (typeof window !== 'undefined') {
+  // Проверяем, находимся ли мы в VK
+  const isVKEnvironment = window.location.search.includes('vk_') || 
+                          window.location.hostname.includes('vk.com') ||
+                          window.location.hostname.includes('vk-apps.com');
+  
+  if (isVKEnvironment && window.VK_BRIDGE_READY) {
+    // В VK и Bridge готов - создаем менеджер
+    window.progressSyncManager = new ProgressSyncManager();
+  } else if (isVKEnvironment) {
+    // В VK, но Bridge еще не готов - ждем
+    window.addEventListener('vk-bridge-ready', () => {
+      if (!window.progressSyncManager) {
+        window.progressSyncManager = new ProgressSyncManager();
+      }
+    });
+  } else {
+    // НЕ в VK (GitHub Pages) - создаем менеджер без VK функций
+    window.progressSyncManager = new ProgressSyncManager();
+    // Отключаем VK функции
+    window.progressSyncManager.isVKAvailable = () => false;
+    console.log('📱 Running outside VK - local storage only mode');
+  }
 }
