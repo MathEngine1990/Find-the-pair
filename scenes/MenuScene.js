@@ -1051,8 +1051,10 @@ async initSyncManager() {
     const progressLevels = this.getProgress();
     const levelProgress = progressLevels[levelIndex];
 
-    // Создаем основную кнопку уровня БЕЗ контейнера
+    // ВАЖНО: Корректные координаты для кнопки
     const btnY = y - h*0.1;
+    
+    // Создаем кнопку с АБСОЛЮТНЫМИ координатами
     const btn = window.makeImageButton(this, x, btnY, w, h*0.75, level.label, () => {
       this.scene.start('GameScene', { 
         level: level, 
@@ -1066,27 +1068,23 @@ async initSyncManager() {
 
     // Сохраняем индекс для обновлений
     btn.levelIndex = levelIndex;
-    
-    // Добавляем кнопку в массив
     this.levelButtons.push(btn);
 
-    // Создаем ОТДЕЛЬНЫЙ контейнер для звездочек
+    // Звездочки - создаем напрямую, без контейнера
     const starsY = y + h*0.32;
     const starSize = Math.min(18, w*0.06);
     const starSpacing = starSize + 4;
-    
-    const starsContainer = this.add.container(x, starsY);
 
     if (levelProgress) {
       // Показываем заработанные звездочки
       for (let star = 1; star <= 3; star++) {
-        const starX = (star - 2) * starSpacing;
+        const starX = x + (star - 2) * starSpacing;
         const filled = star <= levelProgress.stars;
-        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+        const starText = this.add.text(starX, starsY, filled ? '★' : '☆', {
           fontSize: starSize + 'px',
           color: filled ? '#FFD700' : '#555555'
         }).setOrigin(0.5);
-        starsContainer.add(starText);
+        this.levelButtons.push(starText);
       }
 
       // Статистика
@@ -1107,12 +1105,12 @@ async initSyncManager() {
     } else {
       // Уровень не пройден - показываем пустые звездочки
       for (let star = 1; star <= 3; star++) {
-        const starX = (star - 2) * starSpacing;
-        const starText = this.add.text(starX, 0, '☆', {
+        const starX = x + (star - 2) * starSpacing;
+        const starText = this.add.text(starX, starsY, '☆', {
           fontSize: starSize + 'px',
           color: '#444444'
         }).setOrigin(0.5);
-        starsContainer.add(starText);
+        this.levelButtons.push(starText);
       }
 
       // Подсказка для непройденного уровня
@@ -1125,10 +1123,6 @@ async initSyncManager() {
       
       this.levelButtons.push(hintText);
     }
-    
-    // Сохраняем ссылки для обновлений
-    btn.starsContainer = starsContainer;
-    this.levelButtons.push(starsContainer);
 }
 
   /////////////////////////////////////////////////////////////
