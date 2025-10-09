@@ -332,22 +332,25 @@
     // УЛУЧШЕНО: Адаптивное разрешение на основе устройства
     let baseWidth, baseHeight;
     
-    if (isMobile && isLowEnd) {
-      // Для слабых мобильных устройств
-      baseWidth = 1080;
-      baseHeight = 720;
-      console.log('📱 Low-end mobile detected, using standard resolution');
-    } else if (isMobile) {
-      // Для мощных мобильных устройств
-      baseWidth = 1920;
-      baseHeight = 1080;
-      console.log('📱 High-end mobile detected, using high resolution');
-    } else {
-      // Для десктопа - ваше сверхвысокое разрешение
-      baseWidth = 2560;
-      baseHeight = 1440;
-      console.log('🖥️ Desktop detected, using ultra-high resolution');
-    }
+    // ИСПРАВЛЕНИЕ: Используем локальную проверку
+const detectMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isLowEnd = navigator.hardwareConcurrency <= 2 || navigator.deviceMemory <= 2;
+
+let baseWidth, baseHeight;
+
+if (detectMobile && isLowEnd) {
+  baseWidth = 1080;
+  baseHeight = 720;
+  console.log('📱 Low-end mobile detected, using standard resolution');
+} else if (detectMobile) {
+  baseWidth = 1920;
+  baseHeight = 1080;
+  console.log('📱 Mobile detected, using high resolution');
+} else {
+  baseWidth = 1920;
+  baseHeight = 1080;
+  console.log('🖥️ Desktop detected, using ultra-high resolution');
+}
     
     window.gameConfig = {
       type: Phaser.AUTO,
