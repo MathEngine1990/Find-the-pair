@@ -259,32 +259,33 @@ setTimeout(() => this.init().catch(console.error), 0);
   }
 
   async saveToVK(progressData) {
-    if (!this.isVKAvailable()) {
-      throw new Error('VK Storage not available');
-    }
+  if (!this.isVKAvailable()) {
+    throw new Error('VK Storage not available');
+  }
 
-    const compressed = this.compressData(data);
-    
-    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
-      try {
-        await window.VKSafe.send('VKWebAppStorageSet', {
+  for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
+    try {
+      await window.VKSafe.send('VKWebAppStorageSet', {
         key: this.vkKey,
-        value: JSON.stringify(progressData)
+        value: JSON.stringify(progressData)  // ✅ ИСПРАВЛЕНО: используем progressData
       });
-        console.log('☁️ Saved to VK Storage');
-        return;
-        
-      } catch (error) {
-        console.warn(`⚠️ VK save attempt ${attempt} failed:`, error);
-        
-        if (attempt === this.settings.retryAttempts) {
-          throw error;
-        }
-        
-        await this.delay(this.settings.retryDelay * attempt);
+      
+      console.log('✅ Saved to VK Storage');
+      return true;
+      
+    } catch (error) {
+      console.warn(`VK Storage save attempt ${attempt} failed:`, error);
+      
+      if (attempt === this.settings.retryAttempts) {
+        throw error;
       }
+      
+      await this.delay(this.settings.retryDelay * attempt);
     }
   }
+  
+  return false;
+}
 
   compressData(data) {
     const str = JSON.stringify(data);
