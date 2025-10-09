@@ -830,7 +830,7 @@ window.alert = showGameNotification;
     
   
 
-const config = {
+const gameConfig = {
     type: Phaser.AUTO,
     parent: 'game',
     // ИСПРАВЛЕНО: Базовое разрешение для мобильных
