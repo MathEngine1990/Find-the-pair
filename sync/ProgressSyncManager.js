@@ -39,9 +39,9 @@ class ProgressSyncManager {
     ProgressSyncManager.instance = this;
     
     // Автоинициализация при создании
-console.log('🆕 ProgressSyncManager singleton created');
-// Запускаем инициализацию асинхронно
-setTimeout(() => this.init().catch(console.error), 0);
+    console.log('🆕 ProgressSyncManager singleton created');
+    // Запускаем инициализацию асинхронно
+    setTimeout(() => this.init().catch(console.error), 0);
   }
 
   async init() {
@@ -129,74 +129,115 @@ setTimeout(() => this.init().catch(console.error), 0);
   }
 
   async loadFromVK() {
-  if (!this.isVKAvailable()) {
-    throw new Error('VK Storage not available');
-  }
-
-  for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
-    try {
-      const result = await window.VKSafe.send('VKWebAppStorageGet', {
-        keys: [this.vkKey]
-      });
-      
-      if (result?.keys?.length > 0) {
-        const rawData = result.keys[0].value;  // Переименовать в rawData
-        const parsedData = rawData ? JSON.parse(rawData) : this.getDefaultProgressData();  // Использовать parsedData
-        return parsedData;
-      }
-      
-      return this.getDefaultProgressData();
-      
-    } catch (error) {
-      console.warn(`VK Storage load attempt ${attempt} failed:`, error);
-      
-      if (attempt === this.settings.retryAttempts) {
-        throw error;
-      }
-      
-      await this.delay(this.settings.retryDelay * attempt);
+    if (!this.isVKAvailable()) {
+      throw new Error('VK Storage not available');
     }
-  }
-}
 
-  /**
-   * НОВЫЙ МЕТОД: Безопасный парсер VK данных
-   */
-  parseVKData(rawValue) {
-    // Случай 1: Уже объект
-    if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
-      console.log('📦 VK data is already an object');
-      return { ...rawValue }; // Возвращаем копию
-    }
-    
-    // Случай 2: JSON строка
-    if (typeof rawValue === 'string') {
+    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
       try {
-        const parsed = JSON.parse(rawValue);
+        const result = await window.VKSafe.send('VKWebAppStorageGet', {
+          keys: [this.vkKey]
+        });
         
-        // Проверяем что распарсился объект
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          console.log('📦 VK data parsed from JSON string');
-          return parsed;
-        } else {
-          console.warn('⚠️ Parsed data is not a valid object');
-          return null;
+        if (result?.keys?.length > 0) {
+          const rawData = result.keys[0].value;
+          const parsedData = rawData ? JSON.parse(rawData) : this.getDefaultProgressData();
+          return parsedData;
         }
+        
+        return this.getDefaultProgressData();
+        
       } catch (error) {
-        console.error('❌ JSON parse failed:', error);
-        console.error('Raw value was:', rawValue.substring(0, 100) + '...');
-        return null;
+        console.warn(`VK Storage load attempt ${attempt} failed:`, error);
+        
+        if (attempt === this.settings.retryAttempts) {
+          throw error;
+        }
+        
+        await this.delay(this.settings.retryDelay * attempt);
+      }
+    }
+  }
+
+  saveToLocal(data) {
+    try {
+      const compressed = this.compressData(data);
+      localStorage.setItem(this.localKey, compressed);
+      console.log('💾 Saved to localStorage');
+    } catch (error) {
+      console.error('❌ Failed to save to localStorage:', error);
+      throw error;
+    }
+  }
+
+  loadFromLocal() {
+    try {
+      const compressed = localStorage.getItem(this.localKey);
+      if (!compressed) return this.getDefaultProgressData();
+      
+      const data = this.decompressData(compressed);
+      return this.safelyMigrateData(data);
+    } catch (error) {
+      console.error('❌ Failed to load from localStorage:', error);
+      return this.getDefaultProgressData();
+    }
+  }
+
+  async saveToVK(progressData) {
+    if (!this.isVKAvailable()) {
+      console.warn('VK Storage not available');
+      return false;
+    }
+
+    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
+      try {
+        await window.VKSafe.send('VKWebAppStorageSet', {
+          key: this.vkKey,
+          value: JSON.stringify(progressData)
+        });
+        
+        console.log('✅ Saved to VK Storage');
+        return true;
+        
+      } catch (error) {
+        console.warn(`VK Storage save attempt ${attempt} failed:`, error);
+        
+        if (attempt === this.settings.retryAttempts) {
+          throw error;
+        }
+        
+        await this.delay(this.settings.retryDelay * attempt);
       }
     }
     
-    // Случай 3: Неподдерживаемый тип
-    console.warn('⚠️ Unsupported VK data type:', typeof rawValue);
-    return null;
+    return false;
   }
 
-  /**
-   * НОВЫЙ МЕТОД: Безопасная миграция без мутации
-   */
+  compressData(data) {
+    try {
+      const compressed = JSON.stringify(data);
+      
+      // Проверка размера
+      if (compressed.length > this.settings.compressionThreshold) {
+        console.log(`📦 Data size: ${compressed.length} bytes (compression threshold: ${this.settings.compressionThreshold})`);
+      }
+      
+      return compressed;
+    } catch (error) {
+      console.error('Failed to compress data:', error);
+      throw error;
+    }
+  }
+
+  decompressData(compressed) {
+    try {
+      return JSON.parse(compressed);
+    } catch (error) {
+      console.error('Decompression failed:', error);
+      throw error;
+    }
+  }
+
   safelyMigrateData(data) {
     // Гарантируем что работаем с объектом
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -228,91 +269,6 @@ setTimeout(() => this.init().catch(console.error), 0);
     
     return migrated;
   }
-
-  /**
-   * УДАЛЁН проблемный метод migrateDataIfNeeded
-   * Заменён на safelyMigrateData
-   */
-
-  saveToLocal(data) {
-    try {
-      const compressed = this.compressData(data);
-      localStorage.setItem(this.localKey, compressed);
-      console.log('💾 Saved to localStorage');
-    } catch (error) {
-      console.error('❌ Failed to save to localStorage:', error);
-      throw error;
-    }
-  }
-
-  loadFromLocal() {
-    try {
-      const compressed = localStorage.getItem(this.localKey);
-      if (!compressed) return this.getDefaultProgressData();
-      
-      const data = this.decompressData(compressed);
-      return this.safelyMigrateData(data);
-    } catch (error) {
-      console.error('❌ Failed to load from localStorage:', error);
-      return this.getDefaultProgressData();
-    }
-  }
-
-  async saveToVK(progressData) {
-  if (!this.isVKAvailable()) {
-    console.warn('VK Storage not available');
-    return false;
-  }
-
-  for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
-    try {
-      // ИСПРАВЛЕНО: используем progressData вместо data
-      await window.VKSafe.send('VKWebAppStorageSet', {
-        key: this.vkKey,
-        value: JSON.stringify(progressData)  // ← ВОТ ТУТ БЫЛА ОШИБКА
-      });
-      
-      console.log('✅ Saved to VK Storage');
-      return true;
-      
-    } catch (error) {
-      console.warn(`VK Storage save attempt ${attempt} failed:`, error);
-      
-      if (attempt === this.settings.retryAttempts) {
-        throw error;
-      }
-      
-      await this.delay(this.settings.retryDelay * attempt);
-    }
-  }
-  
-  return false;
-}
-
-  compressData(data) {
-  try {
-    const compressed = JSON.stringify(data); // ✅ используем правильную переменную
-    
-    // Проверка размера
-    if (compressed.length > this.settings.compressionThreshold) {
-      console.log(`📦 Data size: ${compressed.length} bytes (compression threshold: ${this.settings.compressionThreshold})`);
-    }
-    
-    return compressed;
-  } catch (error) {
-    console.error('Failed to compress data:', error);
-    throw error;
-  }
-}
-
-  decompressData(compressed) {
-  try {
-    return JSON.parse(compressed);
-  } catch (error) {
-    console.error('Decompression failed:', error);
-    throw error;
-  }
-}
 
   mergeProgressData(localData, vkData) {
     if (!localData && !vkData) {
@@ -529,10 +485,10 @@ setTimeout(() => this.init().catch(console.error), 0);
   }
 
   isVKAvailable() {
-  return window.VK_BRIDGE_READY && 
-         window.VKSafe && 
-         window.VKSafe.isAvailable();
-}
+    return window.VK_BRIDGE_READY && 
+           window.VKSafe && 
+           window.VKSafe.isAvailable();
+  }
 
   handleSyncError(error) {
     console.error('❌ Sync error:', error);
@@ -571,18 +527,15 @@ setTimeout(() => this.init().catch(console.error), 0);
     if (this.isVKAvailable()) {
       try {
         await window.VKSafe.send('VKWebAppStorageSet', {
-        key: this.vkKey,
-        value: '{}'
-      });
+          key: this.vkKey,
+          value: '{}'
+        });
       } catch (error) {
         console.warn('Failed to clear VK data:', error);
       }
     }
   }
 
-  /**
-   * Метод для безопасного уничтожения синглтона
-   */
   destroy() {
     this.stopAutoSync();
     
@@ -600,8 +553,6 @@ setTimeout(() => this.init().catch(console.error), 0);
     
     console.log('🗑️ ProgressSyncManager destroyed');
   }
-
-
 }
 
 // Статическое свойство для хранения экземпляра
