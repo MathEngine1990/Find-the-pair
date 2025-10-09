@@ -695,69 +695,69 @@ async initSyncManager() {
   }
 
   // НОВЫЙ МЕТОД: Обновление одной кнопки уровня
-  updateSingleLevelButton(button, levelIndex, progressLevels) {
-    const levelProgress = progressLevels[levelIndex];
-    
-    // Обновляем звезды
-    if (button.starsContainer) {
-      button.starsContainer.destroy();
-      button.starsContainer = null; // Добавить обнуление
-    }
-    
-    button.starsContainer = this.add.container(button.x, button.y + 35);
-    
-    const starSize = 18;
-    const starSpacing = starSize + 4;
-    const stars = levelProgress ? levelProgress.stars : 0;
-    
-    for (let star = 1; star <= 3; star++) {
-      const starX = (star - 2) * starSpacing;
-      const filled = star <= stars;
-      const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
-        fontSize: starSize + 'px',
-        color: filled ? '#FFD700' : '#666666'
-      }).setOrigin(0.5);
-      
-      button.starsContainer.add(starText);
-    }
-    
-    button.starsContainer.setDepth(button.depth + 1);
-    
-    // Обновляем статистику
-    if (button.statsContainer) {
-      button.statsContainer.destroy();
-      button.statsContainer = null;
-    }
-
-// Добавляем контейнер в массив для правильной очистки
-    this.levelButtons.push(button.starsContainer);
-    // Добавляем контейнер в массив для правильной очистки
-    this.levelButtons.push(button.statsContainer);
-    
-    button.statsContainer = this.add.container(button.x, button.y + 57);
-    
-    if (levelProgress) {
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
-      const statsDisplay = this.add.text(0, 0, statsText, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px',
-        color: '#CCCCCC'
-      }).setOrigin(0.5);
-      
-      button.statsContainer.add(statsDisplay);
-    } else {
-      const hintText = this.add.text(0, 0, 'Не пройден', {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '11px',
-        color: '#888888',
-        fontStyle: 'italic'
-      }).setOrigin(0.5);
-      
-      button.statsContainer.add(hintText);
-    }
-    
-    button.statsContainer.setDepth(button.depth + 1);
+  // ИСПРАВЛЕННЫЙ МЕТОД: updateSingleLevelButton
+updateSingleLevelButton(button, levelIndex, progressLevels) {
+  const levelProgress = progressLevels[levelIndex];
+  
+  // Обновляем звезды
+  if (button.starsContainer) {
+    button.starsContainer.destroy();
+    button.starsContainer = null;
   }
+  
+  button.starsContainer = this.add.container(button.x, button.y + 35);
+  
+  const starSize = 18;
+  const starSpacing = starSize + 4;
+  const stars = levelProgress ? levelProgress.stars : 0;
+  
+  for (let star = 1; star <= 3; star++) {
+    const starX = (star - 2) * starSpacing;
+    const filled = star <= stars;
+    const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+      fontSize: starSize + 'px',
+      color: filled ? '#FFD700' : '#666666'
+    }).setOrigin(0.5);
+    
+    button.starsContainer.add(starText);
+  }
+  
+  button.starsContainer.setDepth(button.depth + 1);
+  
+  // Обновляем статистику
+  if (button.statsContainer) {
+    button.statsContainer.destroy();
+    button.statsContainer = null;
+  }
+  
+  button.statsContainer = this.add.container(button.x, button.y + 57);
+  
+  if (levelProgress) {
+    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
+    const statsDisplay = this.add.text(0, 0, statsText, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '12px',
+      color: '#CCCCCC'
+    }).setOrigin(0.5);
+    
+    button.statsContainer.add(statsDisplay);
+  } else {
+    const hintText = this.add.text(0, 0, 'Не пройден', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '11px',  
+      color: '#888888',
+      fontStyle: 'italic'
+    }).setOrigin(0.5);
+    
+    button.statsContainer.add(hintText);
+  }
+  
+  button.statsContainer.setDepth(button.depth + 1);
+  
+  // ВАЖНО: НЕ добавляем контейнеры в массив levelButtons здесь!
+  // Они управляются через свойства button.starsContainer и button.statsContainer
+  // и уничтожаются автоматически при следующем обновлении
+}
 
   // НОВЫЙ МЕТОД: Показать успех синхронизации
   showSyncSuccess() {
