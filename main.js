@@ -1,5 +1,18 @@
 //---main.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ VK И PROGRESSSYNCMANAGER
 
+// ========================================
+// ГЛОБАЛЬНЫЕ КОНСТАНТЫ (ВНЕ IIFE)
+// ========================================
+
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isAndroid = /Android/.test(navigator.userAgent);
+
+const isVKEnvironment = /vk_(app_id|user_id|platform)/i.test(window.location.search) || 
+                       window.location.hostname.includes('vk-apps.com') ||
+                       window.location.hostname.includes('vk.com') ||
+                       window.parent !== window;
+
 (function() {
   'use strict';
   
@@ -12,10 +25,6 @@
   window.VK_BRIDGE_READY = false;
   window.VK_DEBUG = window.location.search.includes('debug=1') || 
                    window.location.hostname === 'localhost';
-  
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isAndroid = /Android/.test(navigator.userAgent);
   
   const isVKEnvironment = /vk_(app_id|user_id|platform)/i.test(window.location.search) || 
                          window.location.hostname.includes('vk-apps.com') ||
