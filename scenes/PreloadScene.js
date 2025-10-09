@@ -234,8 +234,7 @@ class VKAchievementManager {
     this.isVKEnvironment = !!window.VK_LAUNCH_PARAMS;
 
     // ДОБАВЛЕНО: Интеграция с ProgressSyncManager
-    this.syncManager = null;
-    this.initSyncManager();
+      this.initSyncManager();
     
     // Определения достижений VK
     this.vkAchievements = {
