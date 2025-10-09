@@ -820,70 +820,55 @@ window.alert = showGameNotification;
     }
     
     debugLog('Game configuration', {
-      screenWidth: screenWidth,
-      screenHeight: screenHeight,
-      isPortrait: isPortrait,
-      gameWidth: gameWidth,
-      gameHeight: gameHeight,
-      isMobile: isMobile
-    });
-    
-  
+  screenWidth: screenWidth,
+  screenHeight: screenHeight,
+  isPortrait: isPortrait,
+  gameWidth: gameWidth,
+  gameHeight: gameHeight,
+  isMobile: isMobile
+});
 
+// ИСПРАВЛЕНО: Используем правильный parent и размеры
 const gameConfig = {
-    type: Phaser.AUTO,
-    parent: 'game',
-    // ИСПРАВЛЕНО: Базовое разрешение для мобильных
-    width: isMobile ? 720 : 1920,
-    height: isMobile ? 1280 : 1080,
-    scale: {
-        // КРИТИЧНО: FIT для мобильных, чтобы заполнить экран
-        mode: isMobile ? Phaser.Scale.FIT : Phaser.Scale.FIT,
-        parent: 'game',
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        // ВАЖНО: Убираем фиксированные размеры
-        width: '100%',
-        height: '100%',
-        // КРИТИЧНО: Разрешаем расширение родителя
-        expandParent: true,
-        // Минимальные и максимальные размеры
-        min: {
-            width: 320,
-            height: 480
-        },
-        max: {
-            width: 1920,
-            height: 1920
-        }
-    },
-    backgroundColor: '#1d2330',
-    render: {
-        antialias: true,
-        pixelArt: false,
-        roundPixels: false,
-        transparent: false
-    },
-    // Убираем высокое DPI для мобильных
-    resolution: 1
+  type: Phaser.AUTO,
+  parent: gameContainer,  // ← ВАЖНО: используем gameContainer, не 'game'
+  width: gameWidth,       // ← ВАЖНО: используем вычисленные размеры
+  height: gameHeight,
+  backgroundColor: '#1d2330',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: gameWidth,
+    height: gameHeight
+  },
+  render: { 
+    antialias: !isMobile,
+    pixelArt: false
+  },
+  scene: [
+    window.PreloadScene,
+    window.MenuScene,
+    window.GameScene
+  ]
 };
 
-    try {
-      console.log('Creating Phaser game...');
-      console.log('Game config:', {
-        type: 'AUTO',
-        parent: 'game container element',
-        mobile: isMobile,
-        gameSize: `${gameWidth}x${gameHeight}`
-      });
-      
-      window.game = new Phaser.Game(gameConfig);
-      
-      if (!window.game) {
-        throw new Error('Game creation failed');
-      }
-      
-      console.log('✅ Game created successfully');
-      debugLog('Game created successfully');
+try {
+  console.log('Creating Phaser game...');
+  console.log('Game config:', {
+    type: 'AUTO',
+    parent: 'gameContainer element',
+    mobile: isMobile,
+    gameSize: `${gameWidth}x${gameHeight}`
+  });
+  
+  window.game = new Phaser.Game(gameConfig);  // ← Используем gameConfig
+  
+  if (!window.game) {
+    throw new Error('Game creation failed');
+  }
+  
+  console.log('✅ Game created successfully');
+  debugLog('Game created successfully');
       
       window.game.events.once('ready', function() {
         console.log('🎮 Game ready event triggered');
