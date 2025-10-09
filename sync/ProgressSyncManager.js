@@ -290,32 +290,29 @@ setTimeout(() => this.init().catch(console.error), 0);
 }
 
   compressData(data) {
-    const str = JSON.stringify(progressData);
+  try {
+    const compressed = JSON.stringify(data); // ✅ используем правильную переменную
     
-    if (str.length > this.settings.compressionThreshold) {
-      console.log(`📦 Data size: ${str.length} bytes`);
+    // Проверка размера
+    if (compressed.length > this.settings.compressionThreshold) {
+      console.log(`📦 Data size: ${compressed.length} bytes (compression threshold: ${this.settings.compressionThreshold})`);
     }
     
-    return str;
+    return compressed;
+  } catch (error) {
+    console.error('Failed to compress data:', error);
+    throw error;
   }
+}
 
   decompressData(compressed) {
-    try {
-      if (typeof compressed === 'object') {
-        return { ...compressed }; // Возвращаем копию
-      }
-      
-      if (typeof compressed === 'string') {
-        return JSON.parse(compressed);
-      }
-      
-      console.warn('⚠️ Unexpected data type for decompression');
-      return null;
-    } catch (error) {
-      console.error('❌ Failed to decompress data:', error);
-      return null;
-    }
+  try {
+    return JSON.parse(compressed);
+  } catch (error) {
+    console.error('Decompression failed:', error);
+    throw error;
   }
+}
 
   mergeProgressData(localData, vkData) {
     if (!localData && !vkData) {
