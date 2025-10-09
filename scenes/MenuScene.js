@@ -221,29 +221,52 @@ async initializeSyncManager() {
     this.vignette = this.add.graphics().setDepth(-999).fillStyle(0x000000, 0.20).fillRect(0,0,W,H);
   }
 
-  clearMenu(){
-    if (this._wheelHandler){ 
-      this.input.off('wheel', this._wheelHandler); 
-      this._wheelHandler = null; 
-    }
-    
-    // Улучшенная очистка
-    if (this.levelButtons) {
-      this.levelButtons.forEach(btn => {
-        if (btn && typeof btn.destroy === 'function') {
-          // Очищаем слушатели перед уничтожением
-          if (btn.zone && btn.zone.removeAllListeners) {
-            btn.zone.removeAllListeners();
-          }
-          btn.destroy();
-        }
-      });
-      this.levelButtons = [];
-    }
-
-    // ДОБАВЛЕНО: Не очищаем индикаторы синхронизации
-    // (они управляются отдельно)
+  // ИСПРАВЛЕННЫЙ МЕТОД clearMenu
+clearMenu() {
+  if (this._wheelHandler) { 
+    this.input.off('wheel', this._wheelHandler); 
+    this._wheelHandler = null; 
   }
+  
+  // Улучшенная очистка с учетом контейнеров
+  if (this.levelButtons) {
+    this.levelButtons.forEach(btn => {
+      if (btn && typeof btn.destroy === 'function') {
+        
+        // ВАЖНО: Сначала очищаем вложенные контейнеры
+        if (btn.starsContainer) {
+          btn.starsContainer.destroy();
+          btn.starsContainer = null;
+        }
+        
+        if (btn.statsContainer) {
+          btn.statsContainer.destroy();
+          btn.statsContainer = null;
+        }
+        
+        // Очищаем слушатели перед уничтожением
+        if (btn.zone && btn.zone.removeAllListeners) {
+          btn.zone.removeAllListeners();
+        }
+        
+        // Теперь уничтожаем саму кнопку
+        btn.destroy();
+      }
+    });
+    this.levelButtons = [];
+  }
+  
+  // Очистка любых оставшихся текстовых элементов
+  // которые могли быть добавлены вне контейнеров
+  this.children.list.forEach(child => {
+    if (child && child.type === 'Text' && 
+        (child.text === '★' || child.text === '☆' || 
+         child.text.includes('Не пройден') || 
+         child.text.includes('%'))) {
+      child.destroy();
+    }
+  });
+}
 
   drawMenu(page){
     this.clearMenu();
@@ -1047,84 +1070,78 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
   /////////////////////////////////////////////////////////////
 
   createLevelButton(x, y, w, h, level, levelIndex) {
-    // Получаем прогресс для этого уровня
-    const progressLevels = this.getProgress();
-    const levelProgress = progressLevels[levelIndex];
+  const progressLevels = this.getProgress();
+  const levelProgress = progressLevels[levelIndex];
 
-    // ВАЖНО: Корректные координаты для кнопки
-    const btnY = y - h*0.1;
-    
-    // Создаем кнопку с АБСОЛЮТНЫМИ координатами
-    const btn = window.makeImageButton(this, x, btnY, w, h*0.75, level.label, () => {
-      this.scene.start('GameScene', { 
-        level: level, 
-        levelIndex: levelIndex,
-        page: this.levelPage,
-        userData: this.vkUserData,
-        isVK: this.isVKEnvironment,
-        syncManager: this.syncManager
-      });
+  const btnY = y - h*0.1;
+  
+  // Создаем кнопку
+  const btn = window.makeImageButton(this, x, btnY, w, h*0.75, level.label, () => {
+    this.scene.start('GameScene', { 
+      level: level, 
+      levelIndex: levelIndex,
+      page: this.levelPage,
+      userData: this.vkUserData,
+      isVK: this.isVKEnvironment,
+      syncManager: this.syncManager
     });
+  });
 
-    // Сохраняем индекс для обновлений
-    btn.levelIndex = levelIndex;
-    this.levelButtons.push(btn);
+  btn.levelIndex = levelIndex;
+  this.levelButtons.push(btn);
 
-    // Звездочки - создаем напрямую, без контейнера
-    const starsY = y + h*0.32;
-    const starSize = Math.min(18, w*0.06);
-    const starSpacing = starSize + 4;
-
-    if (levelProgress) {
-      // Показываем заработанные звездочки
-      for (let star = 1; star <= 3; star++) {
-        const starX = x + (star - 2) * starSpacing;
-        const filled = star <= levelProgress.stars;
-        const starText = this.add.text(starX, starsY, filled ? '★' : '☆', {
-          fontSize: starSize + 'px',
-          color: filled ? '#FFD700' : '#555555'
-        }).setOrigin(0.5);
-        this.levelButtons.push(starText);
-      }
-
-      // Статистика
-      const accuracy = levelProgress.accuracy || 
-        (levelProgress.attempts > 0 ? 
-          Math.round((levelProgress.attempts - (levelProgress.errors || 0)) / levelProgress.attempts * 100) : 100);
-      
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-      const statsDisplay = this.add.text(x, starsY + 22, statsText, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(starSize * 0.65) + 'px',
-        color: '#CCCCCC',
-        fontStyle: 'normal'
-      }).setOrigin(0.5);
-      
-      this.levelButtons.push(statsDisplay);
-
-    } else {
-      // Уровень не пройден - показываем пустые звездочки
-      for (let star = 1; star <= 3; star++) {
-        const starX = x + (star - 2) * starSpacing;
-        const starText = this.add.text(starX, starsY, '☆', {
-          fontSize: starSize + 'px',
-          color: '#444444'
-        }).setOrigin(0.5);
-        this.levelButtons.push(starText);
-      }
-
-      // Подсказка для непройденного уровня
-      const hintText = this.add.text(x, starsY + 22, 'Не пройден', {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(starSize * 0.6) + 'px',
-        color: '#888888',
-        fontStyle: 'italic'
-      }).setOrigin(0.5);
-      
-      this.levelButtons.push(hintText);
-    }
+  // ИСПРАВЛЕНИЕ: Создаем контейнеры как в updateSingleLevelButton
+  btn.starsContainer = this.add.container(x, y + h*0.32);
+  
+  const starSize = Math.min(18, w*0.06);
+  const starSpacing = starSize + 4;
+  const stars = levelProgress ? levelProgress.stars : 0;
+  
+  for (let star = 1; star <= 3; star++) {
+    const starX = (star - 2) * starSpacing;
+    const filled = star <= stars;
+    const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+      fontSize: starSize + 'px',
+      color: filled ? '#FFD700' : '#555555'
+    }).setOrigin(0.5);
+    
+    btn.starsContainer.add(starText); // Добавляем В КОНТЕЙНЕР
+  }
+  
+  btn.starsContainer.setDepth(btn.depth + 1);
+  
+  // Создаем контейнер для статистики
+  btn.statsContainer = this.add.container(x, y + h*0.32 + 22);
+  
+  if (levelProgress) {
+    const accuracy = levelProgress.accuracy || 
+      (levelProgress.attempts > 0 ? 
+        Math.round((levelProgress.attempts - (levelProgress.errors || 0)) / levelProgress.attempts * 100) : 100);
+    
+    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+    const statsDisplay = this.add.text(0, 0, statsText, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: Math.round(starSize * 0.65) + 'px',
+      color: '#CCCCCC',
+      fontStyle: 'normal'
+    }).setOrigin(0.5);
+    
+    btn.statsContainer.add(statsDisplay); // Добавляем В КОНТЕЙНЕР
+  } else {
+    const hintText = this.add.text(0, 0, 'Не пройден', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: Math.round(starSize * 0.6) + 'px',
+      color: '#888888',
+      fontStyle: 'italic'
+    }).setOrigin(0.5);
+    
+    btn.statsContainer.add(hintText); // Добавляем В КОНТЕЙНЕР
+  }
+  
+  btn.statsContainer.setDepth(btn.depth + 1);
+  
+  // НЕ добавляем контейнеры в массив levelButtons!
 }
-
   /////////////////////////////////////////////////////////////
   // УТИЛИТАРНЫЕ МЕТОДЫ
   /////////////////////////////////////////////////////////////
