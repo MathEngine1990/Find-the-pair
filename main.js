@@ -842,8 +842,10 @@ const gameConfig = {
   height: window.innerHeight,
   backgroundColor: '#1d2330',
   scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.NO_CENTER
+    mode: Phaser.Scale.FIT,  // Правильный режим для VK
+    autoCenter: Phaser.Scale.CENTER_BOTH
+    //mode: Phaser.Scale.RESIZE,
+    //autoCenter: Phaser.Scale.NO_CENTER
   }
 },
 
