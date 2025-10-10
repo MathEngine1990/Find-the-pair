@@ -334,8 +334,13 @@ async initializeSyncManager() {
     const isVK = window.VK_BRIDGE_READY && window.vkBridge;
     
     if (isVK) {
+      
       // В VK - создаём менеджер с синхронизацией
-      const { ProgressSyncManager } = await import('./sync/ProgressSyncManager.js');
+      if (window.ProgressSyncManager) {
+  this.syncManager = new window.ProgressSyncManager();
+} else {
+  // fallback
+}
       this.syncManager = new ProgressSyncManager();
       window.progressSyncManager = this.syncManager;
     } else {
@@ -582,68 +587,7 @@ cleanup() {
     console.log('Victory screen cleared');
   }
 
-  // Полная очистка при завершении сцены
-  cleanup() {
-    console.log('GameScene cleanup started');
-    
-    // Очистка экрана победы
-    this.clearVictoryScreen();
-    
-    // Очистка всех таймеров
-    if (this.memorizeTimer) {
-      this.memorizeTimer.destroy();
-      this.memorizeTimer = null;
-    }
-    
-    if (this.flipTimer) {
-      this.flipTimer.destroy();
-      this.flipTimer = null;
-    }
-    
-    if (this.gameTimer) {
-      this.gameTimer.destroy();
-      this.gameTimer = null;
-    }
-
-    // Очистка всех time events
-    if (this.time) {
-      this.time.removeAllEvents();
-    }
-
-    // Остановка всех активных твинов
-    if (this.tweens) {
-      this.tweens.killAll();
-    }
-
-    // Очистка слушателей карт
-    if (this.cards) {
-      this.cards.forEach(card => {
-        if (card && card.removeAllListeners) {
-          card.removeAllListeners();
-        }
-      });
-      this.cards = [];
-    }
-
-    // Очистка слушателей кнопок
-    if (this.exitBtn && this.exitBtn.zone) {
-      this.exitBtn.zone.removeAllListeners();
-    }
-
-    // Очистка resize слушателя
-    if (this._resizeHandler) {
-  this.scale.off('resize', this._resizeHandler);
-}
-
-    // Очистка переменных
-    this.opened = [];
-    this.currentLevel = null;
-    this.gameMetrics = null;
-    this._lastClickTime = null;
-    this._processingCards = false;
-    
-    console.log('GameScene cleanup completed');
-  }
+  
 
   // Сохранение состояния игры
   saveGameState() {
@@ -716,7 +660,7 @@ cleanup() {
     this.gameState.isMemorizationPhase = wasMemorizing;
     
     // Перерисовываем HUD
-    this.drawHUD();
+    await this.drawHUD();
     
     // Восстанавливаем таймер
     if (wasGameStarted && !wasMemorizing) {
@@ -822,7 +766,7 @@ cleanup() {
   }
 
   // Обновление HUD с таймером
-  drawHUD() {
+  async drawHUD() {
 if (document.fonts && !this._fontsReady) {
     await document.fonts.ready;
     this._fontsReady = true;
@@ -960,7 +904,7 @@ if (document.fonts && !this._fontsReady) {
     this.gameState.isMemorizationPhase = true;
     this.gameState.canResize = false; // Блокируем resize на время показа
 
-    this.drawHUD();
+    await this.drawHUD();
     this.createCardLayout(this.gameState.deck);
 
     // 5-секундный показ карт для запоминания
@@ -1228,6 +1172,10 @@ handleResize(gameSize) {
   }
 
   onCardClick(card) {
+    if (event && event.preventDefault) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   // ИСПРАВЛЕНО: Тройная защита от race conditions
   if (!this.canClick || this._processingCards) return;
   if (card.getData('opened') || card.getData('matched')) return;
