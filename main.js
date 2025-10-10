@@ -846,8 +846,7 @@ const gameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH
     //mode: Phaser.Scale.RESIZE,
     //autoCenter: Phaser.Scale.NO_CENTER
-  }
-},
+  },
 
     render: { 
     antialias: !isMobile,
