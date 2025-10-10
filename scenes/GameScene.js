@@ -3,19 +3,20 @@
 window.GameScene = class GameScene extends Phaser.Scene {
 
   destroy() {
-  console.log('GameScene destroy called');
+  console.log('GameScene cleanup started');
   
-  // ИСПРАВЛЕНО: Полная очистка всех таймеров
+  // Массив всех возможных таймеров
   const timers = [
-    'memorizeTimer', 'flipTimer', 'gameTimer', 
-    'checkTimer', 'hideTimer'
+    'memorizeTimer', 'flipTimer', 'gameTimer',
+    'checkTimer', 'hideTimer', 'revealTimer'
   ];
   
+  // Безопасная очистка каждого таймера
   timers.forEach(timerName => {
     if (this[timerName]) {
-      if (this[timerName].destroy) {
+      if (typeof this[timerName].destroy === 'function') {
         this[timerName].destroy();
-      } else if (this[timerName].remove) {
+      } else if (typeof this[timerName].remove === 'function') {
         this[timerName].remove();
       }
       this[timerName] = null;
@@ -27,7 +28,21 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.time.removeAllEvents();
   }
   
-  // Остальная очистка...
+  // Очистка tweens
+  if (this.tweens) {
+    this.tweens.killAll();
+  }
+  
+  // Очистка слушателей
+  if (this._resizeHandler) {
+    this.scale.off('resize', this._resizeHandler);
+    this._resizeHandler = null;
+  }
+  
+  // Очистка ввода
+  this.input.off('pointerdown');
+  this.input.off('pointerup');
+  
   super.destroy();
 }
   
@@ -145,71 +160,301 @@ window.GameScene = class GameScene extends Phaser.Scene {
   preload() {}
 
   async create() {
-    if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
-
+  try {
+    // ===== 1. ИНИЦИАЛИЗАЦИЯ БАЗОВЫХ ПЕРЕМЕННЫХ =====
+    if (this.scale && this.scale.updateBounds) {
+      this.scale.updateBounds();
+    }
+    
+    // Базовые коллекции
     this.levelButtons = [];
     this.cards = [];
     this.opened = [];
-    this.canClick = false;
-
-    this.hud = null;
-    this.mistakeCount = 0;
-    this.mistakeText = null;
     
-    // UI элементы для времени
-    this.timeText = null;
-    this.gameTimer = null;
+    // Состояние игры
+    this.canClick = false;
+    this.mistakeCount = 0;
     this.currentTimeSeconds = 0;
-
-    this._wheelHandler = null;
+    
+    // UI элементы (null по умолчанию)
+    this.hud = null;
+    this.mistakeText = null;
+    this.timeText = null;
     this.bgImage = null;
-
-    // Таймеры для управления
+    
+    // Таймеры (важно для правильной очистки)
+    this.gameTimer = null;
     this.memorizeTimer = null;
     this.flipTimer = null;
-
-    // ДОБАВЛЕНО: Инициализация синхронизации
-    await this.initializeSyncManager();
-
-    this.makePlaceholdersIfNeeded();
-    this.ensureGradientBackground();
-
-    if (!this.currentLevel) {
-      this.scene.start('MenuScene', { page: this.levelPage });
-      return;
+    this.revealTimer = null;
+    
+    // Обработчики событий
+    this._resizeHandler = null;
+    this._wheelHandler = null;
+    
+    // Флаги для предотвращения повторных инициализаций
+    this._fontsReady = false;
+    this._lastTapTime = 0;
+    
+    // ===== 2. ОЖИДАНИЕ ЗАГРУЗКИ КРИТИЧЕСКИХ РЕСУРСОВ =====
+    
+    // КРИТИЧНО: Ждём загрузку шрифтов ДО любой отрисовки текста
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+      this._fontsReady = true;
+      console.log('✅ Fonts loaded and ready');
     }
-
-    this.startGame(this.currentLevel);
-
-    // Обработка resize - не перетасовывать карты
-    this.scale.on('resize', () => {
-      if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
-      
-      console.log('Resize detected, gameStarted:', this.gameState.gameStarted);
-      
-      if (!this.gameState.canResize) {
-        console.log('Resize blocked during critical game phase');
-        return;
-      }
-
-      this.ensureGradientBackground();
-      
-      if (this.gameState.gameStarted || this.gameState.isMemorizationPhase) {
-        this.saveGameState();
-        this.redrawLayout();
-      } else {
-        this.startGame(this.currentLevel);
-      }
+    
+    // ===== 3. АСИНХРОННАЯ ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРОВ =====
+    
+    // Инициализация синхронизации БЕЗ блокировки
+    this.initializeSyncManager().then(() => {
+      console.log('✅ Sync manager initialized');
+    }).catch(error => {
+      console.warn('⚠️ Sync manager failed, using local storage:', error);
     });
     
-    this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
-
-
+    // ===== 4. ПОДГОТОВКА ВИЗУАЛЬНЫХ РЕСУРСОВ =====
     
-     // ИСПРАВЛЕНО: Используем seed для детерминированного перемешивания
-
+    // Создаём заглушки текстур если их нет
+    this.makePlaceholdersIfNeeded();
+    
+    // Отрисовка фона
+    this.ensureGradientBackground();
+    
+    // ===== 5. ВАЛИДАЦИЯ И ЗАПУСК ИГРЫ =====
+    
+    if (!this.currentLevel || !this.currentLevel.cols || !this.currentLevel.rows) {
+      console.error('❌ Invalid level data:', this.currentLevel);
+      this.scene.start('MenuScene', { page: this.levelPage || 0 });
+      return;
+    }
+    
+    // ===== 6. ЕДИНСТВЕННЫЙ RESIZE HANDLER С DEBOUNCE =====
+    
+    // Удаляем старые обработчики если есть
+    if (this._resizeHandler) {
+      this.scale.off('resize', this._resizeHandler);
+    }
+    
+    // Создаём debounced handler (200ms задержка)
+    const resizeDebounceTime = 200;
+    let resizeTimeout = null;
+    
+    this._resizeHandler = (gameSize, baseSize, displaySize, resolution, previousWidth, previousHeight) => {
+      // Очищаем предыдущий таймер
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      
+      // Устанавливаем новый таймер
+      resizeTimeout = setTimeout(() => {
+        // Проверяем, можно ли делать resize
+        if (!this.gameState || !this.gameState.canResize) {
+          console.log('⚠️ Resize blocked during critical phase');
+          return;
+        }
+        
+        console.log('📐 Resize executing after debounce');
+        
+        // Обновляем bounds
+        if (this.scale && this.scale.updateBounds) {
+          this.scale.updateBounds();
+        }
+        
+        // Перерисовываем фон
+        this.ensureGradientBackground();
+        
+        // Перерисовываем layout с сохранением состояния
+        if (this.gameState.gameStarted || this.gameState.isMemorizationPhase) {
+          this.saveGameState();
+          this.redrawLayout();
+        } else if (this.cards.length === 0) {
+          // Если игра ещё не начата
+          this.startGame(this.currentLevel);
+        }
+        
+        resizeTimeout = null;
+      }, resizeDebounceTime);
+    };
+    
+    // Подписываемся на resize ОДИН раз
+    this.scale.on('resize', this._resizeHandler, this);
+    
+    // ===== 7. ОБРАБОТЧИКИ ОЧИСТКИ =====
+    
+    // Регистрируем обработчики очистки
+    this.events.once('shutdown', () => {
+      console.log('🧹 Scene shutdown - cleaning up');
+      
+      // Очищаем resize timeout если есть
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = null;
+      }
+      
+      this.cleanup();
+    });
+    
+    this.events.once('destroy', () => {
+      console.log('💥 Scene destroy - full cleanup');
+      this.cleanup();
+    });
+    
+    // ===== 8. БЕЗОПАСНЫЙ ЗАПУСК ИГРЫ =====
+    
+    // Используем requestAnimationFrame для плавного старта
+    requestAnimationFrame(() => {
+      // Запускаем игру только после полной инициализации
+      this.startGame(this.currentLevel);
+    });
+    
+    console.log('✅ GameScene created successfully');
+    
+  } catch (error) {
+    console.error('❌ Critical error in GameScene.create:', error);
+    
+    // Безопасный fallback на меню
+    this.time.delayedCall(100, () => {
+      this.scene.start('MenuScene', { page: this.levelPage || 0 });
+    });
   }
+}
+
+// НОВЫЙ МЕТОД: Неблокирующая инициализация менеджера синхронизации
+async initializeSyncManager() {
+  try {
+    // Если уже есть глобальный менеджер - используем его
+    if (window.progressSyncManager) {
+      this.syncManager = window.progressSyncManager;
+      return;
+    }
+    
+    // Проверяем, находимся ли мы в VK
+    const isVK = window.VK_BRIDGE_READY && window.vkBridge;
+    
+    if (isVK) {
+      // В VK - создаём менеджер с синхронизацией
+      const { ProgressSyncManager } = await import('./sync/ProgressSyncManager.js');
+      this.syncManager = new ProgressSyncManager();
+      window.progressSyncManager = this.syncManager;
+    } else {
+      // Вне VK - используем только localStorage
+      console.log('📱 Running outside VK - local storage only');
+      this.syncManager = {
+        loadProgress: () => this.loadProgressLocal(),
+        saveProgress: (data) => this.saveProgressLocal(data),
+        isVKAvailable: () => false
+      };
+    }
+    
+    // Загружаем прогресс
+    if (this.syncManager) {
+      this.progressData = await this.syncManager.loadProgress();
+    }
+    
+  } catch (error) {
+    console.warn('⚠️ Sync manager initialization failed:', error);
+    // Fallback на локальное хранилище
+    this.progressData = this.loadProgressLocal();
+  }
+}
+
+// НОВЫЙ МЕТОД: Правильная очистка с проверками
+cleanup() {
+  console.log('🧹 GameScene cleanup started');
+  
+  // ===== 1. ОЧИСТКА ТАЙМЕРОВ =====
+  const timers = [
+    'memorizeTimer', 'flipTimer', 'gameTimer',
+    'revealTimer', 'checkTimer', 'hideTimer'
+  ];
+  
+  timers.forEach(timerName => {
+    if (this[timerName]) {
+      // Безопасная очистка с проверкой типа
+      if (typeof this[timerName].destroy === 'function') {
+        this[timerName].destroy();
+      } else if (typeof this[timerName].remove === 'function') {
+        this[timerName].remove();
+      } else if (typeof this[timerName] === 'number') {
+        // Если это ID таймера
+        clearTimeout(this[timerName]);
+      }
+      this[timerName] = null;
+    }
+  });
+  
+  // ===== 2. ОЧИСТКА TIME EVENTS =====
+  if (this.time) {
+    this.time.removeAllEvents();
+  }
+  
+  // ===== 3. ОЧИСТКА TWEENS =====
+  if (this.tweens) {
+    this.tweens.killAll();
+  }
+  
+  // ===== 4. ОЧИСТКА СЛУШАТЕЛЕЙ СОБЫТИЙ =====
+  
+  // Resize handler
+  if (this._resizeHandler && this.scale) {
+    this.scale.off('resize', this._resizeHandler);
+    this._resizeHandler = null;
+  }
+  
+  // Wheel handler
+  if (this._wheelHandler && this.input) {
+    this.input.off('wheel', this._wheelHandler);
+    this._wheelHandler = null;
+  }
+  
+  // Input события
+  if (this.input) {
+    this.input.off('pointerdown');
+    this.input.off('pointerup');
+    this.input.off('pointermove');
+  }
+  
+  // ===== 5. ОЧИСТКА КАРТ =====
+  if (this.cards && Array.isArray(this.cards)) {
+    this.cards.forEach(card => {
+      if (card && card.scene) {
+        // Снимаем все слушатели
+        card.removeAllListeners();
+        // Уничтожаем объект
+        card.destroy();
+      }
+    });
+    this.cards = [];
+  }
+  
+  // ===== 6. ОЧИСТКА UI ЭЛЕМЕНТОВ =====
+  const uiElements = [
+    'hud', 'mistakeText', 'timeText', 'bgImage',
+    'exitBtn', 'victoryContainer'
+  ];
+  
+  uiElements.forEach(elementName => {
+    if (this[elementName] && this[elementName].destroy) {
+      this[elementName].destroy();
+      this[elementName] = null;
+    }
+  });
+  
+  // ===== 7. ОЧИСТКА МАССИВОВ =====
+  this.opened = [];
+  this.levelButtons = [];
+  
+  // ===== 8. СБРОС СОСТОЯНИЯ =====
+  if (this.gameState) {
+    this.gameState.canResize = true;
+    this.gameState.gameStarted = false;
+    this.gameState.isMemorizationPhase = false;
+  }
+  
+  console.log('✅ GameScene cleanup completed');
+}
 
   // НОВЫЙ МЕТОД: Инициализация менеджера синхронизации
   async initializeSyncManager() {
@@ -386,7 +631,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
 
     // Очистка resize слушателя
-    this.scale.off('resize');
+    if (this._resizeHandler) {
+  this.scale.off('resize', this._resizeHandler);
+}
 
     // Очистка переменных
     this.opened = [];
@@ -576,6 +823,11 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   // Обновление HUD с таймером
   drawHUD() {
+if (document.fonts && !this._fontsReady) {
+    await document.fonts.ready;
+    this._fontsReady = true;
+  }
+    
     this.clearHUD();
     const { W, H } = this.getSceneWH();
     const hudH = Math.min(100, Math.round(H * 0.12));
