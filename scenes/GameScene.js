@@ -204,6 +204,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this._fontsReady = true;
       console.log('✅ Fonts loaded and ready');
     }
+
+    // Теперь безопасно создавать тексты
+  await this.drawHUD();
     
     // ===== 3. АСИНХРОННАЯ ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРОВ =====
     
