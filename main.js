@@ -860,10 +860,10 @@ const gameConfig = {
   disableContextMenu: true,
   banner: false, // Отключаем баннер Phaser в консоли
      scene: [
-    PreloadScene || window.PreloadScene,
-    MenuScene || window.MenuScene,
-    GameScene || window.GameScene
-  ].filter(Boolean) // Фильтруем undefined сцены
+    window.PreloadScene,
+    window.MenuScene, 
+    window.GameScene
+].filter(Boolean) // Фильтруем undefined сцены
     };
 
 
