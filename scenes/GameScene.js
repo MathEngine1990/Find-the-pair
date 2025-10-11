@@ -461,24 +461,7 @@ cleanup() {
   console.log('✅ GameScene cleanup completed');
 }
 
-  // НОВЫЙ МЕТОД: Инициализация менеджера синхронизации
-  async initializeSyncManager() {
-    try {
-      // Используем переданный менеджер или глобальный
-      if (!this.syncManager) {
-        this.syncManager = window.progressSyncManager || new ProgressSyncManager();
-      }
-      
-      // Загружаем текущий прогресс
-      this.progressData = await this.syncManager.loadProgress();
-      console.log('🎮 GameScene: Progress data loaded', this.progressData);
-      
-    } catch (error) {
-      console.error('❌ Failed to init sync manager in GameScene:', error);
-      // Fallback к старой системе
-      this.progressData = this.getProgressFallback();
-    }
-  }
+  
 
   // НОВЫЙ МЕТОД: Fallback загрузка прогресса
   getProgressFallback() {
@@ -606,7 +589,7 @@ cleanup() {
   }
 
   // Перерисовка layout без изменения игровой логики
-  redrawLayout() {
+  async redrawLayout() {
     if (!this.gameState.deck || !this.currentLevel) {
       console.warn('Cannot redraw: missing deck or level');
       return;
@@ -842,7 +825,7 @@ if (document.fonts && !this._fontsReady) {
     }
   }
 
-  startGame(level) {
+ async startGame(level) {
     console.log('Starting game with level:', level);
     
     if (!level || !level.cols || !level.rows) {
