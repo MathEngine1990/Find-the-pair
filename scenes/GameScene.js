@@ -660,7 +660,7 @@ cleanup() {
     this.gameState.isMemorizationPhase = wasMemorizing;
     
     // Перерисовываем HUD
-    await this.drawHUD();
+    await this.drawHUD().catch(console.error);
     
     // Восстанавливаем таймер
     if (wasGameStarted && !wasMemorizing) {
@@ -904,7 +904,7 @@ if (document.fonts && !this._fontsReady) {
     this.gameState.isMemorizationPhase = true;
     this.gameState.canResize = false; // Блокируем resize на время показа
 
-    await this.drawHUD();
+    await this.drawHUD().catch(console.error);
     this.createCardLayout(this.gameState.deck);
 
     // 5-секундный показ карт для запоминания
