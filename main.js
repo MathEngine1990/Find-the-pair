@@ -850,7 +850,8 @@ const gameConfig = {
 
     render: { 
     antialias: !isMobile,
-    pixelArt: false
+    pixelArt: false,
+      preserveDrawingBuffer: false
   },
   // ДОБАВИТЬ эти строки:
   physics: {
