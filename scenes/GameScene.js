@@ -1,5 +1,4 @@
 //---scenes/GameScene.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ ProgressSyncManager
-
 window.GameScene = class GameScene extends Phaser.Scene {
 
   destroy() {
