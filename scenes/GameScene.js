@@ -34,10 +34,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
   
   // Очистка слушателей
-  if (this._resizeHandler) {
-    this.scale.off('resize', this._resizeHandler);
-    this._resizeHandler = null;
-  }
+
   
   // Очистка ввода
   this.input.off('pointerdown');
@@ -187,6 +184,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.memorizeTimer = null;
     this.flipTimer = null;
     this.revealTimer = null;
+
+    
     
     // Обработчики событий
     this._resizeHandler = null;
@@ -197,6 +196,26 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this._lastTapTime = 0;
     
     // ===== 2. ОЖИДАНИЕ ЗАГРУЗКИ КРИТИЧЕСКИХ РЕСУРСОВ =====
+
+    // Детектор long tasks (добавить после строки 273)
+if (window.PerformanceObserver) {
+  const po = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (entry.duration > 200) {
+        console.warn(`⚠️ Long task detected: ${entry.duration}ms`, entry.name);
+      }
+    }
+  });
+  
+  try {
+    po.observe({ entryTypes: ['longtask'] });
+    
+    // Отключаем через 5 секунд после старта
+    this.time.delayedCall(5000, () => po.disconnect());
+  } catch (e) {
+    // Браузер не поддерживает longtask
+  }
+}
     
     // КРИТИЧНО: Ждём загрузку шрифтов ДО любой отрисовки текста
     if (document.fonts && document.fonts.ready) {
@@ -233,12 +252,6 @@ window.GameScene = class GameScene extends Phaser.Scene {
       return;
     }
     
-    // ===== 6. ЕДИНСТВЕННЫЙ RESIZE HANDLER С DEBOUNCE =====
-    
-    // Удаляем старые обработчики если есть
-    if (this._resizeHandler) {
-      this.scale.off('resize', this._resizeHandler);
-    }
     
     // Создаём debounced handler (200ms задержка)
     const resizeDebounceTime = 200;
@@ -289,7 +302,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Регистрируем обработчики очистки
     this.events.once('shutdown', () => {
       console.log('🧹 Scene shutdown - cleaning up');
-      
+      this.memorizeController?.abort();
       // Очищаем resize timeout если есть
       if (resizeTimeout) {
         clearTimeout(resizeTimeout);
@@ -373,6 +386,11 @@ cleanup() {
   console.log('🧹 GameScene cleanup started');
   
   // ===== 1. ОЧИСТКА ТАЙМЕРОВ =====
+  if (this.memorizeTimer) {
+    clearTimeout(this.memorizeTimer);
+    this.memorizeTimer = null;
+  }
+  
   const timers = [
     'memorizeTimer', 'flipTimer', 'gameTimer',
     'revealTimer', 'checkTimer', 'hideTimer'
@@ -405,11 +423,7 @@ cleanup() {
   
   // ===== 4. ОЧИСТКА СЛУШАТЕЛЕЙ СОБЫТИЙ =====
   
-  // Resize handler
-  if (this._resizeHandler && this.scale) {
-    this.scale.off('resize', this._resizeHandler);
-    this._resizeHandler = null;
-  }
+
   
   // Wheel handler
   if (this._wheelHandler && this.input) {
@@ -460,7 +474,8 @@ cleanup() {
     this.gameState.gameStarted = false;
     this.gameState.isMemorizationPhase = false;
   }
-  
+  // Отписываемся от событий
+  this.scale.off('resize', this._resizeHandler);
   console.log('✅ GameScene cleanup completed');
 }
 
@@ -532,6 +547,8 @@ cleanup() {
       this.setCardSize(card, targetWidth, targetHeight);
     }
   }
+
+
 
   // НОВЫЙ МЕТОД: Очистка экрана победы
   clearVictoryScreen() {
@@ -1013,6 +1030,10 @@ getSceneWH() {
 
 // УЛУЧШЕННЫЙ МЕТОД: Обработка resize
 handleResize(gameSize) {
+  // Добавьте проверку:
+  if (!this.gameState || !this.cardsContainer) {
+    return;
+  }
     console.log('Resize to:', gameSize.width, 'x', gameSize.height);
     
     // Пересчитываем layout только если игра не активна
@@ -1074,11 +1095,18 @@ handleResize(gameSize) {
       fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(1000);
 
+    // AbortController для безопасной отмены
+  this.memorizeController = new AbortController();
+
     // Таймер обратного отсчёта
     this.memorizeTimer = this.time.addEvent({
       delay: 1000,
       repeat: 4,
       callback: () => {
+        if (this.memorizeController.signal.aborted) {
+        this.memorizeTimer.remove();
+        return;
+      }
         countdown--;
         if (countdown > 0) {
           countdownText.setText(countdown.toString());
