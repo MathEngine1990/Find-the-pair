@@ -985,19 +985,19 @@ if (document.fonts && !this._fontsReady) {
     
     // КРИТИЧНО: Динамический расчет размеров карт под любой экран
     // Учитываем padding в процентах от ширины экрана
-    const horizontalPadding = W * 0.02; // 2% отступ по краям
-    const verticalPadding = H * 0.02;
+    const horizontalPadding = W * 0.01; // 1% отступ по краям
+    const verticalPadding = H * 0.01;
     
     const availableW = W - (horizontalPadding * 2);
     const availableH = gameAreaH - (verticalPadding * 2);
     
     // ИСПРАВЛЕНО: Расчет оптимального размера карт с учетом промежутков
-    const gapSize = Math.min(8, W * 0.01); // Адаптивный gap
+    const gapSize = Math.min(6, W * 0.008); // Адаптивный gap
     const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
     const cardMaxH = (availableH - (level.rows - 1) * gapSize) / level.rows;
     
     // КРИТИЧНО: Сохраняем пропорции карт, но максимально используем экран
-    const aspectRatio = 0.7; // Соотношение ширины к высоте
+    const aspectRatio = 0.68; // Соотношение ширины к высоте
     let cardW, cardH;
     
     if (cardMaxW / cardMaxH > aspectRatio) {
@@ -1010,12 +1010,16 @@ if (document.fonts && !this._fontsReady) {
         cardH = cardW / aspectRatio;
     }
     
-    // ИСПРАВЛЕНО: Ограничения для читаемости на больших экранах
-    const maxAbsoluteCardW = Math.min(150, W * 0.15);
-    const maxAbsoluteCardH = Math.min(200, H * 0.2);
+    // ✅ ИСПРАВЛЕНО: Мобильные НЕ ограничиваем, только десктоп
+    const isMobileDevice = W < 768 || H < 600;
     
-    cardW = Math.min(cardW, maxAbsoluteCardW);
-    cardH = Math.min(cardH, maxAbsoluteCardH);
+    if (!isMobileDevice) {
+        // Ограничения ТОЛЬКО для больших экранов
+        const maxAbsoluteCardW = Math.min(180, W * 0.18);
+        const maxAbsoluteCardH = Math.min(240, H * 0.25);
+        cardW = Math.min(cardW, maxAbsoluteCardW);
+        cardH = Math.min(cardH, maxAbsoluteCardH);
+    }
     
     // Округляем для четкости
     cardW = Math.floor(cardW);
