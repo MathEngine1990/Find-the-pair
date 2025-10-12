@@ -47,9 +47,22 @@ window.GameScene = class GameScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.currentLevel = data?.level || null;
-    this.currentLevelIndex = data?.levelIndex || 0; // ДОБАВЛЕНО: индекс уровня
-    this.levelPage = data?.page || 0;
+  // ✅ КРИТИЧНО: Обработка случая, когда передан индекс вместо объекта
+  if (typeof data?.level === 'number') {
+    console.warn('⚠️ Received level index instead of object, auto-converting');
+    this.currentLevelIndex = data.level;
+    this.currentLevel = window.LEVELS[data.level];
+  } else if (data?.level && typeof data.level === 'object') {
+    this.currentLevel = data.level;
+    this.currentLevelIndex = data?.levelIndex ?? 0;
+  } else {
+    // Fallback: пытаемся взять первый уровень
+    console.error('❌ No valid level provided!');
+    this.currentLevel = window.LEVELS[0];
+    this.currentLevelIndex = 0;
+  }
+  
+  this.levelPage = data?.page || 0;
     
     // VK данные из PreloadScene
     this.vkUserData = data?.userData || window.VK_USER_DATA;
@@ -257,10 +270,20 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // ===== 5. ВАЛИДАЦИЯ И ЗАПУСК ИГРЫ =====
     
     if (!this.currentLevel || !this.currentLevel.cols || !this.currentLevel.rows) {
-      console.error('❌ Invalid level data:', this.currentLevel);
-      this.scene.start('MenuScene', { page: this.levelPage || 0 });
-      return;
-    }
+  console.error('❌ Invalid level data:', this.currentLevel);
+  console.error('Data received:', this.currentLevel);
+  console.error('Available levels:', window.LEVELS?.length || 0);
+  
+  // ✅ Пытаемся восстановиться
+  if (this.currentLevelIndex >= 0 && window.LEVELS[this.currentLevelIndex]) {
+    console.log('🔧 Attempting recovery with levelIndex:', this.currentLevelIndex);
+    this.currentLevel = window.LEVELS[this.currentLevelIndex];
+  } else {
+    console.error('❌ Cannot recover, returning to menu');
+    this.scene.start('MenuScene', { page: this.levelPage || 0 });
+    return;
+  }
+}
     
     // ===== 6. ✅ КРИТИЧНО: ЕДИНЫЙ RESIZE HANDLER С DEBOUNCE =====
     
