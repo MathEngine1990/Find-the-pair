@@ -166,16 +166,20 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.levelButtons = [];
     this.cards = [];
 
-// ✅ КРИТИЧНО: Уничтожаем контейнер
-if (this.cardsContainer) {
-  this.cardsContainer.destroy(true);
-  this.cardsContainer = null;
-}
+    // ✅ КРИТИЧНО: Уничтожаем контейнер перед созданием нового
+    if (this.cardsContainer) {
+      this.cardsContainer.destroy(true);
+      this.cardsContainer = null;
+    }
     
     this.opened = [];
     
-    // Состояние игры
+    // ✅ КРИТИЧНО: Инициализируем флаги блокировки
     this.canClick = false;
+    this._processingCards = false; // ← ДОБАВЛЕНО: Явная инициализация
+    this._lastClickTime = 0; // ← ДОБАВЛЕНО: Защита от двойного клика
+    
+    // Счётчики
     this.mistakeCount = 0;
     this.currentTimeSeconds = 0;
     
@@ -190,9 +194,8 @@ if (this.cardsContainer) {
     this.memorizeTimer = null;
     this.flipTimer = null;
     this.revealTimer = null;
+    this.memorizeController = null; // ← ДОБАВЛЕНО: AbortController
 
-    
-    
     // Обработчики событий
     this._resizeHandler = null;
     this._wheelHandler = null;
@@ -203,27 +206,28 @@ if (this.cardsContainer) {
     
     // ===== 2. ОЖИДАНИЕ ЗАГРУЗКИ КРИТИЧЕСКИХ РЕСУРСОВ =====
 
-    // Детектор long tasks (добавить после строки 273)
-if (window.PerformanceObserver) {
-  const po = new PerformanceObserver((list) => {
-    for (const entry of list.getEntries()) {
-      if (entry.duration > 200) {
-        console.warn(`⚠️ Long task detected: ${entry.duration}ms`, entry.name);
+    // ✅ ДОБАВЛЕНО: Детектор long tasks (первые 5 секунд)
+    if (window.PerformanceObserver) {
+      const po = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.duration > 200) {
+            console.warn(`⚠️ Long task detected: ${entry.duration}ms`, entry.name);
+          }
+        }
+      });
+      
+      try {
+        po.observe({ entryTypes: ['longtask'] });
+        
+        // Отключаем через 5 секунд после старта
+        this.time.delayedCall(5000, () => po.disconnect());
+      } catch (e) {
+        // Браузер не поддерживает longtask
+        console.log('ℹ️ PerformanceObserver not supported');
       }
     }
-  });
-  
-  try {
-    po.observe({ entryTypes: ['longtask'] });
     
-    // Отключаем через 5 секунд после старта
-    this.time.delayedCall(5000, () => po.disconnect());
-  } catch (e) {
-    // Браузер не поддерживает longtask
-  }
-}
-    
-    // КРИТИЧНО: Ждём загрузку шрифтов ДО любой отрисовки текста
+    // ✅ КРИТИЧНО: Ждём загрузку шрифтов ДО любой отрисовки текста
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
       this._fontsReady = true;
@@ -231,7 +235,7 @@ if (window.PerformanceObserver) {
     }
 
     // Теперь безопасно создавать тексты
-  await this.drawHUD();
+    await this.drawHUD();
     
     // ===== 3. АСИНХРОННАЯ ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРОВ =====
     
@@ -258,15 +262,19 @@ if (window.PerformanceObserver) {
       return;
     }
     
+    // ===== 6. ✅ КРИТИЧНО: ЕДИНЫЙ RESIZE HANDLER С DEBOUNCE =====
     
+    // Удаляем старые подписки ПЕРЕД добавлением новой
+    this.scale.off('resize');
+
     // Создаём debounced handler (200ms задержка)
-    const resizeDebounceTime = 200;
     let resizeTimeout = null;
-    
-    this._resizeHandler = (gameSize, baseSize, displaySize, resolution, previousWidth, previousHeight) => {
+
+    this._resizeHandler = () => {
       // Очищаем предыдущий таймер
       if (resizeTimeout) {
         clearTimeout(resizeTimeout);
+        resizeTimeout = null;
       }
       
       // Устанавливаем новый таймер
@@ -277,7 +285,7 @@ if (window.PerformanceObserver) {
           return;
         }
         
-        console.log('📐 Resize executing after debounce');
+        console.log('🔍 Resize executing after debounce');
         
         // Обновляем bounds
         if (this.scale && this.scale.updateBounds) {
@@ -297,10 +305,10 @@ if (window.PerformanceObserver) {
         }
         
         resizeTimeout = null;
-      }, resizeDebounceTime);
+      }, 200); // 200ms debounce
     };
-    
-    // Подписываемся на resize ОДИН раз
+
+    // Подписываемся ОДИН раз
     this.scale.on('resize', this._resizeHandler, this);
     
     // ===== 7. ОБРАБОТЧИКИ ОЧИСТКИ =====
@@ -308,8 +316,14 @@ if (window.PerformanceObserver) {
     // Регистрируем обработчики очистки
     this.events.once('shutdown', () => {
       console.log('🧹 Scene shutdown - cleaning up');
-      this.memorizeController?.abort();
-      // Очищаем resize timeout если есть
+      
+      // ✅ ДОБАВЛЕНО: Отменяем асинхронные операции
+      if (this.memorizeController) {
+        this.memorizeController.abort();
+        this.memorizeController = null;
+      }
+      
+      // ✅ ДОБАВЛЕНО: Очищаем resize timeout если есть
       if (resizeTimeout) {
         clearTimeout(resizeTimeout);
         resizeTimeout = null;
@@ -427,7 +441,7 @@ cleanup() {
   
   // ===== 4. ⚠️ КРИТИЧНО: СБРОС ФЛАГОВ БЛОКИРОВКИ =====
   this.canClick = false;
-  this._processingCards = false; // ← ДОБАВИТЬ ЭТУ СТРОКУ!
+  this._processingCards = false; // ← 🔧 FIX #1: ДОБАВИТЬ ЭТУ СТРОКУ!
   this.gameStarted = false;
   this.isMemorizationPhase = false;
   
@@ -447,7 +461,7 @@ cleanup() {
   if (this.cards && Array.isArray(this.cards)) {
     this.cards.forEach(card => {
       if (card && card.scene) {
-        card.setData('isAnimating', false); // ← ДОБАВИТЬ ЭТУ СТРОКУ!
+        card.setData('isAnimating', false); // ← 🔧 FIX #4: ДОБАВИТЬ ЭТУ СТРОКУ!
         card.removeAllListeners();
         card.destroy();
       }
@@ -456,8 +470,8 @@ cleanup() {
   }
   
   // ===== 7. ⚠️ КРИТИЧНО: УНИЧТОЖЕНИЕ КОНТЕЙНЕРА =====
-  if (this.cardsContainer) {
-    this.cardsContainer.destroy(true); // ← ДОБАВИТЬ ЭТИ 3 СТРОКИ!
+  if (this.cardsContainer && this.cardsContainer.scene) { // ← 🔧 FIX #5: Проверка scene
+    this.cardsContainer.destroy(true);
     this.cardsContainer = null;
   }
   
@@ -486,7 +500,10 @@ cleanup() {
   }
   
   // ===== 11. ОТПИСКА ОТ RESIZE =====
-  this.scale.off('resize', this._resizeHandler);
+  if (this._resizeHandler) { // ← 🔧 FIX #3: Проверка handler
+    this.scale.off('resize', this._resizeHandler);
+    this._resizeHandler = null;
+  }
   
   console.log('✅ GameScene cleanup completed');
 }
@@ -564,43 +581,41 @@ cleanup() {
 
   // НОВЫЙ МЕТОД: Очистка экрана победы
   clearVictoryScreen() {
-    console.log('Clearing victory screen...');
-    
-    // Очищаем через контейнер если он существует
-    if (this.victoryContainer) {
-      this.victoryContainer.destroy();
-      this.victoryContainer = null;
-    }
-    
-    // Очищаем через массив элементов если он существует
-    if (this.victoryElements && Array.isArray(this.victoryElements)) {
-      this.victoryElements.forEach(element => {
-        if (element && element.destroy) {
-          element.destroy();
-        }
-      });
-      this.victoryElements = null;
-    }
-    
-    // Дополнительная очистка всех объектов с высоким depth (экран победы)
-    const toDestroy = [];
+  console.log('Clearing victory screen...');
+  
+  // ⚠️ КРИТИЧНО: Удаляем ТОЛЬКО через контейнер
+  if (this.victoryContainer && this.victoryContainer.scene) {
+    this.victoryContainer.destroy(true); // ← destroyChildren = true
+    this.victoryContainer = null;
+  }
+  
+  // ⚠️ FALLBACK: Удаляем orphan элементы с высоким depth
+  const toDestroy = [];
+  if (this.children && this.children.list) {
     this.children.list.forEach(child => {
-      if (child && child.depth >= 100) {
+      if (child && child.depth >= 100 && child !== this.victoryContainer) {
         toDestroy.push(child);
       }
     });
-    
-    toDestroy.forEach(child => {
-      if (child && child.destroy) {
-        child.destroy();
-      }
-    });
-    
-    // Сбрасываем флаг
-    this.gameState.showingVictory = false;
-    
-    console.log('Victory screen cleared');
   }
+  
+  toDestroy.forEach(child => {
+    if (child && child.scene && typeof child.destroy === 'function') {
+      try {
+        child.destroy();
+      } catch (e) {
+        console.warn('Error destroying orphan element:', e);
+      }
+    }
+  });
+  
+  // Сбрасываем флаг
+  if (this.gameState) {
+    this.gameState.showingVictory = false;
+  }
+  
+  console.log('Victory screen cleared');
+}
 
   
 
@@ -1010,6 +1025,8 @@ if (document.fonts && !this._fontsReady) {
                 .setData('matched', false)
                 .setData('index', index) // Добавляем индекс для отладки
                 .setInteractive({ useHandCursor: true })
+                // ✅ НОВЫЙ КОД:
+                .off('pointerdown') // Удаляем старые подписки
                 .on('pointerdown', () => this.onCardClick(card));
             
             // Используем улучшенный метод установки размера
@@ -1197,10 +1214,26 @@ handleResize(gameSize) {
     });
   }
 
-  onCardClick(card) {
-    if (event && event.preventDefault) {
-    event.preventDefault();
-    event.stopPropagation();
+  // ✅ НОВЫЙ КОД:
+onCardClick(card, event) { // ← Добавить event в параметры
+  // Предотвращаем стандартное поведение
+  if (event) {
+    if (event.preventDefault) event.preventDefault();
+    if (event.stopPropagation) event.stopPropagation();
+  }
+  
+  // ТРОЙНАЯ ЗАЩИТА от race conditions
+  if (!this.canClick || this._processingCards) {
+    console.log('⚠️ Click ignored: canClick =', this.canClick, ', processing =', this._processingCards);
+    return;
+  }
+  if (card.getData('opened') || card.getData('matched')) {
+    console.log('⚠️ Click ignored: card already opened/matched');
+    return;
+  }
+  if (card.getData('isAnimating')) {
+    console.log('⚠️ Click ignored: card is animating');
+    return;
   }
   // ИСПРАВЛЕНО: Тройная защита от race conditions
   if (!this.canClick || this._processingCards) return;
