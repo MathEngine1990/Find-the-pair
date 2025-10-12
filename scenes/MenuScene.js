@@ -499,13 +499,15 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     const isMobile = w > 150; // Простая проверка размера
     
     const btn = window.makeImageButton(this, x, y, w, h, '', () => {
-        if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
-        this.scene.start('GameScene', { 
-  level: window.LEVELS[levelIndex],  // ← Передаём ОБЪЕКТ
-  levelIndex: levelIndex,             // ← И индекс тоже
-  page: this.levelPage                // ← Для возврата в меню
+  if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
+  
+  // ✅ ИСПРАВЛЕНО: Передаём объект уровня
+  this.scene.start('GameScene', { 
+    level: window.LEVELS[levelIndex],  // Объект уровня
+    levelIndex: levelIndex,             // Индекс для tracking
+    page: this.levelPage                // Страница меню для возврата
+  });
 });
-    });
     
     // КРИТИЧНО: Увеличенный размер текста на кнопках
     const fontSize = Math.max(
