@@ -34,6 +34,8 @@ class ProgressSyncManager {
     this.onSyncComplete = null;
     this.onSyncError = null;
     this.onProgressUpdate = null;
+
+    this._vkAvailabilityLogged = false; // ← Флаг для логирования
     
     // Сохраняем экземпляр
     ProgressSyncManager.instance = this;
@@ -67,45 +69,62 @@ class ProgressSyncManager {
 
   async loadInitialData() {
   try {
+    console.log('📂 Loading initial data...');
+    
+    // Сначала загружаем локальные данные
     const localData = this.loadFromLocal();
     
-    // ИСПРАВЛЕНО: Проверяем доступность VK перед синхронизацией
-    if (this.isVKAvailable() && window.vkBridge) {
-      try {
-        const synced = await this.performSync();
-        if (synced) {
-          console.log('✅ Initial sync completed');
-          return;
-        }
-      } catch (vkError) {
-        console.log('📱 VK sync not available, using local data');
-      }
+    // ✅ ИСПРАВЛЕНО: Проверяем VK ТОЛЬКО если явно включен
+    if (!this.isVKAvailable()) {
+      console.log('📱 VK not available - using local storage only');
+      return localData;
     }
     
-    console.log('📱 Using local data only');
+    // Пытаемся синхронизироваться с VK (неблокирующе)
+    try {
+      console.log('☁️ Attempting VK sync...');
+      const synced = await this.performSync();
+      
+      if (synced) {
+        console.log('✅ Initial VK sync completed');
+        return this.loadFromLocal(); // Возвращаем актуальные данные
+      }
+    } catch (vkError) {
+      // ✅ ВАЖНО: Не падаем на ошибке VK, просто логируем
+      console.log('📱 VK sync failed, continuing with local data:', vkError.message);
+    }
+    
+    return localData;
     
   } catch (error) {
     console.error('❌ Failed to load initial data:', error);
-    // Не вызываем handleSyncError для избежания зацикливания
+    // Возвращаем дефолтные данные вместо падения
+    return this.getDefaultProgressData();
   }
 }
 
   async performSync() {
-    if (this.isSyncing) {
-      console.log('⏳ Sync already in progress');
-      return false;
-    }
+  // ✅ КРИТИЧНО: Проверка ПЕРЕД началом синхронизации
+  if (!this.isVKAvailable()) {
+    console.log('📱 Sync skipped - VK not available');
+    return false;
+  }
+  
+  if (this.isSyncing) {
+    console.log('⏳ Sync already in progress');
+    return false;
+  }
 
-    this.isSyncing = true;
+  this.isSyncing = true;
+  
+  if (this.onSyncStart) {
+    this.onSyncStart();
+  }
+
+  try {
+    console.log('🔄 Starting VK sync...');
     
-    if (this.onSyncStart) {
-      this.onSyncStart();
-    }
-
-    try {
-      console.log('🔄 Starting sync...');
-      
-      const vkData = await this.loadFromVK();
+    const vkData = await this.loadFromVK();
       const localData = this.loadFromLocal();
       
       const mergedData = this.mergeProgressData(localData, vkData);
@@ -652,13 +671,27 @@ getCurrentLevel() {
   }
 
   isVKAvailable() {
-    // ИСПРАВЛЕНО: Более надёжная проверка
-    return !!(
-      window.VK_BRIDGE_READY && 
-      window.vkBridge &&
-      typeof window.vkBridge.send === 'function'
-    );
+  // ✅ КРИТИЧНО: Строгая проверка с логированием
+  const checks = {
+    bridgeReady: window.VK_BRIDGE_READY === true,
+    bridgeExists: !!window.vkBridge,
+    sendMethod: typeof window.vkBridge?.send === 'function',
+    // ✅ ДОБАВЛЕНО: Проверка окружения
+    isVKEnv: /vk_(app_id|user_id|platform)/i.test(window.location.search) ||
+             window.location.hostname.includes('vk.com') ||
+             window.location.hostname.includes('vk-apps.com')
+  };
+  
+  const available = checks.bridgeReady && checks.bridgeExists && checks.sendMethod && checks.isVKEnv;
+  
+  // Логируем только при первом вызове
+  if (!this._vkAvailabilityLogged) {
+    console.log('🔍 VK Availability check:', checks, '→', available);
+    this._vkAvailabilityLogged = true;
   }
+  
+  return available;
+}
 
   handleSyncError(error) {
     console.error('❌ Sync error:', error);
@@ -736,28 +769,64 @@ ProgressSyncManager.instance = null;
 // Экспорт класса
 window.ProgressSyncManager = ProgressSyncManager;
 
-// ИСПРАВЛЕНО: Безопасная автоматическая инициализация
+// ✅ ПОЛНОСТЬЮ ПЕРЕПИСАННАЯ ИНИЦИАЛИЗАЦИЯ
 if (typeof window !== 'undefined') {
-  // Проверяем, находимся ли мы в VK
-  const isVKEnvironment = window.location.search.includes('vk_') || 
-                          window.location.hostname.includes('vk.com') ||
-                          window.location.hostname.includes('vk-apps.com');
+  // Детекция VK окружения
+  const isVKEnvironment = 
+    window.location.search.includes('vk_') || 
+    window.location.hostname.includes('vk.com') ||
+    window.location.hostname.includes('vk-apps.com') ||
+    window.parent !== window; // В iframe (может быть VK)
   
-  if (isVKEnvironment && window.VK_BRIDGE_READY) {
-    // В VK и Bridge готов - создаем менеджер
-    window.progressSyncManager = new ProgressSyncManager();
-  } else if (isVKEnvironment) {
-    // В VK, но Bridge еще не готов - ждем
-    window.addEventListener('vk-bridge-ready', () => {
-      if (!window.progressSyncManager) {
-        window.progressSyncManager = new ProgressSyncManager();
-      }
-    });
+  console.log('🔍 Environment detection:', {
+    isVK: isVKEnvironment,
+    bridgeReady: !!window.VK_BRIDGE_READY,
+    bridgeExists: !!window.vkBridge,
+    url: window.location.href
+  });
+  
+  if (isVKEnvironment) {
+    // ===== В VK ОКРУЖЕНИИ =====
+    
+    if (window.VK_BRIDGE_READY && window.vkBridge) {
+      // Bridge уже готов - создаём сразу
+      console.log('✅ VK Bridge ready - creating manager');
+      window.progressSyncManager = new ProgressSyncManager();
+      
+    } else {
+      // Bridge ещё не готов - ждём события
+      console.log('⏳ Waiting for VK Bridge...');
+      
+      window.addEventListener('vk-bridge-ready', () => {
+        if (!window.progressSyncManager) {
+          console.log('✅ VK Bridge ready (event) - creating manager');
+          window.progressSyncManager = new ProgressSyncManager();
+        }
+      });
+      
+      // Fallback: если событие не придёт через 3 секунды
+      setTimeout(() => {
+        if (!window.progressSyncManager) {
+          console.log('⚠️ VK Bridge timeout - creating local-only manager');
+          window.progressSyncManager = new ProgressSyncManager();
+          // Форсируем локальный режим
+          window.progressSyncManager.isVKAvailable = () => false;
+        }
+      }, 3000);
+    }
+    
   } else {
-    // НЕ в VK (GitHub Pages) - создаем менеджер без VK функций
+    // ===== ВНЕ VK (GitHub Pages, localhost) =====
+    
+    console.log('📱 Non-VK environment - creating local storage manager');
     window.progressSyncManager = new ProgressSyncManager();
-    // Отключаем VK функции
-    window.progressSyncManager.isVKAvailable = () => false;
-    console.log('📱 Running outside VK - local storage only mode');
+    
+    // ✅ КРИТИЧНО: Переопределяем метод для локального режима
+    const originalIsVKAvailable = window.progressSyncManager.isVKAvailable;
+    window.progressSyncManager.isVKAvailable = function() {
+      return false; // Всегда false вне VK
+    };
+    
+    console.log('📦 Local storage only mode activated');
   }
 }
