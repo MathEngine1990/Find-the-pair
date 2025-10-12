@@ -808,10 +808,10 @@ window.alert = showGameNotification;
       return;
     }
 
-    
-    //const isPortrait = screenHeight > screenWidth;
-
-    
+    // Определяем ориентацию ПЕРЕД использованием
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
     
     let gameWidth, gameHeight;
     
