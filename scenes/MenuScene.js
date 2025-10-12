@@ -349,16 +349,19 @@ clearMenu() {
     // КРИТИЧНО: Увеличенный размер заголовка
     const titlePx = Math.round(Phaser.Math.Clamp(
         H * (isMobile ? 0.055 : 0.06) * scaleFactor, 
-        isMobile ? 32 : 20,
-        isMobile ? 48 : 40
+        isMobile ? 28 : 20,
+        isMobile ? 42 : 40
     ));
     
-    const title = this.add.text(W/2, H * 0.08, 'Сколько пар играть?', {
+    const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
+
+    const title = this.add.text(W/2, H * 0.08, titleText, {
         fontFamily: 'Arial, sans-serif',
         fontSize: `${titlePx}px`,
         fontStyle: 'bold',
         color: '#FFFFFF',
-        align: 'center'
+        align: 'center',
+        wordWrap: { width: W * 0.9 } // ✅ ДОБАВИТЬ перенос слов
     }).setOrigin(0.5);
     title.setStroke('#000000', Math.max(3, Math.round(titlePx * 0.1)));
     title.setShadow(2, 2, '#000000', 8, false, true);
