@@ -20,6 +20,15 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
   async create(){
     console.log('MenuScene.create() started');
+
+    try {
+    await document.fonts.ready;
+    console.log('✅ Fonts ready');
+  } catch (error) {
+    console.warn('⚠️ Fonts API not available:', error);
+    // Fallback: простая задержка
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
     
     if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
     this.scale.on('resize', () => { 
