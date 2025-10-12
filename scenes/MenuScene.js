@@ -759,10 +759,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     }
   }
 
-  if (button.starsContainer) {
 
-    button.starsContainer = null;
-}
 
   // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
 updateSingleLevelButton(button, levelIndex, progressLevels) {
