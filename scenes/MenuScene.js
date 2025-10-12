@@ -567,7 +567,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     }
 
   // Добавляем звёзды и статистику
-    this.updateSingleLevelButton(btn, levelIndex, this.getProgress());
+    //this.updateSingleLevelButton(btn, levelIndex, this.getProgress());
     
     this.levelButtons.push(btn);
     return btn;
