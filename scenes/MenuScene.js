@@ -56,7 +56,7 @@ this.progress = this.getProgressLocal();
     // }, 150);
     
    // this.scale.on('resize', resizeHandler, this);
-    this._resizeHandler = resizeHandler; // Сохраняем для cleanup
+   // this._resizeHandler = resizeHandler; // Сохраняем для cleanup
     
     // ✅ ПРИНУДИТЕЛЬНЫЙ ПЕРВЫЙ RESIZE через 1 тик (после fonts.ready)
     this.time.delayedCall(16, () => {
