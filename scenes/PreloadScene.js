@@ -213,7 +213,10 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
   initVKAchievements() {
     try {
       // Создаем менеджер VK достижений
-      window.VKAchievementManager = new VKAchievementManager(this.vkUserData);
+      // ProgressSyncManager уже инициализирован глобально в main.js
+      if (!window.VKAchievementManager) {
+        window.VKAchievementManager = new VKAchievementManager(this.vkUserData);
+      }
       console.log('🏆 VK Achievement Manager initialized');
     } catch (error) {
       console.warn('⚠️ VK Achievement Manager init failed:', error);
@@ -311,21 +314,15 @@ class VKAchievementManager {
 
    async initSyncManager() {
     try {
-      this.syncManager = new ProgressSyncManager();
+            // ИСПОЛЬЗУЕМ ГЛОБАЛЬНЫЙ МЕНЕДЖЕР
+      this.syncManager = window.progressSyncManager || new ProgressSyncManager();
       
-      // Подписываемся на события синхронизации
-      this.syncManager.onSyncComplete = (data) => {
-        console.log('✅ Achievements synced');
-        if (data.achievements) {
-          this.achievements = { ...data.achievements };
-        }
-      };
+      if (!window.progressSyncManager) {
+        window.progressSyncManager = this.syncManager;
+        await this.syncManager.init();
+      }
       
-      this.syncManager.onSyncError = (error) => {
-        console.warn('⚠️ Achievement sync failed:', error);
-      };
-      
-      // Загружаем достижения через менеджер
+      // Загружаем существующие достижения
       const progressData = await this.syncManager.loadProgress();
       if (progressData && progressData.achievements) {
         this.achievements = { ...progressData.achievements };
