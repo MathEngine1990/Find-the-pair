@@ -390,6 +390,48 @@ class ProgressSyncManager {
     return merged;
   }
 
+  // sync/ProgressSyncManager.js
+// ДОБАВИТЬ после метода getCurrentLevel() (строка ~290)
+
+/**
+ * Устанавливает текущий уровень для отслеживания
+ * @param {number} levelIndex - Индекс уровня
+ */
+setCurrentLevel(levelIndex) {
+  if (typeof levelIndex !== 'number' || levelIndex < 0) {
+    console.warn('[ProgressSyncManager] Invalid levelIndex:', levelIndex);
+    return;
+  }
+  
+  this.currentLevel = levelIndex;
+  
+  // Сохраняем в localStorage для восстановления после перезагрузки
+  try {
+    localStorage.setItem('findpair_current_level', levelIndex.toString());
+    console.log(`[ProgressSyncManager] Current level set to: ${levelIndex}`);
+  } catch (e) {
+    console.warn('[ProgressSyncManager] Cannot save currentLevel:', e);
+  }
+}
+
+/**
+ * Получает текущий уровень
+ * @returns {number} Индекс текущего уровня
+ */
+getCurrentLevel() {
+  if (this.currentLevel !== undefined) {
+    return this.currentLevel;
+  }
+  
+  // Восстановление из localStorage
+  try {
+    const saved = localStorage.getItem('findpair_current_level');
+    return saved ? parseInt(saved, 10) : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
   mergeLevelData(local, vk) {
     if (!local && !vk) return null;
     if (!vk) return local;
