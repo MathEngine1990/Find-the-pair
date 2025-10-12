@@ -55,7 +55,7 @@ this.progress = this.getProgressLocal();
     //     this.drawMenu(this.levelPage);
     // }, 150);
     
-    this.scale.on('resize', resizeHandler, this);
+   // this.scale.on('resize', resizeHandler, this);
     this._resizeHandler = resizeHandler; // Сохраняем для cleanup
     
     // ✅ ПРИНУДИТЕЛЬНЫЙ ПЕРВЫЙ RESIZE через 1 тик (после fonts.ready)
