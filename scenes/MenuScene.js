@@ -784,7 +784,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
         } else {
             button.statsContainer.setVisible(false);
         }
-    }}
+    }
     
     // Создаём новые контейнеры с фиксированными позициями
     const btnX = button.x;
@@ -824,7 +824,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
         
         button.statsContainer.add(statsDisplay);
     }
-}
+  }
 
   showToast(message, color = '#3498DB', duration = 2000) {
     const { W, H } = this.getSceneWH();
