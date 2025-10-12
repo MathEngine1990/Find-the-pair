@@ -397,13 +397,11 @@ cleanup() {
   
   timers.forEach(timerName => {
     if (this[timerName]) {
-      // Безопасная очистка с проверкой типа
       if (typeof this[timerName].destroy === 'function') {
         this[timerName].destroy();
       } else if (typeof this[timerName].remove === 'function') {
         this[timerName].remove();
       } else if (typeof this[timerName] === 'number') {
-        // Если это ID таймера
         clearTimeout(this[timerName]);
       }
       this[timerName] = null;
@@ -420,37 +418,43 @@ cleanup() {
     this.tweens.killAll();
   }
   
-  // ===== 4. ОЧИСТКА СЛУШАТЕЛЕЙ СОБЫТИЙ =====
+  // ===== 4. ⚠️ КРИТИЧНО: СБРОС ФЛАГОВ БЛОКИРОВКИ =====
+  this.canClick = false;
+  this._processingCards = false; // ← ДОБАВИТЬ ЭТУ СТРОКУ!
+  this.gameStarted = false;
+  this.isMemorizationPhase = false;
   
-
-  
-  // Wheel handler
+  // ===== 5. ОЧИСТКА СЛУШАТЕЛЕЙ =====
   if (this._wheelHandler && this.input) {
     this.input.off('wheel', this._wheelHandler);
     this._wheelHandler = null;
   }
   
-  // Input события
   if (this.input) {
     this.input.off('pointerdown');
     this.input.off('pointerup');
     this.input.off('pointermove');
   }
   
-  // ===== 5. ОЧИСТКА КАРТ =====
+  // ===== 6. ⚠️ КРИТИЧНО: ОЧИСТКА КАРТ + СНЯТИЕ isAnimating =====
   if (this.cards && Array.isArray(this.cards)) {
     this.cards.forEach(card => {
       if (card && card.scene) {
-        // Снимаем все слушатели
+        card.setData('isAnimating', false); // ← ДОБАВИТЬ ЭТУ СТРОКУ!
         card.removeAllListeners();
-        // Уничтожаем объект
         card.destroy();
       }
     });
     this.cards = [];
   }
   
-  // ===== 6. ОЧИСТКА UI ЭЛЕМЕНТОВ =====
+  // ===== 7. ⚠️ КРИТИЧНО: УНИЧТОЖЕНИЕ КОНТЕЙНЕРА =====
+  if (this.cardsContainer) {
+    this.cardsContainer.destroy(true); // ← ДОБАВИТЬ ЭТИ 3 СТРОКИ!
+    this.cardsContainer = null;
+  }
+  
+  // ===== 8. ОЧИСТКА UI =====
   const uiElements = [
     'hud', 'mistakeText', 'timeText', 'bgImage',
     'exitBtn', 'victoryContainer'
@@ -463,18 +467,20 @@ cleanup() {
     }
   });
   
-  // ===== 7. ОЧИСТКА МАССИВОВ =====
+  // ===== 9. ОЧИСТКА МАССИВОВ =====
   this.opened = [];
   this.levelButtons = [];
   
-  // ===== 8. СБРОС СОСТОЯНИЯ =====
+  // ===== 10. СБРОС СОСТОЯНИЯ =====
   if (this.gameState) {
     this.gameState.canResize = true;
     this.gameState.gameStarted = false;
     this.gameState.isMemorizationPhase = false;
   }
-  // Отписываемся от событий
+  
+  // ===== 11. ОТПИСКА ОТ RESIZE =====
   this.scale.off('resize', this._resizeHandler);
+  
   console.log('✅ GameScene cleanup completed');
 }
 
