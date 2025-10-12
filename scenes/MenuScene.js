@@ -50,10 +50,10 @@ this.progress = this.getProgressLocal();
    // ✅ ЕДИНЫЙ ОБРАБОТЧИК RESIZE (debounced)
     this.scale.off('resize'); // Удаляем старые подписки
     
-    const resizeHandler = Phaser.Utils.Debounce(() => {
-        this.ensureGradientBackground();
-        this.drawMenu(this.levelPage);
-    }, 150);
+   //const resizeHandler = Phaser.Utils.Debounce(() => {
+    //     this.ensureGradientBackground();
+    //     this.drawMenu(this.levelPage);
+    // }, 150);
     
     this.scale.on('resize', resizeHandler, this);
     this._resizeHandler = resizeHandler; // Сохраняем для cleanup
