@@ -50,13 +50,13 @@ this.progress = this.getProgressLocal();
    // ✅ ЕДИНЫЙ ОБРАБОТЧИК RESIZE (debounced)
     this.scale.off('resize'); // Удаляем старые подписки
     
-   //const resizeHandler = Phaser.Utils.Debounce(() => {
-    //     this.ensureGradientBackground();
-    //     this.drawMenu(this.levelPage);
-    // }, 150);
+   const resizeHandler = Phaser.Utils.Debounce(() => {
+        this.ensureGradientBackground();
+        this.drawMenu(this.levelPage);
+    }, 150);
     
-   // this.scale.on('resize', resizeHandler, this);
-   // this._resizeHandler = resizeHandler; // Сохраняем для cleanup
+   this.scale.on('resize', resizeHandler, this);
+   this._resizeHandler = resizeHandler; // Сохраняем для cleanup
     
     // ✅ ПРИНУДИТЕЛЬНЫЙ ПЕРВЫЙ RESIZE через 1 тик (после fonts.ready)
     this.time.delayedCall(16, () => {
@@ -134,6 +134,12 @@ this.syncManager.loadProgress().then(data => {
 
   cleanup() {
     console.log('MenuScene cleanup started');
+
+// ✅ ДОБАВИТЬ: Удаление resize handler
+    if (this._resizeHandler) {
+        this.scale.off('resize', this._resizeHandler, this);
+        this._resizeHandler = null;
+    }
     
     if (this._wheelHandler) {
       this.input.off('wheel', this._wheelHandler);
@@ -149,8 +155,6 @@ this.syncManager.loadProgress().then(data => {
       this.levelButtons = [];
     }
 
-    this.scale.off('resize');
-    
     console.log('MenuScene cleanup completed');
   }
 
