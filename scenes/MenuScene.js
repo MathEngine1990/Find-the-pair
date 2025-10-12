@@ -71,6 +71,21 @@ this.progress = this.getProgressLocal();
     console.log('MenuScene.create() completed');
   }
 
+  init(data) {
+  // ✅ ИСПРАВЛЕНИЕ: Если передан индекс вместо объекта
+  if (typeof data?.level === 'number') {
+    console.warn('⚠️ Received level index instead of object, converting...');
+    this.currentLevelIndex = data.level;
+    this.currentLevel = window.LEVELS[data.level];
+  } else {
+    this.currentLevel = data?.level || null;
+    this.currentLevelIndex = data?.levelIndex || 0;
+  }
+  
+  this.levelPage = data?.page || 0;
+  
+  // Остальной код без изменений...
+
   // Инициализация менеджера синхронизации
   async initializeSyncManager() {
     try {
@@ -498,7 +513,11 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     
     const btn = window.makeImageButton(this, x, y, w, h, '', () => {
         if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
-        this.scene.start('GameScene', { level: levelIndex });
+        this.scene.start('GameScene', { 
+  level: window.LEVELS[levelIndex],  // ← Передаём ОБЪЕКТ
+  levelIndex: levelIndex,             // ← И индекс тоже
+  page: this.levelPage                // ← Для возврата в меню
+});
     });
     
     // КРИТИЧНО: Увеличенный размер текста на кнопках
