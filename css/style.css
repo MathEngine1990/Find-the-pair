@@ -34,8 +34,8 @@ html, body {
   -ms-text-size-adjust: none;
   text-size-adjust: none;
   
-  /* ИСПРАВЛЕНО: Убираем safe-area padding для body */
-  /*padding: 0 !important;
+  /* ✅ КРИТИЧНО: НЕТ PADDING ДЛЯ BODY */
+  padding: 0 !important;
 }
 
 #game { 
@@ -49,8 +49,8 @@ html, body {
   /* ИСПРАВЛЕНО: Убираем flex, он мешает Phaser */
   display: block !important;
   
-  /* КРИТИЧНО: Убираем safe-area padding - они создают серые полосы */
-  /*padding: 0 !important;
+  /* ✅ КРИТИЧНО: НЕТ PADDING ДЛЯ GAME */
+  padding: 0 !important;
   box-sizing: border-box;
   
   background: #1d2330;
@@ -99,11 +99,7 @@ canvas {
   -webkit-filter: none !important;
 
 
-   @supports (padding: env(safe-area-inset-top)) {
-  .with-safe-area { /* Применяем только к элементам с классом */
-    padding-top: env(safe-area-inset-top) !important;
-  }
-}
+
 
 /* =====================================================
    МОБИЛЬНЫЕ УСТРОЙСТВА - КРИТИЧНО
