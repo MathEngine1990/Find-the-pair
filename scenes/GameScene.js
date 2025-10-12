@@ -165,6 +165,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Базовые коллекции
     this.levelButtons = [];
     this.cards = [];
+
+// ✅ КРИТИЧНО: Уничтожаем контейнер
+if (this.cardsContainer) {
+  this.cardsContainer.destroy(true);
+  this.cardsContainer = null;
+}
+    
     this.opened = [];
     
     // Состояние игры
@@ -1969,6 +1976,9 @@ this.victoryContainer.add(overlay);
   // ОБНОВЛЕННЫЙ МЕТОД: Перезапуск уровня с правильной очисткой
   restartLevel() {
     console.log('Restarting level...');
+
+     // ✅ ДОБАВИТЬ ПОЛНУЮ ОЧИСТКУ:
+  this.cleanup();
     
     // Очищаем экран победы перед перезапуском
     this.clearVictoryScreen();
