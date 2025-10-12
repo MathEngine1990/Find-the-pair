@@ -6,7 +6,7 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
   const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
   const hoverColor = opts.hoverColor || color;
   const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
-  const fs         = Math.round(h * (window.THEME?.btnFontFactor ?? 0.24));
+  const fs         = Math.round(h * (window.THEME?.btnFontFactor ?? 0.34));
   
   const img = scene.add.image(0, 0, 'button01')
     .setOrigin(0.5)
