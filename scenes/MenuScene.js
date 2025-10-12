@@ -797,7 +797,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     
     const starSize = Math.max(18, Math.round(btnH * 0.12));
     const starSpacing = starSize + 4;
-    const stars = levelProgress ? levelProgress.stars : 0;
+    //const stars = levelProgress ? levelProgress.stars : 0;
     
     for (let star = 1; star <= 3; star++) {
         const starX = (star - 2) * starSpacing;
