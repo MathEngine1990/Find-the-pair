@@ -169,6 +169,14 @@ window.GameScene = class GameScene extends Phaser.Scene {
   preload() {}
 
   async create() {
+    try {
+    await document.fonts.ready;
+    console.log('✅ Fonts ready');
+  } catch (error) {
+    console.warn('⚠️ Fonts API not available:', error);
+    // Fallback: простая задержка
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
   try {
     // ===== 1. ИНИЦИАЛИЗАЦИЯ БАЗОВЫХ ПЕРЕМЕННЫХ =====
     if (this.scale && this.scale.updateBounds) {
