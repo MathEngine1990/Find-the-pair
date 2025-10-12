@@ -261,36 +261,40 @@ this.syncManager.loadProgress().then(data => {
     this.vignette = this.add.graphics().setDepth(-999).fillStyle(0x000000, 0.20).fillRect(0,0,W,H);
   }
 
-  clearMenu() {
+  // === MenuScene.js:211-229 - ЗАМЕНИТЬ clearMenu ===
+
+clearMenu() {
     if (this._wheelHandler) { 
-      this.input.off('wheel', this._wheelHandler); 
-      this._wheelHandler = null; 
+        this.input.off('wheel', this._wheelHandler); 
+        this._wheelHandler = null; 
     }
     
     if (this.levelButtons) {
-      this.levelButtons.forEach(btn => {
-        if (btn && typeof btn.destroy === 'function') {
-          
-          if (btn.starsContainer) {
-            btn.starsContainer.destroy();
-            btn.starsContainer = null;
-          }
-          
-          if (btn.statsContainer) {
-            btn.statsContainer.destroy();
-            btn.statsContainer = null;
-          }
-          
-          if (btn.zone && btn.zone.removeAllListeners) {
-            btn.zone.removeAllListeners();
-          }
-          
-          btn.destroy();
-        }
-      });
-      this.levelButtons = [];
+        this.levelButtons.forEach(btn => {
+            if (btn && typeof btn.destroy === 'function') {
+                
+                // ✅ ДОБАВИТЬ: Уничтожаем контейнеры звёзд
+                if (btn.starsContainer) {
+                    btn.starsContainer.destroy();
+                    btn.starsContainer = null;
+                }
+                
+                // ✅ ДОБАВИТЬ: Уничтожаем контейнеры статистики
+                if (btn.statsContainer) {
+                    btn.statsContainer.destroy();
+                    btn.statsContainer = null;
+                }
+                
+                if (btn.zone && btn.zone.removeAllListeners) {
+                    btn.zone.removeAllListeners();
+                }
+                
+                btn.destroy();
+            }
+        });
+        this.levelButtons = [];
     }
-  }
+}
 
   drawMenu(page = 0) {
     console.log('Drawing menu, page:', page);
@@ -767,10 +771,10 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
 
   // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
 updateSingleLevelButton(button, levelIndex, progressLevels) {
-        const levelProgress = progressLevels[levelIndex];
+    const levelProgress = progressLevels[levelIndex];
     const stars = levelProgress ? levelProgress.stars : 0;
     
-    // ОБНОВЛЯЕМ существующие звёзды, НЕ ПЕРЕСОЗДАЁМ контейнер
+    // Обновляем существующие звёзды
     if (button.starsContainer && button.starsContainer.list) {
         button.starsContainer.list.forEach((starText, index) => {
             const filled = (index + 1) <= stars;
@@ -779,7 +783,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
         });
     }
     
-    // ОБНОВЛЯЕМ существующую статистику
+    // Обновляем существующую статистику
     if (button.statsContainer && button.statsContainer.list[0]) {
         if (levelProgress && levelProgress.bestTime) {
             const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
@@ -789,46 +793,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
             button.statsContainer.setVisible(false);
         }
     }
-    
-    // Создаём новые контейнеры с фиксированными позициями
-    const btnX = button.x;
-    const btnY = button.y;
-    const btnH = button.displayHeight || button.height;
-    
-    // Звёзды всегда на фиксированной позиции относительно кнопки
-    button.starsContainer = this.add.container(btnX, btnY + btnH * 0.32);
-    button.starsContainer.setDepth(button.depth + 1);
-    
-    const starSize = Math.max(18, Math.round(btnH * 0.12));
-    const starSpacing = starSize + 4;
-    //const stars = levelProgress ? levelProgress.stars : 0;
-    
-    for (let star = 1; star <= 3; star++) {
-        const starX = (star - 2) * starSpacing;
-        const filled = star <= stars;
-        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
-            fontSize: starSize + 'px',
-            color: filled ? '#FFD700' : '#666666'
-        }).setOrigin(0.5);
-        
-        button.starsContainer.add(starText);
-    }
-    
-    // Статистика на фиксированной позиции
-    button.statsContainer = this.add.container(btnX, btnY + btnH * 0.42);
-    button.statsContainer.setDepth(button.depth + 1);
-    
-    if (levelProgress) {
-        const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
-        const statsDisplay = this.add.text(0, 0, statsText, {
-            fontFamily: 'Arial, sans-serif',
-            fontSize: Math.max(14, Math.round(starSize * 0.7)) + 'px', // Минимум 14px
-            color: '#CCCCCC'
-        }).setOrigin(0.5);
-        
-        button.statsContainer.add(statsDisplay);
-    }
-  }
+}
 
   showToast(message, color = '#3498DB', duration = 2000) {
     const { W, H } = this.getSceneWH();
@@ -966,75 +931,74 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     });
   }
 
-  createLevelButton(x, y, w, h, level, levelIndex) {
+  // === MenuScene.js:444-472 - ЗАМЕНИТЬ createLevelButton ===
+
+createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
+    const isMobile = w > 150;
+    
+    const btn = window.makeImageButton(this, x, y, w, h, '', () => {
+        if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
+        this.scene.start('GameScene', { level: levelIndex });
+    });
+    
+    const fontSize = Math.max(24, Math.round(h * 0.35 * scaleFactor));
+    const levelText = this.add.text(0, -h*0.1, lvl.label, {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: fontSize + 'px',
+        fontStyle: 'bold',
+        color: '#FFFFFF'
+    }).setOrigin(0.5);
+    
+    btn.add(levelText);
+    btn.levelIndex = levelIndex;
+    
+    const starSize = Math.max(22, Math.round(h * 0.15 * scaleFactor));
     const progressLevels = this.getProgress();
     const levelProgress = progressLevels[levelIndex];
-
-    const btnY = y - h*0.1;
     
-    const btn = window.makeImageButton(this, x, btnY, w, h*0.75, level.label, () => {
-      this.scene.start('GameScene', { 
-        level: level, 
-        levelIndex: levelIndex,
-        page: this.levelPage,
-        userData: this.vkUserData,
-        isVK: this.isVKEnvironment,
-        syncManager: this.syncManager
-      });
-    });
-
-    btn.levelIndex = levelIndex;
-    btn.setDepth(5);
-    this.levelButtons.push(btn);
-
-    btn.starsContainer = this.add.container(x, y + h*0.32);
+    // ✅ Создаём контейнеры ОДИН РАЗ при создании кнопки
+    btn.starsContainer = this.add.container(x, y + h * 0.25);
+    btn.starsContainer.setDepth(btn.depth + 1);
     
-    const starSize = Math.min(18, w*0.06);
     const starSpacing = starSize + 4;
     const stars = levelProgress ? levelProgress.stars : 0;
     
     for (let star = 1; star <= 3; star++) {
-      const starX = (star - 2) * starSpacing;
-      const filled = star <= stars;
-      const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
-        fontSize: starSize + 'px',
-        color: filled ? '#FFD700' : '#555555'
-      }).setOrigin(0.5);
-      
-      btn.starsContainer.add(starText);
+        const starX = (star - 2) * starSpacing;
+        const filled = star <= stars;
+        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+            fontSize: starSize + 'px',
+            color: filled ? '#FFD700' : '#666666',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        btn.starsContainer.add(starText);
     }
     
-    btn.starsContainer.setDepth(10);
+    // ✅ Статистика под звёздами
+    btn.statsContainer = this.add.container(x, y + h * 0.38);
+    btn.statsContainer.setDepth(btn.depth + 1);
     
-    btn.statsContainer = this.add.container(x, y + h*0.32 + 22);
-    
-    if (levelProgress) {
-      const accuracy = levelProgress.accuracy || 
-        (levelProgress.attempts > 0 ? 
-          Math.round((levelProgress.attempts - (levelProgress.errors || 0)) / levelProgress.attempts * 100) : 100);
-      
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-      const statsDisplay = this.add.text(0, 0, statsText, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(starSize * 0.65) + 'px',
-        color: '#CCCCCC',
-        fontStyle: 'normal'
-      }).setOrigin(0.5);
-      
-      btn.statsContainer.add(statsDisplay);
-    } else {
-      const hintText = this.add.text(0, 0, 'Не пройден', {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: Math.round(starSize * 0.6) + 'px',
-        color: '#888888',
-        fontStyle: 'italic'
-      }).setOrigin(0.5);
-      
-      btn.statsContainer.add(hintText);
+    if (levelProgress && levelProgress.bestTime) {
+        const statsSize = Math.max(isMobile ? 16 : 14, Math.round(starSize * 0.65));
+        const accuracy = levelProgress.accuracy || 100;
+        const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+        
+        const statsDisplay = this.add.text(0, 0, statsText, {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: statsSize + 'px',
+            color: '#CCCCCC'
+        }).setOrigin(0.5);
+        
+        btn.statsContainer.add(statsDisplay);
     }
+
+    // ❌ УДАЛИТЬ ЭТУ СТРОКУ (строка 470):
+    // this.updateSingleLevelButton(btn, levelIndex, this.getProgress());
     
-    btn.statsContainer.setDepth(10);
-  }
+    this.levelButtons.push(btn);
+    return btn;
+}
 
   formatTime(seconds) {
     if (!seconds) return '0с';
