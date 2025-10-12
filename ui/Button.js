@@ -34,10 +34,7 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
   cont.setSize(w, h);
   
   zone.on('pointerdown', () => onClick && onClick());
-  zone.on('pointerover', () => { 
-    txt.setColor(hoverColor); 
-    scene.tweens.add({ targets: cont, scale: 1.03, duration: 110 }); 
-  });
+  
   zone.on('pointerout',  () => { 
     txt.setColor(color);      
     scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); 
