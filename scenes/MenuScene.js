@@ -759,6 +759,11 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     }
   }
 
+  if (button.starsContainer) {
+
+    button.starsContainer = null;
+}
+
   // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
 updateSingleLevelButton(button, levelIndex, progressLevels) {
         const levelProgress = progressLevels[levelIndex];
@@ -782,7 +787,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
         } else {
             button.statsContainer.setVisible(false);
         }
-    }
+    }}
     
     // Создаём новые контейнеры с фиксированными позициями
     const btnX = button.x;
