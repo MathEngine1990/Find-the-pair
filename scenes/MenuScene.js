@@ -26,6 +26,10 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
       if (this.scale && this.scale.updateBounds) this.scale.updateBounds(); 
     });
 
+        // ✅ ДОБАВИТЬ: Ждём загрузки шрифтов
+    await document.fonts.ready;
+    console.log('✅ Fonts ready');
+
     this.levelButtons = [];
     this._wheelHandler = null;
 
@@ -43,13 +47,21 @@ this.initializeSyncManager().then(() => {
 // Используем локальные данные сразу
 this.progress = this.getProgressLocal();
 
-    console.log('Drawing menu...');
-    this.drawMenu(this.levelPage);
-    console.log('Menu drawn successfully');
-
-    this.scale.on('resize', () => {
-      this.ensureGradientBackground();
-      this.drawMenu(this.levelPage);
+   // ✅ ЕДИНЫЙ ОБРАБОТЧИК RESIZE (debounced)
+    this.scale.off('resize'); // Удаляем старые подписки
+    
+    const resizeHandler = Phaser.Utils.Debounce(() => {
+        this.ensureGradientBackground();
+        this.drawMenu(this.levelPage);
+    }, 150);
+    
+    this.scale.on('resize', resizeHandler, this);
+    this._resizeHandler = resizeHandler; // Сохраняем для cleanup
+    
+    // ✅ ПРИНУДИТЕЛЬНЫЙ ПЕРВЫЙ RESIZE через 1 тик (после fonts.ready)
+    this.time.delayedCall(16, () => {
+        this.scale.emit('resize');
+        console.log('✅ Initial layout complete');
     });
 
     // Очистка при завершении сцены
