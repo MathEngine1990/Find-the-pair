@@ -749,16 +749,27 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
 
   // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
 updateSingleLevelButton(button, levelIndex, progressLevels) {
-    const levelProgress = progressLevels[levelIndex];
+        const levelProgress = progressLevels[levelIndex];
+    const stars = levelProgress ? levelProgress.stars : 0;
     
-    // КРИТИЧНО: Удаляем старые контейнеры
-    if (button.starsContainer) {
-        button.starsContainer.destroy();
-        button.starsContainer = null;
+    // ОБНОВЛЯЕМ существующие звёзды, НЕ ПЕРЕСОЗДАЁМ контейнер
+    if (button.starsContainer && button.starsContainer.list) {
+        button.starsContainer.list.forEach((starText, index) => {
+            const filled = (index + 1) <= stars;
+            starText.setText(filled ? '★' : '☆');
+            starText.setColor(filled ? '#FFD700' : '#666666');
+        });
     }
-    if (button.statsContainer) {
-        button.statsContainer.destroy();
-        button.statsContainer = null;
+    
+    // ОБНОВЛЯЕМ существующую статистику
+    if (button.statsContainer && button.statsContainer.list[0]) {
+        if (levelProgress && levelProgress.bestTime) {
+            const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
+            button.statsContainer.list[0].setText(statsText);
+            button.statsContainer.setVisible(true);
+        } else {
+            button.statsContainer.setVisible(false);
+        }
     }
     
     // Создаём новые контейнеры с фиксированными позициями
