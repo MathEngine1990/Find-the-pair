@@ -816,48 +816,46 @@ window.alert = showGameNotification;
     let gameWidth, gameHeight;
     
     if (isMobile) {
-      if (isPortrait) {
-        gameWidth = 720;
-        gameHeight = 1280;
-      } else {
-        gameWidth = 1280;
-        gameHeight = 720;
-      }
-    } else {
-      gameWidth = 1080;
-      gameHeight = 720;
+      gameWidth = window.innerWidth;
+    gameHeight = window.innerHeight;
+  } else {
+    // Для десктопа можно фиксировать
+    gameWidth = 1920;
+    gameHeight = 1080;
     }
     
-    debugLog('Game configuration', {
+    console.log('📐 Game dimensions calculated:', {
   isMobile: isMobile,
-  screen: `${screen.width}x${screen.height}`,
-  viewport: `${window.innerWidth}x${window.innerHeight}`
+  isPortrait: isPortrait,
+  gameSize: `${gameWidth}x${gameHeight}`,
+  viewport: `${window.innerWidth}x${window.innerHeight}`,
+  screen: `${screen.width}x${screen.height}`
 });
 
 // ИСПРАВЛЕНО: Используем правильный parent и размеры
 const gameConfig = {
   type: Phaser.AUTO,
   parent: 'game',
-  width: window.innerWidth,
-  height: window.innerHeight,
+  width: gameWidth,
+  height: gameHeight,
   backgroundColor: '#1d2330',
   scale: {
-    mode: Phaser.Scale.FIT,  // Правильный режим для VK
-    autoCenter: Phaser.Scale.CENTER_BOTH
-    //mode: Phaser.Scale.RESIZE,
-    //autoCenter: Phaser.Scale.NO_CENTER
+    // КРИТИЧНО: RESIZE для мобильных, FIT для десктопа
+    mode: isMobile ? Phaser.Scale.RESIZE : Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    // ВАЖНО: Для мобильных убираем фикс. размеры
+    ...(isMobile ? {} : {
+      width: gameWidth,
+      height: gameHeight
+    })
   },
 
     render: { 
     antialias: !isMobile,
     pixelArt: false,
-      preserveDrawingBuffer: false
+    preserveDrawingBuffer: false
   },
-  // ДОБАВИТЬ эти строки:
-  physics: {
-    default: 'arcade',
-    arcade: { debug: false }
-  },
+
   disableContextMenu: true,
   banner: false, // Отключаем баннер Phaser в консоли
      scene: [
