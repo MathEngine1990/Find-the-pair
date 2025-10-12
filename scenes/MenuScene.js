@@ -414,10 +414,10 @@ clearMenu() {
     }
 
     // КРИТИЧНО: Увеличенная область для кнопок на мобильных
-    const topY = H * (isMobile ? 0.18 : 0.20);
-    const bottomY = H * (isMobile ? 0.82 : 0.78);
+    const topY = H * (isMobile ? 0.10 : 0.16);
+    const bottomY = H * (isMobile ? 0.90 : 0.84);
     const areaH = bottomY - topY;
-    const areaW = Math.min(W * (isMobile ? 0.95 : 0.90), isMobile ? W : 1080);
+    const areaW = Math.min(W * (isMobile ? 0.98 : 0.90), isMobile ? W : 1080);
     
     // ИСПРАВЛЕНО: Увеличенные размеры ячеек
     const cellH = areaH / ROWS;
