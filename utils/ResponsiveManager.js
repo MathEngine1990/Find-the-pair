@@ -95,56 +95,50 @@ window.ResponsiveManager = class ResponsiveManager {
   return mobileSizes.xlarge;
 }
   
-  getCardDimensions(level, containerWidth, containerHeight) {
-    ///////////////////////////////////////////////////////////////
-    const padding = (() => {
-  if (!this.isMobile) return 0.05;
+  // ResponsiveManager.js:95
+getCardDimensions(level, containerWidth, containerHeight) {
+  const padding = this.isMobile ? 0.01 : 0.04;
+  const gap = (() => {
+    if (!this.isMobile) return 8;
+    const totalCards = level.cols * level.rows;
+    if (totalCards <= 12) return 6;
+    if (totalCards <= 20) return 4;
+    return 3;
+  })();
   
-  const minDimension = Math.min(containerWidth, containerHeight);
-  if (minDimension < 400) return 0.005; // Очень маленькие экраны: почти нет отступов
-  if (minDimension < 600) return 0.01;  // Маленькие экраны: 1%
-  return 0.02;                          // Средние экраны: 2%
-})();
-    ///////////////////////////////////////////////////////////////
-    const gap = (() => {
-  if (!this.isMobile) return 8;
+  const safeAreaOffset = this.isMobile 
+    ? (this.safeArea.top + this.safeArea.bottom) 
+    : 0;
   
-  const minDimension = Math.min(containerWidth, containerHeight);
-  return Math.max(2, Math.floor(minDimension * 0.01)); // 1% от минимальной стороны
-})();
-    ///////////////////////////////////////////////////////////////
-    const safeAreaOffset = this.isMobile ? this.safeArea.top + this.safeArea.bottom : 0;
-    
-    const availableW = containerWidth * (1 - padding * 2);
-    const availableH = containerHeight * (1 - padding * 2) - safeAreaOffset;
-    
-    const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
-    const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
-    ///////////////////////////////////////////////////////////////
-    const aspectRatio = this.orientation === 'portrait' ? 0.68 : 0.85;
-    ///////////////////////////////////////////////////////////////
-    let finalW, finalH;
-    
-    if (cardW / cardH > aspectRatio) {
-      finalH = cardH;
-      finalW = finalH * aspectRatio;
-    } else {
-      finalW = cardW;
-      finalH = finalW / aspectRatio;
-    }
-    
-    // Ограничения для больших экранов
-    if (!this.isMobile) {
-      finalW = Math.min(finalW, 180);
-      finalH = Math.min(finalH, 240);
-    }
-    
-    return {
-      width: Math.floor(finalW),
-      height: Math.floor(finalH),
-      gap: gap,
-      offsetX: padding * containerWidth,
-      offsetY: padding * containerHeight + (this.isMobile ? this.safeArea.top : 0)
-    };
+  const availableW = containerWidth * (1 - padding * 2);
+  const availableH = containerHeight * (1 - padding * 2) - safeAreaOffset;
+  
+  const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
+  const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
+  
+  const aspectRatio = this.orientation === 'portrait' ? 0.68 : 0.80;
+  let finalW, finalH;
+  
+  if (cardW / cardH > aspectRatio) {
+    finalH = cardH;
+    finalW = finalH * aspectRatio;
+  } else {
+    finalW = cardW;
+    finalH = finalW / aspectRatio;
   }
+  
+  const maxCardW = this.isMobile ? 220 : 250;
+  const maxCardH = this.isMobile ? 300 : 320;
+  
+  finalW = Math.min(finalW, maxCardW);
+  finalH = Math.min(finalH, maxCardH);
+  
+  return {
+    width: Math.floor(finalW),
+    height: Math.floor(finalH),
+    gap: gap,
+    offsetX: padding * containerWidth,
+    offsetY: padding * containerHeight + (this.isMobile ? this.safeArea.top : 0)
+  };
+}
 };
