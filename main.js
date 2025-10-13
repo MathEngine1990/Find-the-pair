@@ -684,6 +684,9 @@ window.alert = showGameNotification;
   // ========================================
   // ИНИЦИАЛИЗАЦИЯ ИГРЫ
   // ========================================
+
+  
+    const ResponsiveManager = window.ResponsiveManager
   
   function initGame() {
     if (document.readyState === 'loading' || !document.body) {
