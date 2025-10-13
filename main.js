@@ -832,38 +832,28 @@ window.alert = showGameNotification;
   screen: `${screen.width}x${screen.height}`
 });
 
-// ИСПРАВЛЕНО: Используем правильный parent и размеры
-const gameConfig = {
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: gameWidth,
-  height: gameHeight,
-  backgroundColor: '#1d2330',
-  scale: {
-    // КРИТИЧНО: RESIZE для мобильных, FIT для десктопа
-    mode: isMobile ? Phaser.Scale.RESIZE : Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    // ВАЖНО: Для мобильных убираем фикс. размеры
-    ...(isMobile ? {} : {
-      width: gameWidth,
-      height: gameHeight
-    })
-  },
+const responsiveManager = new ResponsiveManager();
+const gameConfig = responsiveManager.getOptimalGameConfig();
+gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 
-    render: { 
-    antialias: !isMobile,
-    pixelArt: false,
-    preserveDrawingBuffer: false
+// Добавить callbacks
+gameConfig.callbacks = {
+  preBoot: (game) => {
+    window.responsiveManager = responsiveManager;
+    console.log('Game config:', gameConfig);
   },
+  postBoot: (game) => {
+    // Единый debounced resize handler
+    let resizeTimeout;
+    game.scale.on('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        game.events.emit('debounced-resize');
+      }, 150);
+    });
+  }
+};
 
-  disableContextMenu: true,
-  banner: false, // Отключаем баннер Phaser в консоли
-     scene: [
-    window.PreloadScene,
-    window.MenuScene, 
-    window.GameScene
-].filter(Boolean) // Фильтруем undefined сцены
-    };
 
 
     
