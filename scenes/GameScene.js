@@ -1109,6 +1109,19 @@ handleResize(gameSize) {
     return;
   }
     console.log('Resize to:', gameSize.width, 'x', gameSize.height);
+
+    // ✅ ДОБАВИТЬ: Обновляем текстовый менеджер
+  if (this.textManager) {
+    this.textManager.updateDimensions();
+    
+    // Обновляем HUD тексты
+    if (this.mistakeText) {
+      this.textManager.updateText(this.mistakeText, 'hudText');
+    }
+    if (this.timeText) {
+      this.textManager.updateText(this.timeText, 'hudTimer');
+    }
+  }
     
     // Пересчитываем layout только если игра не активна
     if (!this.gameState.gameStarted && !this.gameState.isMemorizationPhase) {
@@ -1141,6 +1154,9 @@ handleResize(gameSize) {
     console.log('Showing cards for memorization (5 seconds)...');
     
     const { W, H } = this.getSceneWH();
+
+      // ✅ ДОБАВИТЬ: Обновляем размеры
+  this.textManager.updateDimensions();
     
     // Блокируем resize во время показа карт
     this.gameState.canResize = false;
@@ -1152,22 +1168,22 @@ handleResize(gameSize) {
       card.disableInteractive(); // Отключаем клики на время запоминания
     });
 
-    // Показываем уведомление
-    const notification = this.add.text(W/2, H*0.15, 'Запомните карты!', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: this._pxByH(0.05, 24, 32) + 'px',
-      color: '#FFD700',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(1000);
+ // ✅ НОВЫЙ КОД: Уведомление
+  const notification = this.textManager.createText(
+    W/2, H*0.15,
+    'Запомните карты!',
+    'notification'
+  );
+  notification.setOrigin(0.5).setDepth(1000);
 
-    // Обратный отсчёт
-    let countdown = 5;
-    const countdownText = this.add.text(W/2, H*0.22, countdown.toString(), {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: this._pxByH(0.08, 36, 48) + 'px',
-      color: '#FF4444',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(1000);
+  // ✅ НОВЫЙ КОД: Обратный отсчет
+  let countdown = 5;
+  const countdownText = this.textManager.createText(
+    W/2, H*0.22,
+    countdown.toString(),
+    'countdown'
+  );
+  countdownText.setOrigin(0.5).setDepth(1000);
 
     // AbortController для безопасной отмены
   this.memorizeController = new AbortController();
@@ -1426,149 +1442,163 @@ checkPair() {
 
   // УЛУЧШЕННЫЙ МЕТОД: Экран победы с интеграцией ProgressSyncManager
   async showWin() {
-      this.clearVictoryScreen(); // ← Убираем старые серые фоны
-    
-    this.canClick = false;
-    this.gameState.gameStarted = false;
-    this.gameState.showingVictory = true;
-    this.stopGameTimer();
-    this.cards.forEach(c => c.disableInteractive());
+  this.clearVictoryScreen();
+  this.canClick = false;
+  this.gameState.gameStarted = false;
+  this.gameState.showingVictory = true;
+  this.stopGameTimer();
+  this.cards.forEach(c => c.disableInteractive());
 
-    const gameTime = this.currentTimeSeconds;
-    const accuracy = this.gameMetrics.attempts > 0 ? 
-      Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
+  const gameTime = this.currentTimeSeconds;
+  const accuracy = this.gameMetrics.attempts > 0 ? 
+    Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
 
-    // ОБНОВЛЕНО: Сохранение через ProgressSyncManager
-    const progressResult = await this.saveProgressViaSyncManager(
-      this.currentLevelIndex, 
-      gameTime, 
-      this.gameMetrics.attempts, 
-      this.gameMetrics.errors,
-      accuracy
+  const progressResult = await this.saveProgressViaSyncManager(
+    this.currentLevelIndex, 
+    gameTime, 
+    this.gameMetrics.attempts, 
+    this.gameMetrics.errors,
+    accuracy
+  );
+
+  await this.checkAndUnlockAchievements(progressResult, gameTime, this.gameMetrics.errors);
+
+  const { W, H } = this.getSceneWH();
+  
+  // ✅ ДОБАВИТЬ: Обновляем размеры перед созданием UI
+  this.textManager.updateDimensions();
+
+  this.victoryContainer = this.add.container(0, 0);
+  this.victoryContainer.setDepth(100);
+
+  // Полупрозрачный фон
+  const overlay = this.add.graphics();
+  overlay.fillStyle(0x000000, 0.9);
+  overlay.fillRect(0, 0, W, H);
+  this.victoryContainer.add(overlay);
+
+  // Панель результатов
+  const panelW = Math.min(500, W * 0.9);
+  const panelH = Math.min(450, H * 0.8);
+  const panelX = W/2;
+  const panelY = H/2;
+
+  const panel = this.add.graphics();
+  panel.fillStyle(0x2C3E50, 0.95);
+  panel.lineStyle(3, 0x3498DB, 0.8);
+  panel.fillRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
+  panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
+  this.victoryContainer.add(panel);
+
+  // ✅ НОВЫЙ КОД: Заголовок "ПОБЕДА!"
+  const title = this.textManager.createText(
+    panelX, panelY - panelH/2 + 50,
+    'ПОБЕДА!',
+    'titleLarge'
+  );
+  title.setOrigin(0.5);
+  title.setColor('#F39C12');
+  this.victoryContainer.add(title);
+
+  // Звездочки (без изменений)
+  this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
+
+  // ✅ НОВЫЙ КОД: Статистика
+  const statsY = panelY - panelH/2 + 160;
+  const lineHeight = this.textManager.getSize('statLabel') * 1.8; // Межстрочный интервал
+
+  const timeText = this.textManager.createText(
+    panelX, statsY,
+    `Время: ${this.formatTime(gameTime)}`,
+    'statLabel'
+  );
+  timeText.setOrigin(0.5);
+  timeText.setColor('#4ECDC4');
+  this.victoryContainer.add(timeText);
+
+  const attemptsText = this.textManager.createText(
+    panelX, statsY + lineHeight,
+    `Попыток: ${this.gameMetrics.attempts}`,
+    'statValue'
+  );
+  attemptsText.setOrigin(0.5);
+  this.victoryContainer.add(attemptsText);
+
+  const errorsText = this.textManager.createText(
+    panelX, statsY + lineHeight * 2,
+    `Ошибок: ${this.mistakeCount}`,
+    'statValue'
+  );
+  errorsText.setOrigin(0.5);
+  errorsText.setColor('#E74C3C');
+  this.victoryContainer.add(errorsText);
+
+  const accuracyText = this.textManager.createText(
+    panelX, statsY + lineHeight * 3,
+    `Точность: ${accuracy}%`,
+    'statValue'
+  );
+  accuracyText.setOrigin(0.5);
+  accuracyText.setColor('#2ECC71');
+  this.victoryContainer.add(accuracyText);
+
+  // Улучшение результата (если есть)
+  if (progressResult.improved) {
+    const recordText = this.textManager.createText(
+      panelX, statsY + lineHeight * 4,
+      'Новый рекорд!',
+      'achievementTitle'
     );
-
-    // ОБНОВЛЕНО: Проверка достижений через новую систему
-    await this.checkAndUnlockAchievements(progressResult, gameTime, this.gameMetrics.errors);
-
-    console.log('Game finished:', {
-      time: gameTime,
-      attempts: this.gameMetrics.attempts,
-      errors: this.gameMetrics.errors,
-      accuracy: accuracy,
-      stars: progressResult.stars,
-      improved: progressResult.improved
-    });
-
-    const { W, H } = this.getSceneWH();
-
-    // Создаем контейнер для всех элементов экрана победы
-    this.victoryContainer = this.add.container(0, 0);
-    this.victoryContainer.setDepth(100);
-
-    // Полупрозрачный фон
-const overlay = this.add.graphics();
-overlay.fillStyle(0x000000, 0.9); // ← Увеличить прозрачность до 0.9
-overlay.fillRect(0, 0, W, H);
-this.victoryContainer.add(overlay);
-
-    // Красивое окно результатов
-    const panelW = Math.min(500, W * 0.9);
-    const panelH = Math.min(450, H * 0.8);
-    const panelX = W/2;
-    const panelY = H/2;
-
-    const panel = this.add.graphics();
-    panel.fillStyle(0x2C3E50, 0.95);
-    panel.lineStyle(3, 0x3498DB, 0.8);
-    panel.fillRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
-    panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
-    this.victoryContainer.add(panel);
-
-    // Заголовок
-    const title = this.add.text(panelX, panelY - panelH/2 + 50, 'ПОБЕДА!', {
-      fontFamily: 'Arial, sans-serif', 
-      fontSize: this._pxByH(0.06, 24, 42) + 'px', 
-      color: '#F39C12', 
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.victoryContainer.add(title);
-
-    // Отображение звёздочек
-    this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
-
-    // Детальная статистика
-    const statsY = panelY - panelH/2 + 160;
-    const lineHeight = 30;
-    
-    const timeText = this.add.text(panelX, statsY, `Время: ${this.formatTime(gameTime)}`, {
-      fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#4ECDC4', fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.victoryContainer.add(timeText);
-
-    const attemptsText = this.add.text(panelX, statsY + lineHeight, `Попыток: ${this.gameMetrics.attempts}`, {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#E8E1C9', fontStyle: 'normal'
-    }).setOrigin(0.5);
-    this.victoryContainer.add(attemptsText);
-
-    const errorsText = this.add.text(panelX, statsY + lineHeight * 2, `Ошибок: ${this.mistakeCount}`, {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#E74C3C', fontStyle: 'normal'
-    }).setOrigin(0.5);
-    this.victoryContainer.add(errorsText);
-
-    const accuracyText = this.add.text(panelX, statsY + lineHeight * 3, `Точность: ${accuracy}%`, {
-      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#2ECC71', fontStyle: 'normal'
-    }).setOrigin(0.5);
-    this.victoryContainer.add(accuracyText);
-
-    // Показываем улучшение результата или статус синхронизации
-    if (progressResult.improved) {
-      const recordText = this.add.text(panelX, statsY + lineHeight * 4, 'Новый рекорд!', {
-        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#F39C12', fontStyle: 'bold'
-      }).setOrigin(0.5);
-      this.victoryContainer.add(recordText);
-    }
-
-    // ДОБАВЛЕНО: Показываем статус синхронизации
-    if (progressResult.synced) {
-      const syncText = this.add.text(panelX, statsY + lineHeight * 5, '☁️ Синхронизировано', {
-        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#27AE60', fontStyle: 'normal'
-      }).setOrigin(0.5);
-      this.victoryContainer.add(syncText);
-    } else if (progressResult.syncError) {
-      const syncErrorText = this.add.text(panelX, statsY + lineHeight * 5, '⚠️ Ошибка синхронизации', {
-        fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#E74C3C', fontStyle: 'normal'
-      }).setOrigin(0.5);
-      this.victoryContainer.add(syncErrorText);
-    }
-
-    // Кнопки
-    const btnY = panelY + panelH/2 - 60;
-    const btnW = Math.min(160, panelW * 0.35);
-    const btnH = 45;
-
-    // Кнопка "Ещё раз"
-    const playAgainBtn = window.makeImageButton(
-      this, panelX - btnW/2 - 10, btnY, btnW, btnH,
-      'Ещё раз',
-      () => this.restartLevel()
-    );
-    playAgainBtn.setDepth(102);
-
-    // Кнопка "Меню"
-    const menuBtn = window.makeImageButton(
-      this, panelX + btnW/2 + 10, btnY, btnW, btnH,
-      'Меню',
-      () => {
-        this.clearVictoryScreen();
-        this.gameState.gameStarted = false;
-        this.scene.start('MenuScene', { page: this.levelPage });
-      }
-    );
-    menuBtn.setDepth(102);
-
-    // Сохраняем ссылки на элементы для точной очистки
-    this.victoryElements = [playAgainBtn, menuBtn];
+    recordText.setOrigin(0.5);
+    this.victoryContainer.add(recordText);
   }
+
+  // Статус синхронизации (если есть)
+  if (progressResult.synced) {
+    const syncText = this.textManager.createText(
+      panelX, statsY + lineHeight * 5,
+      '☁️ Синхронизировано',
+      'statValue'
+    );
+    syncText.setOrigin(0.5);
+    syncText.setColor('#27AE60');
+    this.victoryContainer.add(syncText);
+  } else if (progressResult.syncError) {
+    const syncErrorText = this.textManager.createText(
+      panelX, statsY + lineHeight * 5,
+      '⚠️ Ошибка синхронизации',
+      'statValue'
+    );
+    syncErrorText.setOrigin(0.5);
+    syncErrorText.setColor('#E74C3C');
+    this.victoryContainer.add(syncErrorText);
+  }
+
+  // Кнопки (без изменений - используют makeImageButton)
+  const btnY = panelY + panelH/2 - 60;
+  const btnW = Math.min(160, panelW * 0.35);
+  const btnH = 45;
+
+  const playAgainBtn = window.makeImageButton(
+    this, panelX - btnW/2 - 10, btnY, btnW, btnH,
+    'Еще раз',
+    () => this.restartLevel()
+  );
+  playAgainBtn.setDepth(102);
+
+  const menuBtn = window.makeImageButton(
+    this, panelX + btnW/2 + 10, btnY, btnW, btnH,
+    'Меню',
+    () => {
+      this.clearVictoryScreen();
+      this.gameState.gameStarted = false;
+      this.scene.start('MenuScene', { page: this.levelPage });
+    }
+  );
+  menuBtn.setDepth(102);
+
+  this.victoryElements = [playAgainBtn, menuBtn];
+}
 
   // НОВЫЙ МЕТОД: Сохранение прогресса через ProgressSyncManager
   async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accuracy) {
@@ -1869,6 +1899,9 @@ this.victoryContainer.add(overlay);
   // НОВЫЙ МЕТОД: Показ новых достижений
   showNewAchievements(achievements) {
     const { W, H } = this.getSceneWH();
+
+  // ✅ ДОБАВИТЬ: Обновляем размеры
+  this.textManager.updateDimensions();
     
     achievements.forEach((achievement, index) => {
       setTimeout(() => {
@@ -1882,32 +1915,36 @@ this.victoryContainer.add(overlay);
         bg.fillRoundedRect(-160, -40, 320, 80, 15);
         bg.strokeRoundedRect(-160, -40, 320, 80, 15);
         
-        // Иконка достижения
-        const icon = this.add.text(-130, 0, achievement.icon, {
-          fontSize: '32px'
-        }).setOrigin(0.5);
+      // ✅ НОВЫЙ КОД: Иконка (увеличиваем пропорционально)
+      const iconSize = this.textManager.getSize('achievementTitle') * 1.6;
+      const icon = this.add.text(-130, 0, achievement.icon, {
+        fontSize: iconSize + 'px'
+      }).setOrigin(0.5);
         
-        // Текст достижения
-        const title = this.add.text(-90, -10, achievement.title, {
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '18px',
-          color: '#F39C12',
-          fontStyle: 'bold'
-        }).setOrigin(0, 0.5);
+      // ✅ НОВЫЙ КОД: Заголовок
+      const title = this.textManager.createText(
+        -90, -10,
+        achievement.title,
+        'achievementTitle'
+      );
+      title.setOrigin(0, 0.5);
         
-        const description = this.add.text(-90, 10, achievement.description, {
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '14px',
-          color: '#FFFFFF'
-        }).setOrigin(0, 0.5);
+      // ✅ НОВЫЙ КОД: Описание
+      const description = this.textManager.createText(
+        -90, 10,
+        achievement.description,
+        'achievementDesc'
+      );
+      description.setOrigin(0, 0.5);
         
-        // Очки
-        const points = this.add.text(140, 0, `+${achievement.points}`, {
-          fontFamily: 'Arial, sans-serif',
-          fontSize: '16px',
-          color: '#27AE60',
-          fontStyle: 'bold'
-        }).setOrigin(1, 0.5);
+      // ✅ НОВЫЙ КОД: Очки
+      const pointsSize = this.textManager.getSize('achievementTitle');
+      const points = this.add.text(140, 0, `+${achievement.points}`, {
+        fontFamily: window.THEME.font,
+        fontSize: pointsSize + 'px',
+        color: '#27AE60',
+        fontStyle: 'bold'
+      }).setOrigin(1, 0.5);
         
         notification.add([bg, icon, title, description, points]);
         notification.setDepth(1000);
