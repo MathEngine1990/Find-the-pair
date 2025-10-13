@@ -57,47 +57,19 @@ html, body {
 }
 
 /* КРИТИЧНО: Canvas должен заполнять весь контейнер */
-#game canvas,
-canvas {
-  /* ИСПРАВЛЕНО: Canvas заполняет весь родитель */
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  
-
-  -webkit-transform: none !important;
-  
-  /* Максимальное качество рендеринга */
-  image-rendering: auto !important;
-  image-rendering: crisp-edges !important;
-  image-rendering: -webkit-optimize-contrast !important;
-  
-  /* Четкие шрифты */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-smooth: always;
-  
-  /* GPU ускорение БЕЗ transform */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  will-change: transform;
-  
-  /* Touch оптимизация */
-  touch-action: none;
-  -webkit-touch-callout: none;
-  
-  /* Убираем лишние стили */
+#game canvas {
   display: block !important;
-  padding: 0 !important;
-  border: none !important;
-  outline: none !important;
-  
-  /* УБИРАЕМ фильтры - они могут влиять на производительность */
-  filter: none !important;
-  -webkit-filter: none !important;
+  /* НЕ устанавливаем width/height - пусть Phaser управляет */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
+/* Добавить поддержку safe-area */
+:root {
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
 }
 
 
