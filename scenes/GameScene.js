@@ -985,7 +985,20 @@ createCardLayout(deck) {
     },
     // ResponsiveManager.js:95
     // ✅ ВАРИАНТ 1: Уменьшить высоту HUD (больше места для карт)
-const hudH = rm.getAdaptiveFontSize(60, 40, 80); // было 80, 60, 100
+if (!this.cachedCardParams || 
+    this.cachedCardParams.containerW !== W || 
+    this.cachedCardParams.containerH !== H - hudH) {
+  
+  this.cachedCardParams = rm.getCardDimensions(
+    this.currentLevel,
+    W,
+    H - hudH
+  );
+  this.cachedCardParams.containerW = W;
+  this.cachedCardParams.containerH = H - hudH;
+}
+
+const cardParams = this.cachedCardParams;
     //////////////////////////////////////////////////////////
   };
   
