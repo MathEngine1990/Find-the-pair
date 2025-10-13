@@ -52,11 +52,11 @@ window.ResponsiveManager = class ResponsiveManager {
       parent: 'game',
       backgroundColor: '#1d2330',
       scale: {
-        mode: this.isMobile ? Phaser.Scale.RESIZE : Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: this.isMobile ? window.innerWidth : 1920,
-        height: this.isMobile ? window.innerHeight : 1080
-      },
+  mode: Phaser.Scale.RESIZE, // ← Игра подстраивается под размер окна
+  autoCenter: Phaser.Scale.CENTER_BOTH,
+  width: window.innerWidth,  // ← Динамическая ширина
+  height: window.innerHeight // ← Динамическая высота
+},
       resolution: isLowEnd ? 1 : this.dpr,
       render: {
         antialias: !isLowEnd,
