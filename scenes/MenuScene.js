@@ -61,7 +61,9 @@ this.progress = this.getProgressLocal();
     
    const resizeHandler = () => {
         this.ensureGradientBackground();
-        this.drawMenu(this.levelPage);
+        this.events.on('debounced-resize', () => {
+  this.drawMenu(this.levelPage);
+});
     };
     
    this.scale.on('resize', resizeHandler, this);
