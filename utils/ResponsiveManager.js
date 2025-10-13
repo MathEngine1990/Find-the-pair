@@ -6,7 +6,7 @@ window.ResponsiveManager = class ResponsiveManager {
     if (ResponsiveManager.instance) {
       return ResponsiveManager.instance;
     }
-    
+    return this;
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.isMobile = this.detectMobile();
     this.isTablet = this.detectTablet();
