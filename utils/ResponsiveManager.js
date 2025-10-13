@@ -78,17 +78,22 @@ window.ResponsiveManager = class ResponsiveManager {
   }
   
   getAdaptiveFontSize(baseSize, minSize, maxSize) {
-    const vw = window.innerWidth / 100;
-    const vh = window.innerHeight / 100;
-    const vmin = Math.min(vw, vh);
-    
-    let size = baseSize;
-    if (this.isMobile) {
-      size = vmin * (baseSize / 10); // Адаптивный размер
-    }
-    
-    return Math.round(Phaser.Math.Clamp(size, minSize, maxSize));
-  }
+  if (!this.isMobile) return baseSize;
+  
+  // Фиксированные размеры для читаемости
+  const mobileSizes = {
+    small: 14,
+    medium: 18,
+    large: 24,
+    xlarge: 32
+  };
+  
+  // Выбираем размер по baseSize
+  if (baseSize <= 16) return mobileSizes.small;
+  if (baseSize <= 20) return mobileSizes.medium;
+  if (baseSize <= 28) return mobileSizes.large;
+  return mobileSizes.xlarge;
+}
   
   getCardDimensions(level, containerWidth, containerHeight) {
     ///////////////////////////////////////////////////////////////
