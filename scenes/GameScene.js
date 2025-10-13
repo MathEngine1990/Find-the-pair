@@ -983,41 +983,42 @@ createCardLayout(deck) {
       const size = Math.floor(H * (base / 1000)); // base в промилле от высоты
       return Math.min(max, Math.max(min, size));
     },
-    getCardDimensions: (level, W, availableH) => {
-      const horizontalPadding = W * 0.01;
-      const verticalPadding = availableH * 0.01;
-      const availableW = W - (horizontalPadding * 2);
-      const adjustedH = availableH - (verticalPadding * 2);
-      
-      const gapSize = Math.min(6, W * 0.008);
-      const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
-      const cardMaxH = (adjustedH - (level.rows - 1) * gapSize) / level.rows;
-      
-      const aspectRatio = 0.68;
-      let cardW, cardH;
-      
-      if (cardMaxW / cardMaxH > aspectRatio) {
-        cardH = cardMaxH;
-        cardW = cardH * aspectRatio;
-      } else {
-        cardW = cardMaxW;
-        cardH = cardW / aspectRatio;
-      }
-      
-      const isMobile = W < 768 || availableH < 600;
-      if (!isMobile) {
-        cardW = Math.min(cardW, W * 0.18);
-        cardH = Math.min(cardH, availableH * 0.25);
-      }
-      
-      return {
-        cardW: Math.floor(cardW),
-        cardH: Math.floor(cardH),
-        gapSize: Math.floor(gapSize),
-        offsetX: (W - (level.cols * cardW + (level.cols - 1) * gapSize)) / 2,
-        offsetY: (availableH - (level.rows * cardH + (level.rows - 1) * gapSize)) / 2
-      };
-    }
+    getCardDimensions(level, containerWidth, containerHeight) {
+  const padding = this.isMobile ? 0.005 : 0.03;  // ← Минимальные отступы
+  const gap = this.isMobile ? 2 : 6;              // ← Маленькие зазоры
+  const safeAreaOffset = 0;                       // ← Игнорируем notch
+  
+  const availableW = containerWidth * (1 - padding * 2);
+  const availableH = containerHeight * (1 - padding * 2);
+  
+  const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
+  const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
+  
+  const aspectRatio = 0.75; // ← Более квадратные карты
+  let finalW, finalH;
+  
+  if (cardW / cardH > aspectRatio) {
+    finalH = cardH;
+    finalW = finalH * aspectRatio;
+  } else {
+    finalW = cardW;
+    finalH = finalW / aspectRatio;
+  }
+  
+  // ❌ УБРАТЬ ОГРАНИЧЕНИЯ
+  // if (!this.isMobile) {
+  //   finalW = Math.min(finalW, 180);
+  //   finalH = Math.min(finalH, 240);
+  // }
+  
+  return {
+    width: Math.floor(finalW),
+    height: Math.floor(finalH),
+    gap: gap,
+    offsetX: padding * containerWidth,
+    offsetY: padding * containerHeight
+  };
+}
   };
   
   // ✅ FIX #5: Защита от повторных вызовов
