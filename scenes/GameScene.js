@@ -973,9 +973,60 @@ if (document.fonts && !this._fontsReady) {
   }
 
   // ИСПРАВЛЕНО: Создание layout карт с улучшенной системой размеров
-  createCardLayout(deck) {
-    
-const rm = window.responsiveManager;
+// GameScene.js:980 - ЗАМЕНИТЬ ВСЮ ФУНКЦИЮ createCardLayout
+
+createCardLayout(deck) {
+  // ✅ FIX #1: Создаём fallback responsiveManager
+  const rm = window.responsiveManager || {
+    getAdaptiveFontSize: (base, min, max) => {
+      const { H } = this.getSceneWH();
+      const size = Math.floor(H * (base / 1000)); // base в промилле от высоты
+      return Math.min(max, Math.max(min, size));
+    },
+    getCardDimensions: (level, W, availableH) => {
+      const horizontalPadding = W * 0.01;
+      const verticalPadding = availableH * 0.01;
+      const availableW = W - (horizontalPadding * 2);
+      const adjustedH = availableH - (verticalPadding * 2);
+      
+      const gapSize = Math.min(6, W * 0.008);
+      const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
+      const cardMaxH = (adjustedH - (level.rows - 1) * gapSize) / level.rows;
+      
+      const aspectRatio = 0.68;
+      let cardW, cardH;
+      
+      if (cardMaxW / cardMaxH > aspectRatio) {
+        cardH = cardMaxH;
+        cardW = cardH * aspectRatio;
+      } else {
+        cardW = cardMaxW;
+        cardH = cardW / aspectRatio;
+      }
+      
+      const isMobile = W < 768 || availableH < 600;
+      if (!isMobile) {
+        cardW = Math.min(cardW, W * 0.18);
+        cardH = Math.min(cardH, availableH * 0.25);
+      }
+      
+      return {
+        cardW: Math.floor(cardW),
+        cardH: Math.floor(cardH),
+        gapSize: Math.floor(gapSize),
+        offsetX: (W - (level.cols * cardW + (level.cols - 1) * gapSize)) / 2,
+        offsetY: (availableH - (level.rows * cardH + (level.rows - 1) * gapSize)) / 2
+      };
+    }
+  };
+  
+  // ✅ FIX #5: Защита от повторных вызовов
+  if (this._isCreatingLayout) {
+    console.warn('⚠️ createCardLayout already in progress, skipping');
+    return;
+  }
+  this._isCreatingLayout = true;
+  
   const { width: W, height: H } = this.scale;
   const hudH = rm.getAdaptiveFontSize(80, 60, 100);
   
@@ -994,109 +1045,40 @@ const rm = window.responsiveManager;
   }
   
   this.cardsContainer = this.add.container(0, hudH);
-    
-    const gameAreaH = H - hudH - 10; // Было: - 20
-    
-    // КРИТИЧНО: Динамический расчет размеров карт под любой экран
-    // Учитываем padding в процентах от ширины экрана
-    const horizontalPadding = W * 0.01; // 1% отступ по краям
-    const verticalPadding = H * 0.01;
-    
-    const availableW = W - (horizontalPadding * 2);
-    const availableH = gameAreaH - (verticalPadding * 2);
-    
-    // ИСПРАВЛЕНО: Расчет оптимального размера карт с учетом промежутков
-    const gapSize = Math.min(6, W * 0.008); // Адаптивный gap
-    const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
-    const cardMaxH = (availableH - (level.rows - 1) * gapSize) / level.rows;
-    
-    // КРИТИЧНО: Сохраняем пропорции карт, но максимально используем экран
-    const aspectRatio = 0.68; // Соотношение ширины к высоте
-    let cardW, cardH;
-    
-    if (cardMaxW / cardMaxH > aspectRatio) {
-        // Ограничены по высоте
-        cardH = cardMaxH;
-        cardW = cardH * aspectRatio;
-    } else {
-        // Ограничены по ширине
-        cardW = cardMaxW;
-        cardH = cardW / aspectRatio;
+  this.cards = []; // ← ДОБАВИТЬ: Очистка массива карт
+  
+  // Создаём карты
+  for (let row = 0; row < this.currentLevel.rows; row++) {
+    for (let col = 0; col < this.currentLevel.cols; col++) {
+      const index = row * this.currentLevel.cols + col;
+      const key = deck[index];
+      
+      const x = cardParams.offsetX + col * (cardParams.cardW + cardParams.gapSize) + cardParams.cardW / 2;
+      const y = cardParams.offsetY + row * (cardParams.cardH + cardParams.gapSize) + cardParams.cardH / 2;
+      
+      const card = this.add.image(x, y, key)
+        .setData('key', key)
+        .setData('opened', false)
+        .setData('matched', false)
+        .setData('index', index)
+        .setInteractive({ useHandCursor: true })
+        .off('pointerdown') // Удаляем старые подписки
+        .on('pointerdown', (pointer, localX, localY, event) => {
+          this.onCardClick(card, event); // ← Передаём event
+        });
+      
+      this.setCardSize(card, cardParams.cardW, cardParams.cardH);
+      this.cardsContainer.add(card);
+      this.cards.push(card);
     }
-    
-    // ✅ ИСПРАВЛЕНО: Мобильные НЕ ограничиваем, только десктоп
-    const isMobileDevice = W < 768 || H < 600;
-    
-    if (!isMobileDevice) {
-        // Ограничения ТОЛЬКО для больших экранов
-        const maxAbsoluteCardW = Math.min(180, W * 0.18);
-        const maxAbsoluteCardH = Math.min(240, H * 0.25);
-        cardW = Math.min(cardW, maxAbsoluteCardW);
-        cardH = Math.min(cardH, maxAbsoluteCardH);
-    }
-    
-    // Округляем для четкости
-    cardW = Math.floor(cardW);
-    cardH = Math.floor(cardH);
-    
-    // Сохраняем размеры для последующих операций
-    this.gameState.cardWidth = cardW;
-    this.gameState.cardHeight = cardH;
-    this.gameState.gapSize = gapSize;
-    
-    console.log('Adaptive card dimensions:', cardW, 'x', cardH, 'gap:', gapSize);
-    
-    // КРИТИЧНО: Центрируем сетку карт на весь экран
-    const totalW = level.cols * cardW + (level.cols - 1) * gapSize;
-    const totalH = level.rows * cardH + (level.rows - 1) * gapSize;
-    
-    // ИСПРАВЛЕНО: Точное центрирование без отступов
-    const offsetX = (W - totalW) / 2;
-    const offsetY = hudH + (gameAreaH - totalH) / 2;
-    
-    // ОПТИМИЗАЦИЯ: Создаем контейнер для всех карт
-    if (!this.cardsContainer) {
-        this.cardsContainer = this.add.container(0, 0);
-    }
-    this.cardsContainer.removeAll(true);
-    
-    for (let row = 0; row < level.rows; row++) {
-        for (let col = 0; col < level.cols; col++) {
-            const index = row * level.cols + col;
-            const key = deck[index];
-            
-            const x = offsetX + col * (cardW + gapSize) + cardW/2;
-            const y = offsetY + row * (cardH + gapSize) + cardH/2;
-            
-            const card = this.add.image(x, y, key)
-                .setData('key', key)
-                .setData('opened', false)
-                .setData('matched', false)
-                .setData('index', index) // Добавляем индекс для отладки
-                .setInteractive({ useHandCursor: true })
-                // ✅ НОВЫЙ КОД:
-                .off('pointerdown') // Удаляем старые подписки
-                .on('pointerdown', () => this.onCardClick(card));
-            
-            // Используем улучшенный метод установки размера
-            this.setCardSize(card, cardW, cardH);
-            
-            // ОПТИМИЗАЦИЯ: Добавляем в контейнер для групповых операций
-            this.cardsContainer.add(card);
-            this.cards.push(card);
-        }
-    }
-    
-    // ИСПРАВЛЕНО: Масштабируем контейнер при необходимости
-    // Это поможет при экстремальных соотношениях сторон
-    if (totalW > W || totalH > gameAreaH) {
-        const scaleX = W / totalW * 0.95; // 95% для небольшого отступа
-        const scaleY = gameAreaH / totalH * 0.95;
-        const scale = Math.min(scaleX, scaleY, 1); // Не увеличиваем больше 1
-        
-        this.cardsContainer.setScale(scale);
-        console.log('Container scaled to:', scale);
-    }
+  }
+  
+  // Сохраняем размеры для последующих операций
+  this.gameState.cardWidth = cardParams.cardW;
+  this.gameState.cardHeight = cardParams.cardH;
+  this.gameState.gapSize = cardParams.gapSize;
+  
+  this._isCreatingLayout = false; // ← Освобождаем мьютекс
 }
 
   // НОВЫЙ МЕТОД: Получение реальных размеров viewport
