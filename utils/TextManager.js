@@ -95,17 +95,34 @@ window.TextManager = class TextManager {
     const style = this.getStyle(type, overrides);
     const text = this.scene.add.text(x, y, content, style);
     
-    // Автоматическая тень для заголовков
-    if (TEXT_PRESETS[type]?.autoShadow) {
-      const shadowSize = Math.max(2, Math.round(this.getSize(type) * 0.05));
-      text.setShadow(shadowSize, shadowSize, '#000000', 8, false, true);
-    }
+    const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
+  
+  // 🔥 НОВОЕ: Автоматическая тень с кастомными параметрами
+  if (preset.autoShadow) {
+    const shadowCfg = preset.shadowConfig || THEME.shadows?.text || {};
+    const shadowSize = shadowCfg.offsetX || Math.max(2, Math.round(this.getSize(type) * 0.05));
+    const shadowBlur = shadowCfg.blur || 8;
+    
+    text.setShadow(
+      shadowCfg.offsetX || shadowSize,
+      shadowCfg.offsetY || shadowSize,
+      shadowCfg.color || '#000000',
+      shadowBlur,
+      false,
+      true
+    );
+  }
 
-    // Автоматический stroke для больших текстов
-    if (TEXT_PRESETS[type]?.autoStroke) {
-      const strokeSize = Math.max(2, Math.round(this.getSize(type) * 0.08));
-      text.setStroke('#000000', strokeSize);
-    }
+  // 🔥 НОВОЕ: Автоматическая обводка с кастомными параметрами
+  if (preset.autoStroke) {
+    const strokeCfg = preset.strokeConfig || THEME.strokes?.titleThin || {};
+    const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
+    
+    text.setStroke(
+      strokeCfg.color || '#000000',
+      strokeSize
+    );
+  }
 
     return text;
   }
