@@ -52,10 +52,10 @@ window.ResponsiveManager = class ResponsiveManager {
       parent: 'game',
       backgroundColor: '#1d2330',
       scale: {
-  mode: Phaser.Scale.ENVELOP, // ← Заполняет экран, обрезая лишнее
+  mode: Phaser.Scale.RESIZE, // ← Игра подстраивается под размер окна
   autoCenter: Phaser.Scale.CENTER_BOTH,
-  width: 1080,
-  height: 1920
+  width: window.innerWidth,  // ← Динамическая ширина
+  height: window.innerHeight // ← Динамическая высота
 },
       resolution: isLowEnd ? 1 : this.dpr,
       render: {
