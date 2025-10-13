@@ -686,9 +686,11 @@ window.alert = showGameNotification;
   // ========================================
 
   
-    const ResponsiveManager = window.ResponsiveManager
+
   
   function initGame() {
+
+    
     if (document.readyState === 'loading' || !document.body) {
       console.log('DOM not ready, waiting...');
       if (document.readyState === 'loading') {
@@ -698,6 +700,13 @@ window.alert = showGameNotification;
       }
       return;
     }
+
+       // ResponsiveManager уже загружен через <script src="utils/ResponsiveManager.js">
+   if (!window.ResponsiveManager) {
+     console.error('ResponsiveManager not loaded!');
+     showErrorFallback('ResponsiveManager отсутствует');
+     return;
+   }
 
     if (!document.body) {
       console.log('Document body not ready, retrying...');
@@ -835,8 +844,8 @@ window.alert = showGameNotification;
   screen: `${screen.width}x${screen.height}`
 });
 
-const ResponsiveManager = new ResponsiveManager();
-const gameConfig = ResponsiveManager.getOptimalGameConfig();
+const responsiveManager = new window.ResponsiveManager();
+const gameConfig = responsiveManager.getOptimalGameConfig();
 gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 
 // Добавить callbacks
