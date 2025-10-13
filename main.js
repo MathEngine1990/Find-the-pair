@@ -832,14 +832,14 @@ window.alert = showGameNotification;
   screen: `${screen.width}x${screen.height}`
 });
 
-const responsiveManager = new ResponsiveManager();
-const gameConfig = responsiveManager.getOptimalGameConfig();
+const ResposiveManager = new ResposiveManager();
+const gameConfig = ResposiveManager.getOptimalGameConfig();
 gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 
 // Добавить callbacks
 gameConfig.callbacks = {
   preBoot: (game) => {
-    window.responsiveManager = responsiveManager;
+    window.ResposiveManager = ResposiveManager;
     console.log('Game config:', gameConfig);
   },
   postBoot: (game) => {
