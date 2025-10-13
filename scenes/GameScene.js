@@ -171,6 +171,9 @@ window.GameScene = class GameScene extends Phaser.Scene {
   async create() {
     try {
     await document.fonts.ready;
+          // ✅ ДОБАВИТЬ: Создаем менеджер текста
+    this.textManager = new TextManager(this);
+      
     console.log('✅ Fonts ready');
   } catch (error) {
     console.warn('⚠️ Fonts API not available:', error);
@@ -835,6 +838,10 @@ if (document.fonts && !this._fontsReady) {
     
     this.clearHUD();
     const { W, H } = this.getSceneWH();
+
+      // ✅ ЗАМЕНИТЬ: Используем TextManager
+  this.textManager.updateDimensions(); // Обновляем размеры
+    
     const hudH = Math.min(100, Math.round(H * 0.12));
 
     // Фон HUD
@@ -843,17 +850,24 @@ if (document.fonts && !this._fontsReady) {
     hud.fillRoundedRect(0, 0, W, hudH, 0);
     this.hud = hud;
 
-    const fontSize = this._pxByH(0.035, 14, 20);
+    //const fontSize = this._pxByH(0.035, 14, 20);
 
-    // Счетчик ошибок слева
-    this.mistakeText = this.add.text(20, hudH/2, 'Ошибок: ' + this.mistakeCount, {
-      fontFamily: 'Arial, sans-serif', fontSize: fontSize + 'px', color: '#FF6B6B', fontStyle: 'bold'
-    }).setOrigin(0, 0.5).setDepth(6);
+     // ✅ НОВЫЙ КОД: Счетчик ошибок
+  this.mistakeText = this.textManager.createText(
+    20, hudH/2, 
+    'Ошибок: ' + this.mistakeCount, 
+    'hudText'
+  );
+  this.mistakeText.setOrigin(0, 0.5).setDepth(6);
+  this.mistakeText.setColor('#FF6B6B'); // Переопределяем цвет
 
-    // Таймер по центру
-    this.timeText = this.add.text(W/2, hudH/2, this.formatTime(this.currentTimeSeconds), {
-      fontFamily: 'Arial, sans-serif', fontSize: (fontSize + 2) + 'px', color: '#4ECDC4', fontStyle: 'bold'
-    }).setOrigin(0.5, 0.5).setDepth(6);
+  // ✅ НОВЫЙ КОД: Таймер
+  this.timeText = this.textManager.createText(
+    W/2, hudH/2,
+    this.formatTime(this.currentTimeSeconds),
+    'hudTimer'
+  );
+  this.timeText.setOrigin(0.5, 0.5).setDepth(6);
 
     // Кнопка домой справа
     const size = Math.round(hudH * 0.76);
