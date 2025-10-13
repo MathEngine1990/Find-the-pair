@@ -861,19 +861,19 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
         this.scene.start('GameScene', { level: levelIndex });
     });
     
-  // ✅ НОВЫЙ КОД: Лейбл уровня
+  // 🔥 НОВОЕ: Номер уровня с правильным пресетом
   const levelText = this.textManager.createText(
-    0, -h*0.1,
+    0, -h*0.12,  // ⬆️ Чуть выше, чтобы не перекрывались звёзды
     lvl.label,
-    'buttonText'
+    'levelNumber'  // ⬅️ ИЗМЕНЕНО: используем новый пресет
   );
   levelText.setOrigin(0.5);
     
     btn.add(levelText);
     btn.levelIndex = levelIndex;
     
-  // ✅ ИСПРАВИТЬ: Звездочки (пропорциональный размер)
-  const starSize = Math.round(this.textManager.getSize('buttonText') * 1.2);
+  // 🔥 ИСПРАВЛЕНО: Звёзды с правильным размером
+  const starSize = this.textManager.getSize('stars');
   const progressLevels = this.getProgress();
   const levelProgress = progressLevels[levelIndex];
     
@@ -892,6 +892,11 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
             color: filled ? '#FFD700' : '#666666',
             fontStyle: 'bold'
         }).setOrigin(0.5);
+
+         // 🔥 НОВОЕ: Тень для звёзд
+    if (filled) {
+      starText.setShadow(0, 2, 'rgba(255, 215, 0, 0.6)', 4, false, true);
+    }
         
         btn.starsContainer.add(starText);
     }
