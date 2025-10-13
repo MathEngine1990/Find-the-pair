@@ -52,10 +52,21 @@ window.ResponsiveManager = class ResponsiveManager {
       parent: 'game',
       backgroundColor: '#1d2330',
       scale: {
-  mode: Phaser.Scale.RESIZE, // ← Игра подстраивается под размер окна
+  mode: this.isMobile 
+    ? (this.orientation === 'portrait' 
+        ? Phaser.Scale.FIT  // Portrait: сохранить пропорции
+        : Phaser.Scale.RESIZE) // Landscape: заполнить экран
+    : Phaser.Scale.FIT,
+  
   autoCenter: Phaser.Scale.CENTER_BOTH,
-  width: window.innerWidth,  // ← Динамическая ширина
-  height: window.innerHeight // ← Динамическая высота
+  
+  width: this.isMobile 
+    ? (this.orientation === 'portrait' ? 1080 : window.innerWidth)
+    : 1920,
+    
+  height: this.isMobile 
+    ? (this.orientation === 'portrait' ? 1920 : window.innerHeight)
+    : 1080
 },
       resolution: isLowEnd ? 1 : this.dpr,
       render: {
