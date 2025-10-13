@@ -861,20 +861,21 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
         this.scene.start('GameScene', { level: levelIndex });
     });
     
-    const fontSize = Math.max(24, Math.round(h * 0.35 * scaleFactor));
-    const levelText = this.add.text(0, -h*0.1, lvl.label, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: fontSize + 'px',
-        fontStyle: 'bold',
-        color: '#FFFFFF'
-    }).setOrigin(0.5);
+  // ✅ НОВЫЙ КОД: Лейбл уровня
+  const levelText = this.textManager.createText(
+    0, -h*0.1,
+    lvl.label,
+    'buttonText'
+  );
+  levelText.setOrigin(0.5);
     
     btn.add(levelText);
     btn.levelIndex = levelIndex;
     
-    const starSize = Math.max(22, Math.round(h * 0.15 * scaleFactor));
-    const progressLevels = this.getProgress();
-    const levelProgress = progressLevels[levelIndex];
+  // ✅ ИСПРАВИТЬ: Звездочки (пропорциональный размер)
+  const starSize = Math.round(this.textManager.getSize('buttonText') * 1.2);
+  const progressLevels = this.getProgress();
+  const levelProgress = progressLevels[levelIndex];
     
     // ✅ Создаём контейнеры ОДИН РАЗ при создании кнопки
     btn.starsContainer = this.add.container(x, y + h * 0.25);
@@ -900,25 +901,24 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     btn.statsContainer.setDepth(btn.depth + 1);
     
     if (levelProgress && levelProgress.bestTime) {
-        const statsSize = Math.max(isMobile ? 16 : 14, Math.round(starSize * 0.65));
-        const accuracy = levelProgress.accuracy || 100;
-        const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-        
-        const statsDisplay = this.add.text(0, 0, statsText, {
-            fontFamily: 'Arial, sans-serif',
-            fontSize: statsSize + 'px',
-            color: '#CCCCCC'
-        }).setOrigin(0.5);
-        
-        btn.statsContainer.add(statsDisplay);
-    }
-
-    // ❌ УДАЛИТЬ ЭТУ СТРОКУ (строка 470):
-    // this.updateSingleLevelButton(btn, levelIndex, this.getProgress());
+    const accuracy = levelProgress.accuracy || 100;
+    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
     
-    this.levelButtons.push(btn);
-    return btn;
+    const statsDisplay = this.textManager.createText(
+      0, 0,
+      statsText,
+      'statValue'
+    );
+    statsDisplay.setOrigin(0.5);
+    
+    btn.statsContainer.add(statsDisplay);
+  }
+
+  this.levelButtons.push(btn);
+  return btn;
 }
+
+
 
   formatTime(seconds) {
     if (!seconds) return '0с';
