@@ -983,24 +983,42 @@ createCardLayout(deck) {
       const size = Math.floor(H * (base / 1000)); // base в промилле от высоты
       return Math.min(max, Math.max(min, size));
     },
-    // ResponsiveManager.js:95
-    // ✅ ВАРИАНТ 1: Уменьшить высоту HUD (больше места для карт)
-if (!this.cachedCardParams || 
-    this.cachedCardParams.containerW !== W || 
-    this.cachedCardParams.containerH !== H - hudH) {
-  
-  this.cachedCardParams = rm.getCardDimensions(
-    this.currentLevel,
-    W,
-    H - hudH
-  );
-  this.cachedCardParams.containerW = W;
-  this.cachedCardParams.containerH = H - hudH;
-}
-
-const cardParams = this.cachedCardParams;
-    //////////////////////////////////////////////////////////
-  };
+  getCardDimensions: (level, W, availableH) => {
+      const horizontalPadding = W * 0.01;
+      const verticalPadding = availableH * 0.01;
+      const availableW = W - (horizontalPadding * 2);
+      const adjustedH = availableH - (verticalPadding * 2);
+      
+      const gapSize = Math.min(6, W * 0.008);
+      const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
+      const cardMaxH = (adjustedH - (level.rows - 1) * gapSize) / level.rows;
+      
+      const aspectRatio = 0.68;
+      let cardW, cardH;
+      
+      if (cardMaxW / cardMaxH > aspectRatio) {
+        cardH = cardMaxH;
+        cardW = cardH * aspectRatio;
+      } else {
+        cardW = cardMaxW;
+        cardH = cardW / aspectRatio;
+      }
+      
+      const isMobile = W < 768 || availableH < 600;
+      if (!isMobile) {
+        cardW = Math.min(cardW, W * 0.18);
+        cardH = Math.min(cardH, availableH * 0.25);
+      }
+      
+      return {
+        cardW: Math.floor(cardW),
+        cardH: Math.floor(cardH),
+        gapSize: Math.floor(gapSize),
+        offsetX: (W - (level.cols * cardW + (level.cols - 1) * gapSize)) / 2,
+        offsetY: (availableH - (level.rows * cardH + (level.rows - 1) * gapSize)) / 2
+      };
+    }
+    };
   
   // ✅ FIX #5: Защита от повторных вызовов
   if (this._isCreatingLayout) {
