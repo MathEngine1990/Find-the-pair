@@ -983,18 +983,28 @@ createCardLayout(deck) {
       const size = Math.floor(H * (base / 1000)); // base в промилле от высоты
       return Math.min(max, Math.max(min, size));
     },
-    getCardDimensions(level, containerWidth, containerHeight) {
-  const padding = this.isMobile ? 0.005 : 0.03;  // ← Минимальные отступы
-  const gap = this.isMobile ? 2 : 6;              // ← Маленькие зазоры
-  const safeAreaOffset = 0;                       // ← Игнорируем notch
+    // ResponsiveManager.js:95
+getCardDimensions(level, containerWidth, containerHeight) {
+  const padding = this.isMobile ? 0.01 : 0.04;
+  const gap = (() => {
+    if (!this.isMobile) return 8;
+    const totalCards = level.cols * level.rows;
+    if (totalCards <= 12) return 6;
+    if (totalCards <= 20) return 4;
+    return 3;
+  })();
+  
+  const safeAreaOffset = this.isMobile 
+    ? (this.safeArea.top + this.safeArea.bottom) 
+    : 0;
   
   const availableW = containerWidth * (1 - padding * 2);
-  const availableH = containerHeight * (1 - padding * 2);
+  const availableH = containerHeight * (1 - padding * 2) - safeAreaOffset;
   
   const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
   const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
   
-  const aspectRatio = 0.75; // ← Более квадратные карты
+  const aspectRatio = this.orientation === 'portrait' ? 0.68 : 0.80;
   let finalW, finalH;
   
   if (cardW / cardH > aspectRatio) {
@@ -1005,18 +1015,18 @@ createCardLayout(deck) {
     finalH = finalW / aspectRatio;
   }
   
-  // ❌ УБРАТЬ ОГРАНИЧЕНИЯ
-  // if (!this.isMobile) {
-  //   finalW = Math.min(finalW, 180);
-  //   finalH = Math.min(finalH, 240);
-  // }
+  const maxCardW = this.isMobile ? 220 : 250;
+  const maxCardH = this.isMobile ? 300 : 320;
+  
+  finalW = Math.min(finalW, maxCardW);
+  finalH = Math.min(finalH, maxCardH);
   
   return {
     width: Math.floor(finalW),
     height: Math.floor(finalH),
     gap: gap,
     offsetX: padding * containerWidth,
-    offsetY: padding * containerHeight
+    offsetY: padding * containerHeight + (this.isMobile ? this.safeArea.top : 0)
   };
 }
   };
