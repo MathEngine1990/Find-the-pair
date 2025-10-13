@@ -984,51 +984,9 @@ createCardLayout(deck) {
       return Math.min(max, Math.max(min, size));
     },
     // ResponsiveManager.js:95
-getCardDimensions(level, containerWidth, containerHeight) {
-  const padding = this.isMobile ? 0.01 : 0.04;
-  const gap = (() => {
-    if (!this.isMobile) return 8;
-    const totalCards = level.cols * level.rows;
-    if (totalCards <= 12) return 6;
-    if (totalCards <= 20) return 4;
-    return 3;
-  })();
-  
-  const safeAreaOffset = this.isMobile 
-    ? (this.safeArea.top + this.safeArea.bottom) 
-    : 0;
-  
-  const availableW = containerWidth * (1 - padding * 2);
-  const availableH = containerHeight * (1 - padding * 2) - safeAreaOffset;
-  
-  const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
-  const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
-  
-  const aspectRatio = this.orientation === 'portrait' ? 0.68 : 0.80;
-  let finalW, finalH;
-  
-  if (cardW / cardH > aspectRatio) {
-    finalH = cardH;
-    finalW = finalH * aspectRatio;
-  } else {
-    finalW = cardW;
-    finalH = finalW / aspectRatio;
-  }
-  
-  const maxCardW = this.isMobile ? 220 : 250;
-  const maxCardH = this.isMobile ? 300 : 320;
-  
-  finalW = Math.min(finalW, maxCardW);
-  finalH = Math.min(finalH, maxCardH);
-  
-  return {
-    width: Math.floor(finalW),
-    height: Math.floor(finalH),
-    gap: gap,
-    offsetX: padding * containerWidth,
-    offsetY: padding * containerHeight + (this.isMobile ? this.safeArea.top : 0)
-  };
-}
+    // ✅ ВАРИАНТ 1: Уменьшить высоту HUD (больше места для карт)
+const hudH = rm.getAdaptiveFontSize(60, 40, 80); // было 80, 60, 100
+    //////////////////////////////////////////////////////////
   };
   
   // ✅ FIX #5: Защита от повторных вызовов
