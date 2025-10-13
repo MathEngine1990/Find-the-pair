@@ -57,7 +57,11 @@ window.ResponsiveManager = class ResponsiveManager {
   width: window.innerWidth,  // ← Динамическая ширина
   height: window.innerHeight // ← Динамическая высота
 },
-      resolution: isLowEnd ? 1 : this.dpr,
+      resolution: (() => {
+  if (isLowEnd) return 1;                              // Слабые: DPR=1
+  if (navigator.hardwareConcurrency >= 6) return 2;    // Мощные: DPR=2
+  return 1.5;                                          // Средние: DPR=1.5
+})(),
       render: {
         antialias: !isLowEnd,
         pixelArt: false,
