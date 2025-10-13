@@ -18,69 +18,38 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.isSyncing = false;
   }
 
-  async create(){
+  // ✅ ИСПРАВЛЕНИЕ: Неблокирующая инициализация
+async create(){
     console.log('MenuScene.create() started');
-
-    try {
-    await document.fonts.ready;
-    console.log('✅ Fonts ready');
-  } catch (error) {
-    console.warn('⚠️ Fonts API not available:', error);
-    // Fallback: простая задержка
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
     
-    if (this.scale && this.scale.updateBounds) this.scale.updateBounds();
-    this.scale.on('resize', () => { 
-      if (this.scale && this.scale.updateBounds) this.scale.updateBounds(); 
-    });
-
-        // ✅ ДОБАВИТЬ: Ждём загрузки шрифтов
-    await document.fonts.ready;
-    console.log('✅ Fonts ready');
-
-    this.levelButtons = [];
-    this._wheelHandler = null;
-
-    console.log('Creating background...');
+    // 1. Загружаем UI сразу с fallback-данными
+    this.progress = this.getProgressLocal();
     this.ensureGradientBackground();
-
-    console.log('Initializing sync manager...');
-    // НЕ ждем инициализации, делаем ее асинхронно
-this.initializeSyncManager().then(() => {
-    console.log('Sync manager initialized');
-}).catch(error => {
-    console.error('Sync manager failed:', error);
-});
-
-// Используем локальные данные сразу
-this.progress = this.getProgressLocal();
-
-   // ✅ ЕДИНЫЙ ОБРАБОТЧИК RESIZE (debounced)
-    this.scale.off('resize'); // Удаляем старые подписки
+    this.drawMenu(this.levelPage);
     
-   const resizeHandler = () => {
-        this.ensureGradientBackground();
-        this.events.on('debounced-resize', () => {
-  this.drawMenu(this.levelPage);
-});
-    };
-    
-   this.scale.on('resize', resizeHandler, this);
-   this._resizeHandler = resizeHandler; // Сохраняем для cleanup
-    
-    // ✅ ПРИНУДИТЕЛЬНЫЙ ПЕРВЫЙ RESIZE через 1 тик (после fonts.ready)
-    this.time.delayedCall(16, () => {
-        this.scale.emit('resize');
-        console.log('✅ Initial layout complete');
+    // 2. Async операции в фоне (НЕ блокируют UI)
+    Promise.all([
+        document.fonts.ready.catch(() => console.warn('Fonts timeout')),
+        this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
+    ]).then(() => {
+        console.log('✅ Async init complete, refreshing UI');
+        this.refreshUI(); // Обновляем UI после загрузки
     });
-
-    // Очистка при завершении сцены
-    this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
     
-    console.log('MenuScene.create() completed');
-  }
+    // 3. Единственный resize handler
+    this.scale.on('resize', () => {
+        if (!this._resizeDebounce) {
+            this._resizeDebounce = true;
+            this.time.delayedCall(150, () => {
+                this.ensureGradientBackground();
+                this.drawMenu(this.levelPage);
+                this._resizeDebounce = false;
+            });
+        }
+    });
+    
+    this.events.once('shutdown', this.cleanup, this);
+}
 
 
 
@@ -508,92 +477,7 @@ clearMenu() {
     console.log('Menu drawn, total buttons:', this.levelButtons.length);
 }
 
-// ДОПОЛНИТЕЛЬНО: Обновите метод createLevelButton
-createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
-    const isMobile = w > 150; // Простая проверка размера
-    
-    const btn = window.makeImageButton(this, x, y, w, h, '', () => {
-  if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
-  
-  // ✅ ИСПРАВЛЕНО: Передаём объект уровня
-  this.scene.start('GameScene', { 
-    level: window.LEVELS[levelIndex],  // Объект уровня
-    levelIndex: levelIndex,             // Индекс для tracking
-    page: this.levelPage                // Страница меню для возврата
-  });
-});
-    
-    // КРИТИЧНО: Увеличенный размер текста на кнопках
-    const fontSize = Math.max(
-        24,  // Минимум 24px
-        Math.round(h * 0.35 * scaleFactor)
-    );
-    
-    // Основной текст уровня (числа пар)
-    const levelText = this.add.text(0, -h*0.1, lvl.label, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: fontSize + 'px',
-        fontStyle: 'bold',
-        color: '#FFFFFF'
-    }).setOrigin(0.5);
-    
-    btn.add(levelText);
-    btn.levelIndex = levelIndex;
-    
-    // Размер звёздочек (увеличен)
-    const starSize = Math.max(22, Math.round(h * 0.15 * scaleFactor));
-    
-    // Создаём контейнеры для звёзд и статистики с правильными позициями
-    const progressLevels = this.getProgress();
-    const levelProgress = progressLevels[levelIndex];
-    
-    // Звёздочки - фиксированная позиция
-    btn.starsContainer = this.add.container(x, y + h * 0.25);
-    btn.starsContainer.setDepth(btn.depth + 1);
-    
-    const starSpacing = starSize + 4;
-    const stars = levelProgress ? levelProgress.stars : 0;
-    
-    for (let star = 1; star <= 3; star++) {
-        const starX = (star - 2) * starSpacing;
-        const filled = star <= stars;
-        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
-            fontSize: starSize + 'px',
-            color: filled ? '#FFD700' : '#666666',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        
-        btn.starsContainer.add(starText);
-    }
-    
-    // Статистика под звёздами
-    if (levelProgress && levelProgress.bestTime) {
-        const statsSize = Math.max(
-            isMobile ? 16 : 14,
-            Math.round(starSize * 0.65)
-        );
-        
-        const accuracy = levelProgress.accuracy || 100;
-        const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-        
-        btn.statsContainer = this.add.container(x, y + h * 0.38);
-        btn.statsContainer.setDepth(btn.depth + 1);
-        
-        const statsDisplay = this.add.text(0, 0, statsText, {
-            fontFamily: 'Arial, sans-serif',
-            fontSize: statsSize + 'px',
-            color: '#CCCCCC'
-        }).setOrigin(0.5);
-        
-        btn.statsContainer.add(statsDisplay);
-    }
 
-  // Добавляем звёзды и статистику
-    //this.updateSingleLevelButton(btn, levelIndex, this.getProgress());
-    
-    this.levelButtons.push(btn);
-    return btn;
-}
 
   createSyncButton(W, H, titlePx) {
     const syncStatus = this.syncManager.getSyncStatus();
