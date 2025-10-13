@@ -8,6 +8,12 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
   init(data){ 
     this.levelPage = data?.page || 0; 
     
+    // ✅ КРИТИЧНО: Инициализация коллекций UI
+    this.levelButtons = [];
+    this.syncButton = null;
+    this._resizeDebounce = false;
+    this._wheelHandler = null;
+    
     // Получаем VK данные если есть
     this.vkUserData = data?.userData || window.VK_USER_DATA;
     this.isVKEnvironment = data?.isVK || !!window.VK_LAUNCH_PARAMS;
@@ -16,7 +22,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.syncManager = null;
     this.progress = {};
     this.isSyncing = false;
-  }
+}
 
   // ✅ ИСПРАВЛЕНИЕ: Неблокирующая инициализация
 async create(){
@@ -250,19 +256,27 @@ clearMenu() {
         this.input.off('wheel', this._wheelHandler); 
         this._wheelHandler = null; 
     }
+
+   // ✅ ДОБАВИТЬ: Сброс debounce флага
+    this._resizeDebounce = false;
+  
     
     if (this.levelButtons) {
         this.levelButtons.forEach(btn => {
             if (btn && typeof btn.destroy === 'function') {
-                
-                // ✅ ДОБАВИТЬ: Уничтожаем контейнеры звёзд
-                if (btn.starsContainer) {
+
+               // ✅ КРИТИЧНО: Проверка наличия контейнеров перед destroy
+                if (btn.starsContainer && !btn.starsContainer.scene) {
+                    // Уже уничтожен родителем
+                    btn.starsContainer = null;
+                } else if (btn.starsContainer) {
                     btn.starsContainer.destroy();
                     btn.starsContainer = null;
                 }
                 
-                // ✅ ДОБАВИТЬ: Уничтожаем контейнеры статистики
-                if (btn.statsContainer) {
+                if (btn.statsContainer && !btn.statsContainer.scene) {
+                    btn.statsContainer = null;
+                } else if (btn.statsContainer) {
                     btn.statsContainer.destroy();
                     btn.statsContainer = null;
                 }
@@ -536,7 +550,17 @@ clearMenu() {
   }
 
   updateSyncButton() {
-    if (!this.syncButton || !this.syncManager) return;
+    // ✅ КРИТИЧНО: Проверка существования
+    if (!this.syncButton || !this.syncManager) {
+        console.warn('⚠️ syncButton or syncManager not initialized');
+        return;
+    }
+    
+    // ✅ ДОБАВИТЬ: Проверка уничтожения сцены
+    if (!this.scene.isActive() || !this.syncButton.scene) {
+        console.warn('⚠️ Scene inactive or button destroyed');
+        return;
+    }
 
     const syncStatus = this.syncManager.getSyncStatus();
     
@@ -552,6 +576,12 @@ clearMenu() {
     } else if (syncStatus.lastSyncTime > 0) {
       btnColor = 0x27AE60;
       btnText = '✅';
+    }
+
+        // ✅ КРИТИЧНО: Проверка элементов перед использованием
+    if (!this.syncButton.bgElement || !this.syncButton.textElement) {
+        console.error('❌ syncButton elements missing');
+        return;
     }
 
     if (btnColor !== this.syncButton.currentColor) {
@@ -642,11 +672,7 @@ clearMenu() {
   updateLevelButtons() {
     const progressLevels = this.getProgress();
     
-    this.levelButtons.forEach(button => {
-      if (button.levelIndex !== undefined) {
-        this.updateSingleLevelButton(button, button.levelIndex, progressLevels);
-      }
-    });
+    
   }
 
   updateStatsDisplay() {
