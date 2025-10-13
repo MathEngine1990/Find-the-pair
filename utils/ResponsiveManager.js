@@ -1,5 +1,5 @@
-// utils/ResposiveManager.js
-window.ResposiveManager = class ResposiveManager {
+// utils/ResponsiveManager.js
+window.ResponsiveManager = class ResponsiveManager {
   static instance = null;
   
   constructor() {
