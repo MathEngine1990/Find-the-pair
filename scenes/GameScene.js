@@ -974,13 +974,27 @@ if (document.fonts && !this._fontsReady) {
 
   // ИСПРАВЛЕНО: Создание layout карт с улучшенной системой размеров
   createCardLayout(deck) {
-    const level = this.currentLevel;
     
-    // КРИТИЧНО: Используем реальные размеры viewport без вычетов
-    const { width: W, height: H } = this.scale;
+const rm = window.responsiveManager;
+  const { width: W, height: H } = this.scale;
+  const hudH = rm.getAdaptiveFontSize(80, 60, 100);
+  
+  const cardParams = rm.getCardDimensions(
+    this.currentLevel,
+    W,
+    H - hudH
+  );
+  
+  // Кешируем размеры
+  this.cachedCardParams = cardParams;
+  
+  // Удаляем старый контейнер только если он есть
+  if (this.cardsContainer) {
+    this.cardsContainer.destroy(true);
+  }
+  
+  this.cardsContainer = this.add.container(0, hudH);
     
-    // ИСПРАВЛЕНО: Адаптивный HUD - меньше места занимает
-    const hudH = Math.min(80, Math.round(H * 0.1)); // Было: 0.12
     const gameAreaH = H - hudH - 10; // Было: - 20
     
     // КРИТИЧНО: Динамический расчет размеров карт под любой экран
