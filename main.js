@@ -860,9 +860,19 @@ gameConfig.callbacks = {
     game.scale.on('resize', () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
+        console.log('🔄 Debounced resize triggered');
         game.events.emit('debounced-resize');
       }, 150);
     });
+    +   
+   // Глобальный обработчик для сцен
+   game.events.on('debounced-resize', () => {
+     const activeScene = game.scene.getScenes(true)[0];
+     if (activeScene && activeScene.handleResize) {
+       const gameSize = game.scale.gameSize;
+       activeScene.handleResize(gameSize);
+     }
+   });
   }
 };
 
