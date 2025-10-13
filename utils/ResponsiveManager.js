@@ -91,8 +91,23 @@ window.ResponsiveManager = class ResponsiveManager {
   }
   
   getCardDimensions(level, containerWidth, containerHeight) {
-    const padding = this.isMobile ? 0.02 : 0.05;
-    const gap = this.isMobile ? 4 : 8;
+    ///////////////////////////////////////////////////////////////
+    const padding = (() => {
+  if (!this.isMobile) return 0.05;
+  
+  const minDimension = Math.min(containerWidth, containerHeight);
+  if (minDimension < 400) return 0.005; // Очень маленькие экраны: почти нет отступов
+  if (minDimension < 600) return 0.01;  // Маленькие экраны: 1%
+  return 0.02;                          // Средние экраны: 2%
+})();
+    ///////////////////////////////////////////////////////////////
+    const gap = (() => {
+  if (!this.isMobile) return 8;
+  
+  const minDimension = Math.min(containerWidth, containerHeight);
+  return Math.max(2, Math.floor(minDimension * 0.01)); // 1% от минимальной стороны
+})();
+    ///////////////////////////////////////////////////////////////
     const safeAreaOffset = this.isMobile ? this.safeArea.top + this.safeArea.bottom : 0;
     
     const availableW = containerWidth * (1 - padding * 2);
@@ -100,8 +115,9 @@ window.ResponsiveManager = class ResponsiveManager {
     
     const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
     const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
-    
-    const aspectRatio = 0.68;
+    ///////////////////////////////////////////////////////////////
+    const aspectRatio = this.orientation === 'portrait' ? 0.68 : 0.85;
+    ///////////////////////////////////////////////////////////////
     let finalW, finalH;
     
     if (cardW / cardH > aspectRatio) {
