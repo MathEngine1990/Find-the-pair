@@ -256,10 +256,10 @@ window.TEXT_PRESETS = {
   // === СТАТИСТИКА ===
   statLabel: {
     method: 'height',
-    scale: 0.020,        // ⬇️ Уменьшено с 0.022
-    min: 13,            // ⬇️ Уменьшено с 14
-    max: 17,            // ⬇️ Уменьшено с 18
-    mobileScale: 1.15,
+    scale: 0.024,        // ⬇️ Уменьшено с 0.022
+    min: 16,            // ⬇️ Уменьшено с 14
+    max: 22,            // ⬇️ Уменьшено с 18
+    mobileScale: 1.2,
     font: window.THEME?.font,
     color: window.THEME?.colors?.textSecondary || '#B8C5D6'
   },
@@ -277,10 +277,10 @@ window.TEXT_PRESETS = {
   // 🔥 НОВОЕ: Статистика под кнопками уровней
   levelStats: {
     method: 'viewport',
-    scale: 0.012,        // 🎯 Мелкий, но читабельный
-    min: 10,
-    max: 14,
-    mobileScale: 1.2,
+    scale: 0.016,        // 🎯 Мелкий, но читабельный
+    min: 13,
+    max: 18,
+    mobileScale: 1.3,
     font: window.THEME?.font,
     color: window.THEME?.colors?.statsAccuracy || '#A8DADC',
     style: 'normal'
