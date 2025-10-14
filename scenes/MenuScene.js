@@ -71,7 +71,10 @@ async initializeSyncManager() {
       saveProgress: () => {},
       isVKAvailable: () => false,
       getSyncStatus: () => ({ isVKAvailable: false, lastSyncTime: 0 }),
-      forceSync: async () => false
+      forceSync: async () => false,
+      setCurrentLevel: (levelIndex) => {
+        console.log('Fallback: setCurrentLevel', levelIndex);
+      }
     };
   }
   
