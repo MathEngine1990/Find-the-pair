@@ -812,7 +812,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
 
     const title = this.add.text(W/2, H/2 - modalH/2 + 50, 'Пользовательское соглашение', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '22px',
+      fontSize: '24px',
       color: '#FFFFFF',
       fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(1002);
