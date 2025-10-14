@@ -103,54 +103,68 @@ class ProgressSyncManager {
   }
 }
 
-  async performSync() {
-  // ✅ КРИТИЧНО: Проверка ПЕРЕД началом синхронизации
-  if (!this.isVKAvailable()) {
-    console.log('📱 Sync skipped - VK not available');
-    return false;
+  // === ProgressSyncManager.js:85-126 - ОБЕРНУТЬ performSync ===
+
+async performSync() {
+  // ✅ ДОБАВИТЬ: Debounce защита
+  if (this._syncDebounceTimer) {
+    clearTimeout(this._syncDebounceTimer);
   }
   
-  if (this.isSyncing) {
-    console.log('⏳ Sync already in progress');
-    return false;
-  }
-
-  this.isSyncing = true;
-  
-  if (this.onSyncStart) {
-    this.onSyncStart();
-  }
-
-  try {
-    console.log('🔄 Starting VK sync...');
-    
-    const vkData = await this.loadFromVK();
-      const localData = this.loadFromLocal();
+  return new Promise((resolve, reject) => {
+    this._syncDebounceTimer = setTimeout(async () => {
+      this._syncDebounceTimer = null;
       
-      const mergedData = this.mergeProgressData(localData, vkData);
-      
-      await this.saveToVK(mergedData);
-      this.saveToLocal(mergedData);
-      
-      this.lastSyncTime = Date.now();
-      
-      console.log('✅ Sync completed successfully');
-      
-      if (this.onSyncComplete) {
-        this.onSyncComplete(mergedData);
+      // Существующая логика performSync
+      if (!this.isVKAvailable()) {
+        console.log('📱 Sync skipped - VK not available');
+        resolve(false);
+        return;
       }
       
-      return true;
+      if (this.isSyncing) {
+        console.log('⏳ Sync already in progress');
+        resolve(false);
+        return;
+      }
       
-    } catch (error) {
-      console.error('❌ Sync failed:', error);
-      this.handleSyncError(error);
-      return false;
+      this.isSyncing = true;
       
-    } finally {
-      this.isSyncing = false;
-    }
-  }
+      if (this.onSyncStart) {
+        this.onSyncStart();
+      }
+      
+      try {
+        console.log('🔄 Starting VK sync...');
+        
+        const vkData = await this.loadFromVK();
+        const localData = this.loadFromLocal();
+        const mergedData = this.mergeProgressData(localData, vkData);
+        
+        await this.saveToVK(mergedData);
+        this.saveToLocal(mergedData);
+        
+        this.lastSyncTime = Date.now();
+        
+        console.log('✅ Sync completed successfully');
+        
+        if (this.onSyncComplete) {
+          this.onSyncComplete(mergedData);
+        }
+        
+        resolve(true);
+        
+      } catch (error) {
+        console.error('❌ Sync failed:', error);
+        this.handleSyncError(error);
+        reject(error);
+        
+      } finally {
+        this.isSyncing = false;
+      }
+    }, this.settings.debounceDelay); // 2000ms
+  });
+}
 
   async loadFromVK() {
     if (!this.isVKAvailable()) {
@@ -185,23 +199,54 @@ class ProgressSyncManager {
   }
 
   // НОВЫЙ МЕТОД: Безопасный вызов VK Bridge
-  async safeVKCall(method, params = {}) {
-    if (!window.vkBridge) {
-      throw new Error('VK Bridge not available');
-    }
+  // === ProgressSyncManager.js:148-180 - ЗАМЕНИТЬ safeVKCall ===
+
+async safeVKCall(method, params = {}) {
+  if (!window.vkBridge) {
+    throw new Error('VK Bridge not available');
+  }
+  
+  try {
+    const result = await window.vkBridge.send(method, params);
+    return result;
     
-    try {
-      return await window.vkBridge.send(method, params);
-    } catch (error) {
-      // Обработка специфичных ошибок VK
-      if (error.error_data?.error_code === 6) {
-        // Слишком много запросов
+  } catch (error) {
+    const errorCode = error.error_data?.error_code;
+    const errorMsg = error.error_data?.error_reason || error.message;
+    
+    console.warn(`⚠️ VK API error [${method}]:`, errorCode, errorMsg);
+    
+    switch (errorCode) {
+      case 2: // Method not found / not supported
+        throw new Error(`VK method ${method} not supported on this platform`);
+        
+      case 4: // User denied access
+        console.log('ℹ️ User denied VK permission');
+        throw error;
+        
+      case 6: // Too many requests (rate limit)
+        console.log('⏳ Rate limited, retrying after 2s...');
+        await this.delay(2000);
+        return await window.vkBridge.send(method, params); // Retry once
+        
+      case 7: // Permission denied by app settings
+        throw new Error(`VK permission denied for ${method}`);
+        
+      case 15: // Access denied (moderation required)
+        console.log('🔒 VK feature requires moderation approval');
+        throw error;
+        
+      case 10: // Internal server error
+        console.log('🔧 VK server error, retrying...');
         await this.delay(1000);
-        return await window.vkBridge.send(method, params);
-      }
-      throw error;
+        return await window.vkBridge.send(method, params); // Retry once
+        
+      default:
+        // Неизвестная ошибка - пробрасываем
+        throw error;
     }
   }
+}
 
   saveToLocal(data) {
     try {
@@ -251,36 +296,112 @@ class ProgressSyncManager {
     }
   }
 
-  async saveToVK(progressData) {
-    if (!this.isVKAvailable()) {
-      console.warn('VK Storage not available');
-      return false;
-    }
+  // === ProgressSyncManager.js:189-230 - ДОБАВИТЬ после saveToLocal ===
 
-    for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
-      try {
-        // ИСПРАВЛЕНО: Используем безопасный метод
-        await this.safeVKCall('VKWebAppStorageSet', {
-          key: this.vkKey,
-          value: JSON.stringify(progressData)
-        });
-        
-        console.log('✅ Saved to VK Storage');
-        return true;
-        
-      } catch (error) {
-        console.warn(`VK Storage save attempt ${attempt} failed:`, error);
-        
-        if (attempt === this.settings.retryAttempts) {
-          throw error;
-        }
-        
-        await this.delay(this.settings.retryDelay * attempt);
-      }
-    }
-    
+async saveToVK(progressData) {
+  if (!this.isVKAvailable()) {
+    console.warn('VK Storage not available');
     return false;
   }
+  
+  for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
+    try {
+      const dataString = JSON.stringify(progressData);
+      
+      // ✅ ДОБАВИТЬ: Проверка размера (VK Storage лимит ~10MB)
+      const sizeKB = new Blob([dataString]).size / 1024;
+      if (sizeKB > 10000) { // 10MB
+        console.warn(`⚠️ Data size ${sizeKB}KB exceeds VK Storage limit`);
+        
+        // Оптимизируем данные
+        const optimized = this.optimizeData(progressData);
+        const optimizedString = JSON.stringify(optimized);
+        const optimizedSizeKB = new Blob([optimizedString]).size / 1024;
+        
+        console.log(`📦 Optimized: ${sizeKB}KB → ${optimizedSizeKB}KB`);
+        
+        if (optimizedSizeKB > 10000) {
+          throw new Error('Data too large even after optimization');
+        }
+        
+        // Используем оптимизированные данные
+        await this.safeVKCall('VKWebAppStorageSet', {
+          key: this.vkKey,
+          value: optimizedString
+        });
+      } else {
+        await this.safeVKCall('VKWebAppStorageSet', {
+          key: this.vkKey,
+          value: dataString
+        });
+      }
+      
+      console.log('✅ Saved to VK Storage');
+      return true;
+      
+    } catch (error) {
+      // ✅ ДОБАВИТЬ: Обработка QuotaExceededError
+      if (error.message?.includes('quota') || 
+          error.message?.includes('Quota') ||
+          error.error_data?.error_code === 11) { // VK quota error
+        
+        console.warn('⚠️ VK Storage quota exceeded, cleaning up...');
+        
+        try {
+          // Очищаем старые уровни (оставляем только 30 последних)
+          const cleanedData = this.optimizeData(progressData, 30);
+          const cleanedString = JSON.stringify(cleanedData);
+          
+          await this.safeVKCall('VKWebAppStorageSet', {
+            key: this.vkKey,
+            value: cleanedString
+          });
+          
+          console.log('✅ Saved after cleanup');
+          return true;
+          
+        } catch (cleanupError) {
+          console.error('❌ Cleanup failed:', cleanupError);
+          throw cleanupError;
+        }
+      }
+      
+      console.warn(`VK Storage save attempt ${attempt} failed:`, error);
+      
+      if (attempt === this.settings.retryAttempts) {
+        throw error;
+      }
+      
+      await this.delay(this.settings.retryDelay * attempt);
+    }
+  }
+  
+  return false;
+}
+
+// === ProgressSyncManager.js:282-299 - ОБНОВИТЬ optimizeData ===
+
+optimizeData(data, maxLevels = 50) {
+  const optimized = { ...data };
+  
+  if (optimized.levels && Object.keys(optimized.levels).length > maxLevels) {
+    // Сортируем по lastPlayed и оставляем только maxLevels последних
+    const sortedLevels = Object.entries(optimized.levels)
+      .sort((a, b) => (b[1].lastPlayed || 0) - (a[1].lastPlayed || 0))
+      .slice(0, maxLevels);
+    
+    optimized.levels = Object.fromEntries(sortedLevels);
+    
+    console.log(`📦 Optimized: kept ${maxLevels} most recent levels`);
+  }
+  
+  // ✅ ДОБАВИТЬ: Удаляем избыточные поля
+  if (optimized.stats) {
+    delete optimized.stats.matchTimes; // Может быть очень большим массивом
+  }
+  
+  return optimized;
+}
 
   compressData(data) {
     try {
@@ -304,20 +425,7 @@ class ProgressSyncManager {
     }
   }
 
-  // НОВЫЙ МЕТОД: Оптимизация данных
-  optimizeData(data) {
-    const optimized = { ...data };
-    
-    // Удаляем старые записи уровней (оставляем только последние 50)
-    if (optimized.levels && Object.keys(optimized.levels).length > 50) {
-      const sortedLevels = Object.entries(optimized.levels)
-        .sort((a, b) => (b[1].lastPlayed || 0) - (a[1].lastPlayed || 0))
-        .slice(0, 50);
-      optimized.levels = Object.fromEntries(sortedLevels);
-    }
-    
-    return optimized;
-  }
+
 
   decompressData(compressed) {
     try {
@@ -640,30 +748,37 @@ getCurrentLevel() {
     }
   }
 
-  subscribeToVKEvents() {
-    if (window.vkBridge && window.vkBridge.subscribe) {
-      window.vkBridge.subscribe((e) => {
-        const eventType = e.detail?.type;
-        
-        if (eventType === 'VKWebAppViewRestore') {
-          // Синхронизация при возвращении в приложение
-          setTimeout(() => {
-            if (this.shouldSync()) {
-              this.performSync();
-            }
-          }, 1000);
-        }
-        
-        // ДОБАВЛЕНО: Обработка изменения темы
-        if (eventType === 'VKWebAppUpdateConfig') {
-          const scheme = e.detail?.data?.scheme;
-          if (scheme) {
-            document.body.setAttribute('data-scheme', scheme);
-          }
-        }
-      });
-    }
+  // === ProgressSyncManager.js:365-384 - ЗАМЕНИТЬ subscribeToVKEvents ===
+
+subscribeToVKEvents() {
+  if (!window.vkBridge || !window.vkBridge.subscribe) {
+    console.log('VK Bridge subscribe not available');
+    return;
   }
+  
+  // ✅ КРИТИЧНО: Сохраняем ссылку на handler
+  this._vkEventHandler = (e) => {
+    const eventType = e.detail?.type;
+    
+    if (eventType === 'VKWebAppViewRestore') {
+      setTimeout(() => {
+        if (this.shouldSync()) {
+          this.performSync();
+        }
+      }, 1000);
+    }
+    
+    if (eventType === 'VKWebAppUpdateConfig') {
+      const scheme = e.detail?.data?.scheme;
+      if (scheme) {
+        document.body.setAttribute('data-scheme', scheme);
+      }
+    }
+  };
+  
+  window.vkBridge.subscribe(this._vkEventHandler);
+  console.log('⏰ VK Events subscription initialized');
+}
 
   shouldSync() {
     const timeSinceLastSync = Date.now() - this.lastSyncTime;
@@ -744,23 +859,32 @@ getCurrentLevel() {
     console.log('🗑️ All data cleared');
   }
 
-  destroy() {
-    this.stopAutoSync();
-    
-    if (this.syncTimeout) {
-      clearTimeout(this.syncTimeout);
-    }
-    
-    this.onSyncStart = null;
-    this.onSyncComplete = null;
-    this.onSyncError = null;
-    this.onProgressUpdate = null;
-    
-    ProgressSyncManager.instance = null;
-    this.isInitialized = false;
-    
-    console.log('🗑️ ProgressSyncManager destroyed');
+  // === ProgressSyncManager.js:467-485 - ОБНОВИТЬ destroy ===
+
+destroy() {
+  this.stopAutoSync();
+  
+  if (this.syncTimeout) {
+    clearTimeout(this.syncTimeout);
   }
+  
+  // ✅ ДОБАВИТЬ: Отписка от VK событий
+  if (this._vkEventHandler && window.vkBridge?.unsubscribe) {
+    window.vkBridge.unsubscribe(this._vkEventHandler);
+    this._vkEventHandler = null;
+    console.log('🗑️ VK Events unsubscribed');
+  }
+  
+  this.onSyncStart = null;
+  this.onSyncComplete = null;
+  this.onSyncError = null;
+  this.onProgressUpdate = null;
+  
+  ProgressSyncManager.instance = null;
+  this.isInitialized = false;
+  
+  console.log('🗑️ ProgressSyncManager destroyed');
+}
 }
 
 // Статическое свойство для хранения экземпляра
