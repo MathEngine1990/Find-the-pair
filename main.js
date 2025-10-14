@@ -872,7 +872,7 @@ gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 // === main.js:874-895 - ЗАМЕНИТЬ preBoot ЦЕЛИКОМ ===
 
 gameConfig.callbacks = {
-  preBoot: async (game) => {
+  preBoot: (game) => {
     console.log('🔄 [preBoot] Initializing ProgressSyncManager...');
     
     // ✅ КРИТИЧНО: БЛОКИРУЕМ создание сцен до завершения init
@@ -881,7 +881,9 @@ gameConfig.callbacks = {
         window.progressSyncManager = new ProgressSyncManager();
         
         // ⚠️ КЛЮЧЕВОЕ: await БЕЗ setTimeout/Promise.race
-        await window.progressSyncManager.init();
+        window.progressSyncManager.init().catch(err => {
+        console.error('❌ Sync init failed:', err);
+      });
         
         console.log('✅ ProgressSyncManager initialized BEFORE scenes');
       } catch (error) {
