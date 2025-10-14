@@ -43,7 +43,7 @@ class ProgressSyncManager {
     // Автоинициализация при создании
     console.log('🆕 ProgressSyncManager singleton created');
     // Запускаем инициализацию асинхронно
-    setTimeout(() => this.init().catch(console.error), 0);
+    //setTimeout(() => this.init().catch(console.error), 0);
   }
 
   async init() {
