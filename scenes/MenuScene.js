@@ -309,6 +309,20 @@ clearMenu() {
     }
 }
 
+  getSafeAreaInsets() {
+  try {
+    const style = getComputedStyle(document.body);
+    return {
+      top: parseInt(style.paddingTop) || 0,
+      bottom: parseInt(style.paddingBottom) || 0,
+      left: parseInt(style.paddingLeft) || 0,
+      right: parseInt(style.paddingRight) || 0
+    };
+  } catch (e) {
+    return { top: 0, bottom: 0, left: 0, right: 0 };
+  }
+}
+
   drawMenu(page = 0) {
     console.log('Drawing menu, page:', page);
     this.clearMenu();
@@ -351,10 +365,14 @@ clearMenu() {
     const PER_PAGE = COLS * ROWS;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
+    // ✅ ДОБАВИТЬ после строки 285:
+const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
+const topSafeZone = safeArea.top + 10; // 10px отступ от notch
+
   // ✅ НОВЫЙ КОД: Заголовок
   const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
   const title = this.textManager.createText(
-    W/2, H * 0.08,
+   W/2, topSafeZone + (H * 0.08), // ← ИЗМЕНИТЬ: было H * 0.08
     titleText,
     'titleLarge'
   );
