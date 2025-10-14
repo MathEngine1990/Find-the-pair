@@ -368,7 +368,7 @@ clearMenu() {
     // ✅ ДОБАВИТЬ после строки 285:
 const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
 const topSafeZone = safeArea.top + 10; // 10px отступ от notch
-    let currentY = safeArea.top + 10; // Начинаем с safe area
+    let currentY = safeArea.top + 50; // Начинаем с safe area
 
   // ✅ НОВЫЙ КОД: Заголовок
   const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
@@ -380,7 +380,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
   title.setOrigin(0.5);
   this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('titleLarge') - 15; // Сдвиг вниз
+    currentY += this.textManager.getSize('titleLarge') - 50; // Сдвиг вниз
     
 
 
@@ -395,7 +395,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     greeting.setColor('#FFD700');
     this.levelButtons.push(greeting);
 
-    currentY += this.textManager.getSize('statLabel') + 25;
+    currentY += this.textManager.getSize('statLabel') + 75;
   }
 
   // ✅ НОВЫЙ КОД: Статистика
