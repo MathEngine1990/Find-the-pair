@@ -831,16 +831,21 @@ subscribeToVKEvents() {
     return await this.performSync();
   }
 
-  getSyncStatus() {
-    return {
-      isSyncing: this.isSyncing,
-      lastSyncTime: this.lastSyncTime,
-      isVKAvailable: this.isVKAvailable(),
-      queueLength: this.syncQueue.length,
-      isInitialized: this.isInitialized,
-      timeSinceLastSync: Date.now() - this.lastSyncTime
-    };
-  }
+  // ✅ НОВЫЙ КОД:
+getSyncStatus() {
+  // ⬇️ КРИТИЧНО: Проверяем pending debounce
+  const isPending = !!this._syncDebounceTimer;
+  
+  return {
+    isSyncing: this.isSyncing || isPending, // ⬅️ ИСПРАВЛЕНО
+    lastSyncTime: this.lastSyncTime,
+    isVKAvailable: this.isVKAvailable(),
+    queueLength: this.syncQueue.length,
+    isInitialized: this.isInitialized,
+    timeSinceLastSync: Date.now() - this.lastSyncTime,
+    isPending // ⬅️ НОВОЕ ПОЛЕ
+  };
+}
 
   async clearAllData() {
     localStorage.removeItem(this.localKey);
