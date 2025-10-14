@@ -851,24 +851,25 @@ gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 // Добавить callbacks
 gameConfig.callbacks = {
   preBoot: async (game) => {
-    // ✅ КРИТИЧНО: Единственная точка инициализации
-        if (!window.progressSyncManager) {
-          console.log('🔄 Initializing global ProgressSyncManager...');
-          
-          try {
-            window.progressSyncManager = new ProgressSyncManager();
-            await window.progressSyncManager.init();
-            console.log('✅ ProgressSyncManager ready');
-          } catch (error) {
-            console.error('❌ ProgressSyncManager init failed:', error);
-            // Fallback: создаём local-only версию
-            window.progressSyncManager = {
-              loadProgress: () => getDefaultProgressData(),
-              saveProgress: (data) => localStorage.setItem('findpair_progress', JSON.stringify(data)),
-              isVKAvailable: () => false
-            };
-          }
-        }
+    console.log('🔄 [preBoot] Initializing ProgressSyncManager...');
+    
+    // ✅ КРИТИЧНО: Создаём и ждём инициализацию ДО создания сцен
+    if (!window.progressSyncManager) {
+      try {
+        window.progressSyncManager = new ProgressSyncManager();
+        await window.progressSyncManager.init(); // ← БЛОКИРУЮЩИЙ AWAIT
+        console.log('✅ ProgressSyncManager ready');
+      } catch (error) {
+        console.error('❌ ProgressSyncManager init failed:', error);
+        // Fallback: создаём local-only версию
+        window.progressSyncManager = {
+          loadProgress: () => ({ levels: {}, stats: {}, achievements: {} }),
+          saveProgress: (data) => localStorage.setItem('findpair_progress', JSON.stringify(data)),
+          isVKAvailable: () => false,
+          getSyncStatus: () => ({ isSyncing: false, isVKAvailable: false })
+        };
+      }
+    }
         
         // Добавляем в registry для доступа из сцен
         game.registry.set('progressSyncManager', window.progressSyncManager);
@@ -883,13 +884,13 @@ gameConfig.callbacks = {
         game.events.emit('debounced-resize');
       }, 150);
     });
-    +   
+       
    // Глобальный обработчик для сцен
    game.events.on('debounced-resize', () => {
-     const activeScene = game.scene.getScenes(true)[0];
-     if (activeScene && activeScene.handleResize) {
-       const gameSize = game.scale.gameSize;
-       activeScene.handleResize(gameSize);
+      const activeScene = game.scene.getScenes(true)[0];
+      if (activeScene?.handleResize) {
+        const gameSize = game.scale.gameSize;
+        activeScene.handleResize(gameSize);
      }
    });
   }
