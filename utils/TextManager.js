@@ -166,6 +166,36 @@ window.TEXT_PRESETS = {
     strokeConfig: window.THEME?.strokes?.titleThick
   },
 
+  // 🔥 НОВОЕ: МОБИЛЬНЫЙ ПРЕСЕТ (переопределяет titleLarge)
+  titleLarge_mobile: {
+    method: 'height',
+    scale: 0.065,        // ← Больше базовый размер
+    min: 28,             // ← Больше минимум
+    max: 48,             // ← Больше максимум
+    mobileScale: 1.0,    // ← Не нужен множитель
+    landscapeScale: 0.85,
+    font: window.THEME?.fontTitle,
+    color: window.THEME?.colors?.titlePrimary,
+    style: 'bold',
+    autoStroke: true,
+    autoShadow: true,
+    shadowConfig: window.THEME?.shadows?.title,
+    strokeConfig: window.THEME?.strokes?.titleThick
+  },
+
+  // 🔥 НОВОЕ: ДЕСКТОПНЫЙ ПРЕСЕТ
+  titleLarge_desktop: {
+    method: 'height',
+    scale: 0.050,        // ← Меньше для десктопа
+    min: 32,
+    max: 56,
+    font: window.THEME?.fontTitle,
+    color: window.THEME?.colors?.titlePrimary,
+    style: 'bold',
+    autoStroke: true,
+    autoShadow: true
+  },
+
   titleMedium: {
     method: 'height',
     scale: 0.040,        // ⬇️ Уменьшено с 0.045
