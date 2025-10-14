@@ -805,10 +805,12 @@ subscribeToVKEvents() {
   
   const available = checks.bridgeReady && checks.bridgeExists && checks.sendMethod && checks.isVKEnv;
   
-  // Логируем только при первом вызове
-  if (!this._vkAvailabilityLogged) {
-    console.log('🔍 VK Availability check:', checks, '→', available);
+  // ✅ ИЗМЕНЕНО: Логируем при изменении статуса
+  const statusChanged = (this._lastVKStatus !== available);
+  if (statusChanged || !this._vkAvailabilityLogged) {
+    console.log('🔍 VK Availability:', checks, '→', available);
     this._vkAvailabilityLogged = true;
+    this._lastVKStatus = available;
   }
   
   return available;
