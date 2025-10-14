@@ -511,13 +511,17 @@ window.alert = showGameNotification;
     }
   }
 
-  function subscribeToVKEvents() {
-    if (!window.vkBridge || !window.vkBridge.subscribe) {
-      debugLog('VK Bridge subscribe not available');
-      return;
-    }
-    
-    window.vkBridge.subscribe((e) => {
+  // === main.js:780-810 - ЗАМЕНИТЬ subscribeToVKEvents ===
+
+function subscribeToVKEvents() {
+  if (!window.vkBridge?.subscribe) {
+    debugLog('VK Bridge subscribe not available');
+    return;
+  }
+  
+  // ✅ КРИТИЧНО: Обернуть в try-catch + async handler
+  const eventHandler = async (e) => {
+    try {
       const eventType = e.detail?.type;
       const eventData = e.detail?.data;
       
@@ -555,10 +559,26 @@ window.alert = showGameNotification;
         default:
           debugLog(`Unhandled VK event: ${eventType}`, eventData);
       }
-    });
-    
-    debugLog('VK Events subscription initialized');
+    } catch (error) {
+      // ✅ НОВОЕ: Глушим ошибки событий
+      console.warn('⚠️ VK event handler error:', error.message);
+    }
+  };
+  
+  window.vkBridge.subscribe(eventHandler);
+  
+  // ✅ КРИТИЧНО: Сохранить handler для cleanup
+  window._vkEventHandler = eventHandler;
+  
+  debugLog('VK Events subscription initialized');
+}
+
+// ✅ ДОБАВИТЬ: Cleanup при unload
+window.addEventListener('beforeunload', () => {
+  if (window.vkBridge?.unsubscribe && window._vkEventHandler) {
+    window.vkBridge.unsubscribe(window._vkEventHandler);
   }
+});
 
   function handleAppHide() {
     debugLog('App hidden - pausing game');
