@@ -688,7 +688,7 @@ window.alert = showGameNotification;
   
 
   
-  function initGame() {
+ async function initGame() {
 
     
     if (document.readyState === 'loading' || !document.body) {
@@ -850,9 +850,28 @@ gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 
 // Добавить callbacks
 gameConfig.callbacks = {
-  preBoot: (game) => {
-    window.ResponsiveManager = ResponsiveManager;
-    console.log('Game config:', gameConfig);
+  preBoot: async (game) => {
+    // ✅ КРИТИЧНО: Единственная точка инициализации
+        if (!window.progressSyncManager) {
+          console.log('🔄 Initializing global ProgressSyncManager...');
+          
+          try {
+            window.progressSyncManager = new ProgressSyncManager();
+            await window.progressSyncManager.init();
+            console.log('✅ ProgressSyncManager ready');
+          } catch (error) {
+            console.error('❌ ProgressSyncManager init failed:', error);
+            // Fallback: создаём local-only версию
+            window.progressSyncManager = {
+              loadProgress: () => getDefaultProgressData(),
+              saveProgress: (data) => localStorage.setItem('findpair_progress', JSON.stringify(data)),
+              isVKAvailable: () => false
+            };
+          }
+        }
+        
+        // Добавляем в registry для доступа из сцен
+        game.registry.set('progressSyncManager', window.progressSyncManager);
   },
   postBoot: (game) => {
     // Единый debounced resize handler
