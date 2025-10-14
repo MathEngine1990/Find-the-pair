@@ -392,47 +392,28 @@ window.GameScene = class GameScene extends Phaser.Scene {
 }
 
 // НОВЫЙ МЕТОД: Неблокирующая инициализация менеджера синхронизации
+// === GameScene.js:193-219 - УПРОСТИТЬ ===
+
 async initializeSyncManager() {
-  try {
-    // Если уже есть глобальный менеджер - используем его
-    if (window.progressSyncManager) {
-      this.syncManager = window.progressSyncManager;
-      return;
-    }
-    
-    // Проверяем, находимся ли мы в VK
-    const isVK = window.VK_BRIDGE_READY && window.vkBridge;
-    
-    if (isVK) {
-      
-      // В VK - создаём менеджер с синхронизацией
-      if (window.ProgressSyncManager) {
-  this.syncManager = new window.ProgressSyncManager();
-} else {
-  // fallback
-}
-      this.syncManager = new ProgressSyncManager();
-      window.progressSyncManager = this.syncManager;
-    } else {
-      // Вне VK - используем только localStorage
-      console.log('📱 Running outside VK - local storage only');
-      this.syncManager = {
-        loadProgress: () => this.loadProgressLocal(),
-        saveProgress: (data) => this.saveProgressLocal(data),
-        isVKAvailable: () => false
-      };
-    }
-    
-    // Загружаем прогресс
-    if (this.syncManager) {
-      this.progressData = await this.syncManager.loadProgress();
-    }
-    
-  } catch (error) {
-    console.warn('⚠️ Sync manager initialization failed:', error);
-    // Fallback на локальное хранилище
-    this.progressData = this.loadProgressLocal();
+  // ✅ ПРОСТО: получаем из registry
+  this.syncManager = this.registry.get('progressSyncManager');
+  
+  if (!this.syncManager) {
+    console.error('❌ ProgressSyncManager not found in registry!');
+    this.syncManager = {
+      loadProgress: () => this.getProgressFallback(),
+      saveProgress: () => {},
+      isVKAvailable: () => false
+    };
   }
+  
+  // Загружаем прогресс асинхронно (не блокируем create)
+  this.syncManager.loadProgress().then(data => {
+    this.progressData = data;
+  }).catch(error => {
+    console.error('Failed to load progress:', error);
+    this.progressData = this.getProgressFallback();
+  });
 }
 
 // НОВЫЙ МЕТОД: Правильная очистка с проверками
