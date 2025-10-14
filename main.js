@@ -875,42 +875,7 @@ gameConfig.callbacks = {
   preBoot: (game) => {
     console.log('🔄 [preBoot] Initializing ProgressSyncManager...');
     
-    // ✅ КРИТИЧНО: БЛОКИРУЕМ создание сцен до завершения init
-    if (!window.progressSyncManager) {
-      try {
-        window.progressSyncManager = new ProgressSyncManager();
-        
-        // ⚠️ КЛЮЧЕВОЕ: await БЕЗ setTimeout/Promise.race
-        window.progressSyncManager.init().catch(err => {
-        console.error('❌ Sync init failed:', err);
-      });
-        
-        console.log('✅ ProgressSyncManager initialized BEFORE scenes');
-      } catch (error) {
-        console.error('❌ ProgressSyncManager init failed:', error);
-        
-        // Fallback с ПОЛНЫМ getSyncStatus
-        window.progressSyncManager = {
-          loadProgress: () => ({ levels: {}, stats: {}, achievements: {} }),
-          saveProgress: () => Promise.resolve(),
-          isVKAvailable: () => false,
-          getSyncStatus: () => ({ 
-            isSyncing: false, 
-            isVKAvailable: false,
-            lastSyncTime: 0,
-            queueLength: 0,
-            isInitialized: true,
-            timeSinceLastSync: 0
-          }),
-          setCurrentLevel: () => {},
-          forceSync: () => Promise.resolve(false)
-        };
-      }
-    }
     
-    // Добавляем в registry ПОСЛЕ полной инициализации
-    game.registry.set('progressSyncManager', window.progressSyncManager);
-    console.log('✅ ProgressSyncManager added to registry');
   },
   
   postBoot: (game) => {
@@ -931,6 +896,13 @@ gameConfig.callbacks = {
         activeScene.handleResize(gameSize);
       }
     });
+    // ✅ ДОБАВИТЬ: Регистрация менеджера ПОСЛЕ его готовности
+    if (window.progressSyncManager) {
+      game.registry.set('progressSyncManager', window.progressSyncManager);
+      console.log('✅ ProgressSyncManager registered in postBoot');
+    } else {
+      console.warn('⚠️ ProgressSyncManager not ready in postBoot');
+    }
   }
 };
 
