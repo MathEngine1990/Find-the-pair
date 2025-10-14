@@ -63,20 +63,11 @@ async create(){
 
 
   // Инициализация менеджера синхронизации
-  async initializeSyncManager() {
-    try {
-      // Используем глобальный менеджер или создаем новый
-      if (window.progressSyncManager) {
-        this.syncManager = this.registry.get('progressSyncManager');
-      } else if (window.ProgressSyncManager) {
-        this.syncManager = new ProgressSyncManager();
-        window.progressSyncManager = this.syncManager;
-      } else {
-        console.warn('ProgressSyncManager not found');
-        return;
-      }
-
-        if (!this.syncManager) {
+async initializeSyncManager() {
+  // ✅ ПРОСТО: получаем из registry
+  this.syncManager = this.registry.get('progressSyncManager');
+  
+  if (!this.syncManager) {
     console.error('❌ ProgressSyncManager not found in registry!');
     // Экстренный fallback
     this.syncManager = {
@@ -85,53 +76,15 @@ async create(){
       isVKAvailable: () => false
     };
   }
-      
-      // Подписываемся на события синхронизации
-        if (this.syncManager.onProgressUpdate) {
+  
+  // Подписываемся на события
+  if (this.syncManager.onProgressUpdate) {
     this.syncManager.onProgressUpdate = (data) => {
       this.progress = data;
       this.refreshUI();
     };
-      
-      this.syncManager.onSyncStart = () => {
-        console.log('🔄 Sync started');
-        this.isSyncing = true;
-        this.updateSyncButton();
-      };
-      
-      this.syncManager.onSyncComplete = (data) => {
-        console.log('✅ Sync completed');
-        this.isSyncing = false;
-        this.updateSyncButton();
-        if (data) {
-          this.progress = data;
-          this.refreshUI();
-        }
-      };
-      
-      this.syncManager.onSyncError = (error) => {
-        console.warn('⚠️ Sync error:', error);
-        this.isSyncing = false;
-        this.updateSyncButton();
-      };
-      
-      // Загружаем прогресс через менеджер
-      // Загружаем асинхронно, не блокируя UI
-this.syncManager.loadProgress().then(data => {
-    this.progress = data;
-    console.log('📊 Progress loaded via sync manager:', this.progress);
-    this.refreshUI();
-}).catch(error => {
-    console.error('Failed to load progress:', error);
-});
-     // console.log('📊 Progress loaded via sync manager:', this.progress);
-      
-    } catch (error) {
-      console.error('❌ Failed to init sync manager:', error);
-      // Fallback на старую логику
-      this.progress = this.getProgress();
-    }
   }
+}
 
   cleanup() {
     console.log('MenuScene cleanup started');
