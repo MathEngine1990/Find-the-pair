@@ -60,25 +60,74 @@ handleResize() {
 
   // Инициализация менеджера синхронизации
 async initializeSyncManager() {
-  // ✅ ПРОСТО: получаем из registry
   this.syncManager = this.registry.get('progressSyncManager');
   
   if (!this.syncManager) {
     console.error('❌ ProgressSyncManager not found in registry!');
-    // Экстренный fallback
+    console.warn('⚠️ Using fallback syncManager (localStorage only)');
+    
+    // ✅ ПОЛНЫЙ fallback с ВСЕМИ методами из ProgressSyncManager
     this.syncManager = {
+      // Основные методы
+      init: async () => {},
       loadProgress: () => this.getProgressLocal(),
-      saveProgress: () => {},
-      isVKAvailable: () => false,
-      getSyncStatus: () => ({ isVKAvailable: false, lastSyncTime: 0 }),
-      forceSync: async () => false,
+      saveProgress: (data, force = false) => {
+        try {
+          localStorage.setItem('findpair_progress', JSON.stringify(data));
+        } catch (e) {
+          console.error('Fallback saveProgress error:', e);
+        }
+      },
+      
+      // Уровни
       setCurrentLevel: (levelIndex) => {
-        console.log('Fallback: setCurrentLevel', levelIndex);
-      }
+        console.log('🎮 Fallback: setCurrentLevel', levelIndex);
+        this._currentLevel = levelIndex;
+      },
+      getCurrentLevel: () => this._currentLevel || 0,
+      saveLevelProgress: (levelIndex, data) => {
+        const progress = this.getProgressLocal();
+        if (!progress.levels) progress.levels = {};
+        progress.levels[levelIndex] = {
+          ...progress.levels[levelIndex],
+          ...data,
+          lastPlayed: Date.now()
+        };
+        localStorage.setItem('findpair_progress', JSON.stringify(progress));
+      },
+      
+      // Достижения
+      saveAchievement: (id, data) => {
+        const progress = this.getProgressLocal();
+        if (!progress.achievements) progress.achievements = {};
+        progress.achievements[id] = data;
+        localStorage.setItem('findpair_progress', JSON.stringify(progress));
+      },
+      
+      // Синхронизация
+      isVKAvailable: () => false,
+      getSyncStatus: () => ({ 
+        isVKAvailable: false, 
+        lastSyncTime: 0,
+        isPending: false,
+        lastError: null
+      }),
+      forceSync: async () => {
+        console.warn('⚠️ Fallback: forceSync not available (VK not connected)');
+        return false;
+      },
+      
+      // События
+      onProgressUpdate: null,
+      onSyncError: null,
+      onSyncComplete: null,
+      
+      // Внутреннее состояние
+      _currentLevel: 0
     };
   }
   
-  // Подписываемся на события
+  // Подписываемся на события (если метод существует)
   if (this.syncManager.onProgressUpdate) {
     this.syncManager.onProgressUpdate = (data) => {
       this.progress = data;
