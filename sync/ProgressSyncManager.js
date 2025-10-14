@@ -105,25 +105,27 @@ class ProgressSyncManager {
 
   // === ProgressSyncManager.js:85-126 - ОБЕРНУТЬ performSync ===
 
+// === ProgressSyncManager.js:85-126 - ЗАМЕНИТЬ performSync ===
+
 async performSync() {
-  // ✅ ДОБАВИТЬ: Debounce защита
+  // ✅ ДОБАВИТЬ: Проверка существующего debounce
   if (this._syncDebounceTimer) {
-    clearTimeout(this._syncDebounceTimer);
+    console.log('⏳ Sync debounced (timer active)');
+    return false; // Прерываем, не создаём новый Promise
+  }
+  
+  // ✅ ДОБАВИТЬ: Защита от параллельных вызовов
+  if (this.isSyncing) {
+    console.log('⏳ Sync already in progress');
+    return false;
   }
   
   return new Promise((resolve, reject) => {
     this._syncDebounceTimer = setTimeout(async () => {
       this._syncDebounceTimer = null;
       
-      // Существующая логика performSync
       if (!this.isVKAvailable()) {
         console.log('📱 Sync skipped - VK not available');
-        resolve(false);
-        return;
-      }
-      
-      if (this.isSyncing) {
-        console.log('⏳ Sync already in progress');
         resolve(false);
         return;
       }
