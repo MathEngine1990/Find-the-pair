@@ -869,33 +869,50 @@ const gameConfig = responsiveManager.getOptimalGameConfig();
 gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 
 // Добавить callbacks
+// === main.js:874-895 - ЗАМЕНИТЬ preBoot ЦЕЛИКОМ ===
+
 gameConfig.callbacks = {
   preBoot: async (game) => {
     console.log('🔄 [preBoot] Initializing ProgressSyncManager...');
     
-    // ✅ КРИТИЧНО: Создаём и ждём инициализацию ДО создания сцен
+    // ✅ КРИТИЧНО: БЛОКИРУЕМ создание сцен до завершения init
     if (!window.progressSyncManager) {
       try {
         window.progressSyncManager = new ProgressSyncManager();
-        await window.progressSyncManager.init(); // ← БЛОКИРУЮЩИЙ AWAIT
-        console.log('✅ ProgressSyncManager ready');
+        
+        // ⚠️ КЛЮЧЕВОЕ: await БЕЗ setTimeout/Promise.race
+        await window.progressSyncManager.init();
+        
+        console.log('✅ ProgressSyncManager initialized BEFORE scenes');
       } catch (error) {
         console.error('❌ ProgressSyncManager init failed:', error);
-        // Fallback: создаём local-only версию
+        
+        // Fallback с ПОЛНЫМ getSyncStatus
         window.progressSyncManager = {
           loadProgress: () => ({ levels: {}, stats: {}, achievements: {} }),
-          saveProgress: (data) => localStorage.setItem('findpair_progress', JSON.stringify(data)),
+          saveProgress: () => Promise.resolve(),
           isVKAvailable: () => false,
-          getSyncStatus: () => ({ isSyncing: false, isVKAvailable: false })
+          getSyncStatus: () => ({ 
+            isSyncing: false, 
+            isVKAvailable: false,
+            lastSyncTime: 0,
+            queueLength: 0,
+            isInitialized: true,
+            timeSinceLastSync: 0
+          }),
+          setCurrentLevel: () => {},
+          forceSync: () => Promise.resolve(false)
         };
       }
     }
-        
-        // Добавляем в registry для доступа из сцен
-        game.registry.set('progressSyncManager', window.progressSyncManager);
+    
+    // Добавляем в registry ПОСЛЕ полной инициализации
+    game.registry.set('progressSyncManager', window.progressSyncManager);
+    console.log('✅ ProgressSyncManager added to registry');
   },
+  
   postBoot: (game) => {
-    // Единый debounced resize handler
+    // Resize handler (без изменений)
     let resizeTimeout;
     game.scale.on('resize', () => {
       clearTimeout(resizeTimeout);
@@ -904,15 +921,14 @@ gameConfig.callbacks = {
         game.events.emit('debounced-resize');
       }, 150);
     });
-       
-   // Глобальный обработчик для сцен
-   game.events.on('debounced-resize', () => {
+    
+    game.events.on('debounced-resize', () => {
       const activeScene = game.scene.getScenes(true)[0];
       if (activeScene?.handleResize) {
         const gameSize = game.scale.gameSize;
         activeScene.handleResize(gameSize);
-     }
-   });
+      }
+    });
   }
 };
 
