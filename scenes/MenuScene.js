@@ -368,29 +368,34 @@ clearMenu() {
     // ✅ ДОБАВИТЬ после строки 285:
 const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
 const topSafeZone = safeArea.top + 10; // 10px отступ от notch
+    let currentY = safeArea.top + 10; // Начинаем с safe area
 
   // ✅ НОВЫЙ КОД: Заголовок
   const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
   const title = this.textManager.createText(
-   W/2, topSafeZone + (H * 0.08), // ← ИЗМЕНИТЬ: было H * 0.08
+   W/2, currentY, // ← ИЗМЕНИТЬ: было H * 0.08
     titleText,
     'titleLarge'
   );
   title.setOrigin(0.5);
   this.levelButtons.push(title);
+
+    currentY += this.textManager.getSize('titleLarge') - 15; // Сдвиг вниз
     
 
 
   // ✅ НОВЫЙ КОД: Персонализация для VK
   if (this.vkUserData && this.vkUserData.first_name) {
     const greeting = this.textManager.createText(
-      W/2, H * 0.04,
+      W/2, currentY,
       `Привет, ${this.vkUserData.first_name}!`,
       'titleMedium'
     );
-    greeting.setOrigin(0.5);
+    greeting.setOrigin(0.5,0);
     greeting.setColor('#FFD700');
     this.levelButtons.push(greeting);
+
+    currentY += this.textManager.getSize('statLabel') + 25;
   }
 
   // ✅ НОВЫЙ КОД: Статистика
@@ -409,12 +414,13 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     }
     
     const statsDisplay = this.textManager.createText(
-      W/2, H * 0.14,
+      W/2, currentY,
       statsText,
       'statLabel'
     );
     statsDisplay.setOrigin(0.5);
     this.levelButtons.push(statsDisplay);
+    currentY += this.textManager.getSize('statLabel') + 8;
   }
 
     // Кнопка синхронизации (если есть)
