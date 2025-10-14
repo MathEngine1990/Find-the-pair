@@ -69,7 +69,9 @@ async initializeSyncManager() {
     this.syncManager = {
       loadProgress: () => this.getProgressLocal(),
       saveProgress: () => {},
-      isVKAvailable: () => false
+      isVKAvailable: () => false,
+      getSyncStatus: () => ({ isVKAvailable: false, lastSyncTime: 0 }),
+      forceSync: async () => false
     };
   }
   
