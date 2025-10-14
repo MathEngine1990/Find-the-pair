@@ -370,21 +370,7 @@ const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
 const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     let currentY = safeArea.top + 50; // Начинаем с safe area
 
-  // ✅ НОВЫЙ КОД: Заголовок
-  const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
-  const title = this.textManager.createText(
-   W/2, currentY, // ← ИЗМЕНИТЬ: было H * 0.08
-    titleText,
-    'titleLarge'
-  );
-  title.setOrigin(0.5);
-  this.levelButtons.push(title);
-
-    currentY += this.textManager.getSize('titleLarge') - 100; // Сдвиг вниз
-    
-
-
-  // ✅ НОВЫЙ КОД: Персонализация для VK
+      // ✅ НОВЫЙ КОД: Персонализация для VK
   if (this.vkUserData && this.vkUserData.first_name) {
     const greeting = this.textManager.createText(
       W/2, currentY,
@@ -395,8 +381,24 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     greeting.setColor('#FFD700');
     this.levelButtons.push(greeting);
 
-    currentY += this.textManager.getSize('statLabel') + 125;
+    currentY += this.textManager.getSize('statLabel') + 50;
   }
+
+  // ✅ НОВЫЙ КОД: Заголовок
+  const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
+  const title = this.textManager.createText(
+   W/2, currentY, // ← ИЗМЕНИТЬ: было H * 0.08
+    titleText,
+    'titleLarge'
+  );
+  title.setOrigin(0.5);
+  this.levelButtons.push(title);
+
+    currentY += this.textManager.getSize('titleLarge') + 30; // Сдвиг вниз
+    
+
+
+
 
   // ✅ НОВЫЙ КОД: Статистика
   const stats = this.getStats();
