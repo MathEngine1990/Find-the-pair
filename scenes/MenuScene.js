@@ -105,13 +105,36 @@ async initializeSyncManager() {
 };
   }
   
-  // Подписываемся на события (если метод существует)
-  if (this.syncManager.onProgressUpdate) {
-    this.syncManager.onProgressUpdate = (data) => {
-      this.progress = data;
+  
+  
+  // ⬇️ КРИТИЧНО: Подписка на события
+  const originalOnSyncStart = this.syncManager.onSyncStart;
+  this.syncManager.onSyncStart = () => {
+    if (originalOnSyncStart) originalOnSyncStart();
+    this.isSyncing = true;
+    if (this.scene.isActive()) this.updateSyncButton();
+  };
+  
+  const originalOnSyncComplete = this.syncManager.onSyncComplete;
+  this.syncManager.onSyncComplete = (data) => {
+    if (originalOnSyncComplete) originalOnSyncComplete(data);
+    this.isSyncing = false;
+    this.progress = data;
+    if (this.scene.isActive()) {
+      this.updateSyncButton();
       this.refreshUI();
-    };
-  }
+    }
+  };
+  
+  const originalOnSyncError = this.syncManager.onSyncError;
+  this.syncManager.onSyncError = (error) => {
+    if (originalOnSyncError) originalOnSyncError(error);
+    this.isSyncing = false;
+    if (this.scene.isActive()) {
+      this.updateSyncButton();
+      this.showToast('⚠️ Ошибка синхронизации', '#E74C3C');
+    }
+  };
 }
 
   cleanup() {
