@@ -38,10 +38,20 @@ async create() {
   Promise.all([
     document.fonts.ready.catch(() => console.warn('Fonts timeout')),
     this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
-  ]).then(() => {
-    console.log('✅ Async init complete, refreshing UI');
-    this.refreshUI();
-  });
+  ]).then(async () => {
+    // ⬇️ КРИТИЧНО: Триггерим синхронизацию после инициализации
+    if (this.syncManager && this.syncManager.isVKAvailable()) {
+      try {
+        console.log('🔄 Triggering initial sync in MenuScene');
+        const synced = await this.syncManager.performSync();
+        if (synced) {
+          this.progress = await this.syncManager.loadProgress();
+          this.refreshUI();
+        }
+      } catch (err) {
+        console.warn('⚠️ Initial sync failed:', err);
+      }
+    }});
   
   // ✅ ИЗМЕНЕНО: Используем глобальный debounced-resize event
   this.game.events.on('debounced-resize', this.handleResize, this);
@@ -68,63 +78,31 @@ async initializeSyncManager() {
     
     // ✅ ПОЛНЫЙ fallback с ВСЕМИ методами из ProgressSyncManager
     this.syncManager = {
-      // Основные методы
-      init: async () => {},
-      loadProgress: () => this.getProgressLocal(),
-      saveProgress: (data, force = false) => {
-        try {
-          localStorage.setItem('findpair_progress', JSON.stringify(data));
-        } catch (e) {
-          console.error('Fallback saveProgress error:', e);
-        }
-      },
-      
-      // Уровни
-      setCurrentLevel: (levelIndex) => {
-        console.log('🎮 Fallback: setCurrentLevel', levelIndex);
-        this._currentLevel = levelIndex;
-      },
-      getCurrentLevel: () => this._currentLevel || 0,
-      saveLevelProgress: (levelIndex, data) => {
-        const progress = this.getProgressLocal();
-        if (!progress.levels) progress.levels = {};
-        progress.levels[levelIndex] = {
-          ...progress.levels[levelIndex],
-          ...data,
-          lastPlayed: Date.now()
-        };
-        localStorage.setItem('findpair_progress', JSON.stringify(progress));
-      },
-      
-      // Достижения
-      saveAchievement: (id, data) => {
-        const progress = this.getProgressLocal();
-        if (!progress.achievements) progress.achievements = {};
-        progress.achievements[id] = data;
-        localStorage.setItem('findpair_progress', JSON.stringify(progress));
-      },
-      
-      // Синхронизация
-      isVKAvailable: () => false,
-      getSyncStatus: () => ({ 
-        isVKAvailable: false, 
-        lastSyncTime: 0,
-        isPending: false,
-        lastError: null
-      }),
-      forceSync: async () => {
-        console.warn('⚠️ Fallback: forceSync not available (VK not connected)');
-        return false;
-      },
-      
-      // События
-      onProgressUpdate: null,
-      onSyncError: null,
-      onSyncComplete: null,
-      
-      // Внутреннее состояние
-      _currentLevel: 0
-    };
+  // Только критичные методы для работы UI
+  loadProgress: () => this.getProgressLocal(),
+  saveProgress: (data) => {
+    try {
+      localStorage.setItem('findpair_progress', JSON.stringify(data));
+    } catch (e) {
+      console.error('💾 Fallback save error:', e);
+    }
+  },
+  isVKAvailable: () => false,
+  getSyncStatus: () => ({ 
+    isVKAvailable: false, 
+    lastSyncTime: 0,
+    isSyncing: false,
+    queueLength: 0,
+    timeSinceLastSync: 0,
+    isInitialized: true
+  }),
+  forceSync: async () => {
+    console.warn('⚠️ Fallback: VK not available');
+    return false;
+  },
+  setCurrentLevel: () => {},
+  getCurrentLevel: () => 0
+};
   }
   
   // Подписываемся на события (если метод существует)
