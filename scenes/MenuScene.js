@@ -24,40 +24,36 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.isSyncing = false;
 }
 
-  // ✅ ИСПРАВЛЕНИЕ: Неблокирующая инициализация
-async create(){
-    console.log('MenuScene.create() started');
+// === MenuScene.js:48-56 - ЗАМЕНИТЬ ===
 
-  // ✅ ДОБАВИТЬ: Создаем менеджер текста
+async create() {
+  console.log('MenuScene.create() started');
+  
   this.textManager = new TextManager(this);
-    
-    // 1. Загружаем UI сразу с fallback-данными
-    this.progress = this.getProgressLocal();
-    this.ensureGradientBackground();
-    this.drawMenu(this.levelPage);
-    
-    // 2. Async операции в фоне (НЕ блокируют UI)
-    Promise.all([
-        document.fonts.ready.catch(() => console.warn('Fonts timeout')),
-        this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
-    ]).then(() => {
-        console.log('✅ Async init complete, refreshing UI');
-        this.refreshUI(); // Обновляем UI после загрузки
-    });
-    
-    // 3. Единственный resize handler
-    this.scale.on('resize', () => {
-        if (!this._resizeDebounce) {
-            this._resizeDebounce = true;
-            this.time.delayedCall(150, () => {
-                this.ensureGradientBackground();
-                this.drawMenu(this.levelPage);
-                this._resizeDebounce = false;
-            });
-        }
-    });
-    
-    this.events.once('shutdown', this.cleanup, this);
+  
+  this.progress = this.getProgressLocal();
+  this.ensureGradientBackground();
+  this.drawMenu(this.levelPage);
+  
+  Promise.all([
+    document.fonts.ready.catch(() => console.warn('Fonts timeout')),
+    this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
+  ]).then(() => {
+    console.log('✅ Async init complete, refreshing UI');
+    this.refreshUI();
+  });
+  
+  // ✅ ИЗМЕНЕНО: Используем глобальный debounced-resize event
+  this.game.events.on('debounced-resize', this.handleResize, this);
+  
+  this.events.once('shutdown', this.cleanup, this);
+}
+
+// ✅ НОВЫЙ МЕТОД
+handleResize() {
+  if (!this.scene.isActive()) return;
+  this.ensureGradientBackground();
+  this.drawMenu(this.levelPage);
 }
 
 
