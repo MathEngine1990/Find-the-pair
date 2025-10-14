@@ -67,7 +67,7 @@ async create(){
     try {
       // Используем глобальный менеджер или создаем новый
       if (window.progressSyncManager) {
-        this.syncManager = window.progressSyncManager;
+        this.syncManager = this.registry.get('progressSyncManager');
       } else if (window.ProgressSyncManager) {
         this.syncManager = new ProgressSyncManager();
         window.progressSyncManager = this.syncManager;
@@ -75,13 +75,23 @@ async create(){
         console.warn('ProgressSyncManager not found');
         return;
       }
+
+        if (!this.syncManager) {
+    console.error('❌ ProgressSyncManager not found in registry!');
+    // Экстренный fallback
+    this.syncManager = {
+      loadProgress: () => this.getProgressLocal(),
+      saveProgress: () => {},
+      isVKAvailable: () => false
+    };
+  }
       
       // Подписываемся на события синхронизации
-      this.syncManager.onProgressUpdate = (progressData) => {
-        console.log('📊 Progress updated, refreshing UI');
-        this.progress = progressData;
-        this.refreshUI();
-      };
+        if (this.syncManager.onProgressUpdate) {
+    this.syncManager.onProgressUpdate = (data) => {
+      this.progress = data;
+      this.refreshUI();
+    };
       
       this.syncManager.onSyncStart = () => {
         console.log('🔄 Sync started');
