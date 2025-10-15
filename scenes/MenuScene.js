@@ -62,6 +62,17 @@ async create() {
 // ✅ НОВЫЙ МЕТОД
 handleResize() {
   if (!this.scene.isActive()) return;
+  
+  // 1️⃣ Обновляем размеры в TextManager
+  this.textManager.updateDimensions();
+  
+  // 2️⃣ Обновляем существующие элементы (если не перерисовываем всё)
+  // Если drawMenu() полностью пересоздаёт UI, можно пропустить
+  // Иначе добавить:
+  // this.levelButtons.forEach(btn => {
+  //   if (btn.levelText) this.textManager.updateText(btn.levelText, 'levelNumber');
+  // });
+  
   this.ensureGradientBackground();
   this.drawMenu(this.levelPage);
 }
@@ -389,7 +400,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
   const title = this.textManager.createText(
    W/2, currentY, // ← ИЗМЕНИТЬ: было H * 0.08
     titleText,
-    'titleLarge'
+    isMobile ? 'titleLarge_mobile' : 'titleLarge_desktop'
   );
   title.setOrigin(0.5);
   this.levelButtons.push(title);
