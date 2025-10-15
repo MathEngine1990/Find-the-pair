@@ -119,7 +119,7 @@ window.TextManager = class TextManager {
     const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
     
     text.setStroke(
-      strokeCfg.color || '#000000',
+      strokeCfg.color || '#4ECDC4',
       strokeSize
     );
   }
