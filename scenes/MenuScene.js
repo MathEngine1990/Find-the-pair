@@ -396,7 +396,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
   }
 
   // ✅ НОВЫЙ КОД: Заголовок
-  const titleText = isMobile && W < 400 ? 'Сколько пар\nиграть?' : 'Сколько пар играть?';
+  const titleText = isMobile && W < 400 ? 'Сколько пар играть?' : 'Сколько пар играть?';
   const title = this.textManager.createText(
    W/2, currentY, // ← ИЗМЕНИТЬ: было H * 0.08
     titleText,
