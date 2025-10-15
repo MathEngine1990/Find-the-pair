@@ -439,8 +439,8 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     }
 
     // КРИТИЧНО: Увеличенная область для кнопок на мобильных
-    const topY = H * (isMobile ? 0.10 : 0.06);
-    const bottomY = H * (isMobile ? 0.90 : 1.04);
+    const topY = H * (isMobile ? 0.20 : 0.16);
+    const bottomY = H * (isMobile ? 0.80 : 0.84);
     const areaH = bottomY - topY;
     const areaW = Math.min(W * (isMobile ? 0.98 : 0.90), isMobile ? W : 1080);
     
