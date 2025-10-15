@@ -115,7 +115,7 @@ window.TextManager = class TextManager {
 
   // 🔥 НОВОЕ: Автоматическая обводка с кастомными параметрами
   if (preset.autoStroke) {
-    const strokeCfg = preset.stroke || THEME.strokes?.levelNumber || {};
+    const strokeCfg = preset.stroke || THEME.strokes?.titleThick || {};
     const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
     
     text.setStroke(
