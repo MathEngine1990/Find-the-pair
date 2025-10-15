@@ -276,8 +276,8 @@ window.TEXT_PRESETS = {
     font: window.THEME?.fontButton,
     color: window.THEME?.colors?.levelNumber || '#1A1A2E00',
     style: 'bold',
-    autoStroke: true,
-    autoShadow: true,
+    //autoStroke: true,
+    //autoShadow: true,
     // 🔥 Белая обводка для контраста с оранжевым фоном
     strokeConfig: window.THEME?.strokes?.levelNumber,
     shadowConfig: window.THEME?.shadows?.levelNumber
