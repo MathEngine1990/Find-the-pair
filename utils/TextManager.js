@@ -251,7 +251,7 @@ window.TEXT_PRESETS = {
     max: 22,            // ⬇️ Уменьшено с 24
     mobileScale: 1.3,
     font: window.THEME?.fontButton,
-    color: window.THEME?.colors?.levelNumber || '#FFFFFF',
+    color: window.THEME?.colors?.levelNumber,
     style: 'bold'
   },
 
