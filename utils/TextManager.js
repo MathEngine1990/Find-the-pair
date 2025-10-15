@@ -274,7 +274,7 @@ window.TEXT_PRESETS = {
     mobileScale: 1.1,
     landscapeScale: 0.95,
     font: window.THEME?.fontButton,
-    color: window.THEME?.colors?.levelNumber || '#1A1A2E',
+    color: window.THEME?.colors?.levelNumber || '#1A1A2E00',
     style: 'bold',
     autoStroke: true,
     autoShadow: true,
