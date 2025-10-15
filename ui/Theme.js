@@ -54,7 +54,7 @@ window.THEME = {
       offsetY: 3
     },
     levelNumber: {
-      color: 'rgba(255, 107, 53, 0.9)',
+      color: 'rgba(78, 205, 196, 0.8)',
       blur: 5,
       offsetX: 0,
       offsetY: 3
@@ -78,8 +78,8 @@ window.THEME = {
       thickness: 2
     },
     levelNumber: {
-      color: '#FFFFFF',
-      thickness: 1
+      color: '#4ECDC4',
+      thickness: 5
     }
   },
   
