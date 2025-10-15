@@ -172,7 +172,7 @@ window.TEXT_PRESETS = {
     scale: 0.035,        // ← Больше базовый размер
     min: 28,             // ← Больше минимум
     max: 48,             // ← Больше максимум
-    mobileScale: 1.0,    // ← Не нужен множитель
+    mobileScale: 0.5,    // ← Не нужен множитель
     landscapeScale: 0.85,
     font: window.THEME?.fontTitle,
     color: window.THEME?.colors?.titlePrimary,
