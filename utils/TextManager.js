@@ -279,7 +279,7 @@ window.TEXT_PRESETS = {
     autoStroke: true,
     autoShadow: true,
     // 🔥 Белая обводка для контраста с оранжевым фоном
-    strokeConfig: window.THEME?.strokes?.levelNumber,
+    strokeConfig: window.THEME?.strokes?.levelNumber || '#4ECDC4',
     shadowConfig: window.THEME?.shadows?.levelNumber
   },
 
