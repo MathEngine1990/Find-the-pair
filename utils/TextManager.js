@@ -77,7 +77,7 @@ window.TextManager = class TextManager {
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#FFFFFF',
       fontStyle: preset.style || 'normal',
-      stroke: preset.stroke || null,
+      strokeConfig: preset.strokeConfig || null,
       strokeThickness: preset.strokeThickness || 0,
       shadow: preset.shadow || null,
       align: preset.align || 'center',
