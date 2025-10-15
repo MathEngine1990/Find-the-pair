@@ -32,7 +32,7 @@ window.THEME = {
     statsAccuracy: '#A8DADC',   // Светло-бирюзовый (точность)
     
     // Кнопки уровней
-    levelNumber: '#1A1A2E',     // Почти чёрный (контраст с оранжевым фоном)
+    levelNumber: 'rgba(0,0,0,0)',     // Почти чёрный (контраст с оранжевым фоном)
     levelNumberShadow: 'rgba(255, 107, 53, 0.8)', // Оранжевая тень
     
     // HUD
@@ -54,10 +54,10 @@ window.THEME = {
       offsetY: 3
     },
     levelNumber: {
-      color: 'rgba(255, 107, 53, 0.8)',
-      blur: 8,
+      color: 'rgba(255, 107, 53, 0.9)',
+      blur: 10,
       offsetX: 0,
-      offsetY: 2
+      offsetY: 3
     },
     text: {
       color: 'rgba(0, 0, 0, 0.5)',
@@ -79,7 +79,7 @@ window.THEME = {
     },
     levelNumber: {
       color: '#FFFFFF',
-      thickness: 3
+      thickness: 6
     }
   },
   
