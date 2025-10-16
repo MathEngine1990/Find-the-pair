@@ -134,6 +134,16 @@ window.TextManager = class TextManager {
     );
   }
 
+    if (preset.autoStroke3) {
+    const strokeCfg = preset.stroke || THEME.strokes?.titleThick3 || {};
+    const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
+    
+    text.setStroke(
+      strokeCfg.color,
+      strokeSize
+    );
+  }
+
     return text;
   }
 
@@ -202,7 +212,7 @@ window.TEXT_PRESETS = {
     font: window.THEME?.fontTitle,
     color: window.THEME?.colors?.titlePrimary || '#7CDFFF',
     style: 'bold',
-    autoStroke: true,
+    autoStroke3: true,
     autoShadow: true
   },
 
