@@ -158,33 +158,58 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     });
   }
 
-  loadGameAssets() {
-    // Основные игровые ассеты
-    this.load.image('back', 'back_card02.png');
+  // PreloadScene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
+
+loadGameAssets() {
+  // ✅ FIX: Определяем нужно ли загружать HD версии
+  const DPR = window.devicePixelRatio || 1;
+  const useHD = DPR >= 1.5; // Retina/HD экраны
+  
+  console.log(`📦 Loading assets (HD: ${useHD}, DPR: ${DPR})`);
+  
+  // ✅ FIX: Загружаем карты с @2x суффиксом для HD
+  window.ALL_CARD_KEYS.forEach(key => {
+    const path = useHD 
+      ? `cards/${key}@2x.png`  // 400×600px для HD
+      : `cards/${key}.png`;     // 200×300px для обычных
     
-    // Загружаем все карты
-    window.ALL_CARD_KEYS.forEach(key => {
-      this.load.image(key, `cards/${key}.png`);
-    });
+    this.load.image(key, path);
+  });
 
-    // UI элементы
-    this.load.image('button01', 'button01.png');
+  // ✅ FIX: Задняя сторона карты тоже в HD
+  const backPath = useHD ? 'back_card02@2x.png' : 'back_card02.png';
+  this.load.image('back', backPath);
 
-    // Фоны
+  // ✅ FIX: UI элементы в HD
+  const button01Path = useHD ? 'button01@2x.png' : 'button01.png';
+  this.load.image('button01', button01Path);
+
+  // Фоны (если используются)
+  if (useHD) {
+    this.load.image('bg_menu', 'bg_menu@2x.png');
+    this.load.image('bg_game', 'bg_game@2x.png');
+  } else {
     this.load.image('bg_menu', 'bg_menu.png');
     this.load.image('bg_game', 'bg_game.png');
-
-    // Дополнительные ассеты
-    this.load.image('star', 'star.png');
-    this.load.image('trophy', 'trophy.png');
-
-    // Звуки (если есть)
-    if (this.load.audioDecodeByList) {
-      this.load.audio('card_flip', ['sounds/card_flip.mp3', 'sounds/card_flip.wav']);
-      this.load.audio('match_sound', ['sounds/match.mp3', 'sounds/match.wav']);
-      this.load.audio('win_sound', ['sounds/win.mp3', 'sounds/win.wav']);
-    }
   }
+
+  // Дополнительные ассеты
+  const starPath = useHD ? 'star@2x.png' : 'star.png';
+  const trophyPath = useHD ? 'trophy@2x.png' : 'trophy.png';
+  this.load.image('star', starPath);
+  this.load.image('trophy', trophyPath);
+
+  // Звуки (без изменений)
+  if (this.load.audioDecodeByList) {
+    this.load.audio('card_flip', ['sounds/card_flip.mp3', 'sounds/card_flip.wav']);
+    this.load.audio('match_sound', ['sounds/match.mp3', 'sounds/match.wav']);
+    this.load.audio('win_sound', ['sounds/win.mp3', 'sounds/win.wav']);
+  }
+  
+  // ✅ FIX: Сохраняем флаг для использования в других сценах
+  this.registry.set('useHDTextures', useHD);
+  this.registry.set('textureDPR', DPR);
+}
 
   loadVKAssets() {
     console.log('📦 Loading VK-specific assets...');
