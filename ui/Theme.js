@@ -79,7 +79,7 @@ window.THEME = {
     },
     levelNumber: {
       color: '#4ECDC4',
-      thickness: 2
+      thickness: 1
     }
   },
   
