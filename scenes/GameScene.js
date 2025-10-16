@@ -811,58 +811,91 @@ cleanup() {
   }
 
   // Обновление HUD с таймером
-  async drawHUD() {
-if (document.fonts && !this._fontsReady) {
-    await document.fonts.ready;
-    this._fontsReady = true;
+  // GameScene.js:623 - ЗАМЕНИТЬ МЕТОД drawHUD
+
+async drawHUD() {
+  // ✅ FIX #5: КРИТИЧНО - ждём загрузки шрифтов ДО создания текста
+  if (document.fonts && !this._fontsReady) {
+    try {
+      console.log('⏳ Waiting for fonts...');
+      await document.fonts.ready;
+      this._fontsReady = true;
+      console.log('✅ Fonts loaded');
+    } catch (error) {
+      console.warn('⚠️ Fonts API error:', error);
+      // Fallback: простая задержка 300ms
+      await new Promise(resolve => setTimeout(resolve, 300));
+      this._fontsReady = true;
+    }
+  }
+  
+  this.clearHUD();
+  const { W, H } = this.getSceneWH();
+
+  // ✅ ДОБАВИТЬ: Обновляем размеры TextManager
+  if (this.textManager) {
+    this.textManager.updateDimensions();
   }
     
-    this.clearHUD();
-    const { W, H } = this.getSceneWH();
+  const hudH = Math.min(100, Math.round(H * 0.12));
 
-      // ✅ ЗАМЕНИТЬ: Используем TextManager
-  this.textManager.updateDimensions(); // Обновляем размеры
-    
-    const hudH = Math.min(100, Math.round(H * 0.12));
+  // Фон HUD
+  const hud = this.add.graphics().setDepth(5);
+  hud.fillStyle(0x000000, 0.85);
+  hud.fillRoundedRect(0, 0, W, hudH, 0);
+  this.hud = hud;
 
-    // Фон HUD
-    const hud = this.add.graphics().setDepth(5);
-    hud.fillStyle(0x000000, 0.85);
-    hud.fillRoundedRect(0, 0, W, hudH, 0);
-    this.hud = hud;
-
-    //const fontSize = this._pxByH(0.035, 14, 20);
-
-     // ✅ НОВЫЙ КОД: Счетчик ошибок
-  this.mistakeText = this.textManager.createText(
-    20, hudH/2, 
-    'Ошибок: ' + this.mistakeCount, 
-    'hudText'
-  );
-  this.mistakeText.setOrigin(0, 0.5).setDepth(6);
-  this.mistakeText.setColor('#FF6B6B'); // Переопределяем цвет
-
-  // ✅ НОВЫЙ КОД: Таймер
-  this.timeText = this.textManager.createText(
-    W/2, hudH/2,
-    this.formatTime(this.currentTimeSeconds),
-    'hudTimer'
-  );
-  this.timeText.setOrigin(0.5, 0.5).setDepth(6);
-
-    // Кнопка домой справа
-    const size = Math.round(hudH * 0.76);
-    const homeBtn = window.makeIconButton(
-      this, W - (size/2 + 14), Math.round(hudH/2), size,
-      '⌂',
-      () => { 
-        this.stopGameTimer();
-        this.scene.start('MenuScene', { page: this.levelPage }); 
-      }
+  // ✅ FIX #5: Теперь текст создаётся ПОСЛЕ загрузки шрифтов
+  if (this.textManager) {
+    // Счётчик ошибок
+    this.mistakeText = this.textManager.createText(
+      20, hudH/2, 
+      'Ошибок: ' + this.mistakeCount, 
+      'hudText'
     );
-    homeBtn.setDepth(7);
-    this.exitBtn = homeBtn;
+    this.mistakeText.setOrigin(0, 0.5).setDepth(6);
+    this.mistakeText.setColor('#FF6B6B');
+
+    // Таймер
+    this.timeText = this.textManager.createText(
+      W/2, hudH/2,
+      this.formatTime(this.currentTimeSeconds),
+      'hudTimer'
+    );
+    this.timeText.setOrigin(0.5, 0.5).setDepth(6);
+  } else {
+    // Fallback если TextManager не инициализирован
+    console.warn('⚠️ TextManager not available, using fallback');
+    
+    this.mistakeText = this.add.text(20, hudH/2, 'Ошибок: ' + this.mistakeCount, {
+      fontFamily: window.THEME.font || 'Arial',
+      fontSize: Math.min(20, Math.round(H * 0.035)) + 'px',
+      color: '#FF6B6B'
+    }).setOrigin(0, 0.5).setDepth(6);
+    
+    this.timeText = this.add.text(W/2, hudH/2, this.formatTime(this.currentTimeSeconds), {
+      fontFamily: window.THEME.font || 'Arial',
+      fontSize: Math.min(24, Math.round(H * 0.04)) + 'px',
+      color: '#FFFFFF',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(6);
   }
+
+  // Кнопка домой справа
+  const size = Math.round(hudH * 0.76);
+  const homeBtn = window.makeIconButton(
+    this, W - (size/2 + 14), Math.round(hudH/2), size,
+    '⌂',
+    () => { 
+      this.stopGameTimer();
+      this.scene.start('MenuScene', { page: this.levelPage }); 
+    }
+  );
+  homeBtn.setDepth(7);
+  this.exitBtn = homeBtn;
+  
+  console.log('✅ HUD created with fonts loaded');
+}
 
   clearHUD() {
     if (this.hud && this.hud.scene) this.hud.destroy();
@@ -1202,112 +1235,111 @@ handleResize(gameSize) {
   }
 
   // ИСПРАВЛЕНО: Переворот карт с правильным сохранением размеров
-  flipAllCardsAndStartGame() {
-    console.log('Flipping all cards and starting game...');
-    
-    // Анимированное переворачивание карт с сохранением размеров
-    this.cards.forEach((card, index) => {
-      // Сохраняем данные о размерах перед анимацией
-      const targetWidth = card.getData('targetWidth');
-      const targetHeight = card.getData('targetHeight');
-      const scaleX = card.getData('scaleX');
-      const scaleY = card.getData('scaleY');
-      
-      this.tweens.add({
-        targets: card,
-        scaleX: 0,
-        duration: 200,
-        delay: index * 30,
-        ease: 'Power2.easeIn',
-        onComplete: () => {
-          // Меняем текстуру на заднюю сторону
-          this.setCardTexture(card, 'back');
-          
-          // Возвращаем анимацию
-          this.tweens.add({
-            targets: card,
-            scaleX: scaleX, // Восстанавливаем оригинальный масштаб
-            duration: 200,
-            ease: 'Power2.easeOut'
-          });
-        }
-      });
-    });
+  // GameScene.js:1179 - ЗАМЕНИТЬ МЕТОД flipAllCardsAndStartGame
 
-    // Финальная настройка после переворота
-    this.flipTimer = this.time.delayedCall(1000, () => {
-      // Включаем интерактивность карт
-      this.cards.forEach(card => {
-        card.setInteractive({ useHandCursor: true });
-        // ИСПРАВЛЕНО: Убеждаемся что размеры правильные
-        this.restoreCardSize(card);
-      });
-      
-      this.canClick = true;
-      this.gameState.gameStarted = true;
-      this.gameState.isMemorizationPhase = false;
-      this.gameState.canResize = true;
-      
-      // Запускаем таймер игры только после показа карт
-      this.gameMetrics.startTime = Date.now();
-      this.startGameTimer();
-      
-      console.log('Game fully started, timer running, clicks enabled');
+flipAllCardsAndStartGame() {
+  console.log('Flipping all cards and starting game...');
+  
+  // ✅ FIX #4: Анимированное переворачивание карт БЕЗ scaleX искажений
+  this.cards.forEach((card, index) => {
+    // Сохраняем данные о размерах перед анимацией
+    const originalScaleX = card.getData('scaleX') || 1;
+    const originalScaleY = card.getData('scaleY') || 1;
+    
+    // Последовательная анимация с задержкой
+    this.tweens.add({
+      targets: card,
+      scaleX: 0,
+      duration: 200,
+      delay: index * 30,
+      ease: 'Power2.easeIn',
+      onComplete: () => {
+        // Меняем текстуру на заднюю сторону
+        this.setCardTexture(card, 'back');
+        
+        // Возвращаем анимацию
+        this.tweens.add({
+          targets: card,
+          scaleX: originalScaleX,
+          duration: 200,
+          ease: 'Power2.easeOut'
+        });
+      }
     });
-  }
+  });
+
+  // Финальная настройка после переворота
+  this.flipTimer = this.time.delayedCall(1000, () => {
+    // Включаем интерактивность карт
+    this.cards.forEach(card => {
+      card.setInteractive({ useHandCursor: true });
+      // Убеждаемся что размеры правильные
+      this.restoreCardSize(card);
+    });
+    
+    this.canClick = true;
+    this.gameState.gameStarted = true;
+    this.gameState.isMemorizationPhase = false;
+    this.gameState.canResize = true;
+    
+    // Запускаем таймер игры только после показа карт
+    this.gameMetrics.startTime = Date.now();
+    this.startGameTimer();
+    
+    console.log('Game fully started, timer running, clicks enabled');
+  });
+}
 
   // ✅ НОВЫЙ КОД:
-onCardClick(card, event) { // ← Добавить event в параметры
+// GameScene.js:1334 - ЗАМЕНИТЬ МЕТОД onCardClick
+
+onCardClick(card, event) {
   // Предотвращаем стандартное поведение
   if (event) {
     if (event.preventDefault) event.preventDefault();
     if (event.stopPropagation) event.stopPropagation();
   }
   
-  // ТРОЙНАЯ ЗАЩИТА от race conditions
-  if (!this.canClick || this._processingCards) {
-    console.log('⚠️ Click ignored: canClick =', this.canClick, ', processing =', this._processingCards);
-    return;
-  }
-  if (card.getData('opened') || card.getData('matched')) {
-    console.log('⚠️ Click ignored: card already opened/matched');
-    return;
-  }
-  if (card.getData('isAnimating')) {
-    console.log('⚠️ Click ignored: card is animating');
-    return;
-  }
-  // ИСПРАВЛЕНО: Тройная защита от race conditions
+  // Тройная защита от race conditions
   if (!this.canClick || this._processingCards) return;
   if (card.getData('opened') || card.getData('matched')) return;
-  if (card.getData('isAnimating')) return; // Новая проверка
+  if (card.getData('isAnimating')) return;
   
   const now = Date.now();
-  if (this._lastClickTime && now - this._lastClickTime < 300) {
-    return;
-  }
+  if (this._lastClickTime && now - this._lastClickTime < 300) return;
   
   // Помечаем карту как анимирующуюся
   card.setData('isAnimating', true);
   this._lastClickTime = now;
   this._processingCards = true;
   
-  // Анимация переворота
+  // ✅ FIX #4: Анимация flip через смену текстуры (БЕЗ scaleX искажений)
+  const originalScaleX = card.getData('scaleX') || 1;
+  const cardKey = card.getData('key');
+  
+  // Фаза 1: Сжимаем карту до 0 по X (скрываем)
   this.tweens.add({
     targets: card,
     scaleX: 0,
     duration: 150,
+    ease: 'Power2.easeIn',
     onComplete: () => {
-      this.setCardTexture(card, card.getData('key'));
+      // Фаза 2: Меняем текстуру на лицевую сторону
+      this.setCardTexture(card, cardKey);
+      
+      // Фаза 3: Разворачиваем обратно (показываем)
       this.tweens.add({
         targets: card,
-        scaleX: card.getData('scaleX') || 1,
+        scaleX: originalScaleX,
         duration: 150,
+        ease: 'Power2.easeOut',
         onComplete: () => {
+          // Снимаем флаг анимации
           card.setData('isAnimating', false);
           card.setData('opened', true);
           this.opened.push(card);
           
+          // Проверяем пару если открыты 2 карты
           if (this.opened.length === 2) {
             this.checkPair();
           } else {
@@ -2220,36 +2252,122 @@ checkPair() {
   }
 
   // Остальные методы
-  ensureGradientBackground() {
-    const { W, H } = this.getSceneWH();
+ // GameScene.js:1783 - ЗАМЕНИТЬ МЕТОД ensureGradientBackground
 
-    if (this.textures.exists('bg_game')) {
-      this.bgImage && this.bgImage.destroy();
-      const img = this.add.image(W/2, H/2, 'bg_game').setOrigin(0.5).setDepth(-1000);
-      const src = this.textures.get('bg_game').getSourceImage();
-      const scale = Math.max(W / src.width, H / src.height);
-      img.setDisplaySize(src.width * scale, src.height * scale);
-      this.bgImage = img;
-      return;
+ensureGradientBackground() {
+  const { W, H } = this.getSceneWH();
+  
+  // ✅ FIX #6: Проверяем кеш фоновых изображений
+  if (this.textures.exists('bg_game')) {
+    // Используем готовый фон из assets
+    if (!this.bgImage || !this.bgImage.scene) {
+      this.bgImage = this.add.image(W/2, H/2, 'bg_game')
+        .setOrigin(0.5)
+        .setDepth(-1000);
     }
-
-    const key = 'bg-grad-game';
-    const DPR = this.getDPR();
-    if (this.textures.exists(key)) {
-      const src = this.textures.get(key).getSourceImage();
-      if (src.width !== Math.round(W*DPR) || src.height !== Math.round(H*DPR)) this.textures.remove(key);
-    }
-    if (!this.textures.exists(key)) {
-      const tex = this.textures.createCanvas(key, Math.max(2, Math.round(W*DPR)), Math.max(2, Math.round(H*DPR)));
-      const ctx = tex.getContext(); ctx.save(); ctx.scale(DPR, DPR);
-      const g = ctx.createLinearGradient(0,0,0,H);
-      g.addColorStop(0, window.THEME.bgTop); g.addColorStop(0.6, window.THEME.bgMid); g.addColorStop(1, window.THEME.bgBottom);
-      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-      ctx.restore(); tex.refresh();
-    }
-    this.bgImage && this.bgImage.destroy();
-    this.bgImage = this.add.image(0,0,key).setOrigin(0,0).setDepth(-1000).setDisplaySize(W,H);
+    
+    const src = this.textures.get('bg_game').getSourceImage();
+    const scale = Math.max(W / src.width, H / src.height);
+    this.bgImage.setDisplaySize(src.width * scale, src.height * scale);
+    this.bgImage.setPosition(W/2, H/2);
+    return;
   }
+
+  // ✅ FIX #6: Кешируем градиенты по размеру экрана
+  const cacheKey = `bg-grad-game-${W}x${H}`;
+  
+  // Проверяем существует ли градиент нужного размера
+  if (this.textures.exists(cacheKey)) {
+    console.log('📦 Using cached gradient:', cacheKey);
+    
+    if (!this.bgImage || !this.bgImage.scene) {
+      this.bgImage = this.add.image(0, 0, cacheKey)
+        .setOrigin(0, 0)
+        .setDepth(-1000)
+        .setDisplaySize(W, H);
+    } else {
+      // Переключаемся на кешированную текстуру
+      this.bgImage.setTexture(cacheKey);
+      this.bgImage.setDisplaySize(W, H);
+      this.bgImage.setPosition(0, 0);
+    }
+    return;
+  }
+  
+  // ✅ FIX #6: Создаём новый градиент ТОЛЬКО если нет в кеше
+  console.log('🎨 Creating new gradient:', cacheKey);
+  
+  const DPR = this.getDPR();
+  const texW = Math.max(2, Math.round(W * DPR));
+  const texH = Math.max(2, Math.round(H * DPR));
+  
+  // Создаём canvas текстуру
+  const tex = this.textures.createCanvas(cacheKey, texW, texH);
+  const ctx = tex.getContext();
+  
+  // Применяем DPR scaling
+  ctx.save();
+  ctx.scale(DPR, DPR);
+  
+  // Рисуем градиент
+  const gradient = ctx.createLinearGradient(0, 0, 0, H);
+  gradient.addColorStop(0, window.THEME.bgTop || '#1a1a2e');
+  gradient.addColorStop(0.6, window.THEME.bgMid || '#16213e');
+  gradient.addColorStop(1, window.THEME.bgBottom || '#0f3460');
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  
+  // Обновляем текстуру
+  tex.refresh();
+  
+  // Создаём/обновляем image
+  if (!this.bgImage || !this.bgImage.scene) {
+    this.bgImage = this.add.image(0, 0, cacheKey)
+      .setOrigin(0, 0)
+      .setDepth(-1000)
+      .setDisplaySize(W, H);
+  } else {
+    this.bgImage.setTexture(cacheKey);
+    this.bgImage.setDisplaySize(W, H);
+  }
+  
+  console.log('✅ Gradient created and cached');
+  
+  // ✅ FIX #6: Очищаем старые кешированные градиенты
+  this.cleanupOldGradients(cacheKey);
+}
+
+// ✅ НОВЫЙ МЕТОД: Добавить после ensureGradientBackground
+cleanupOldGradients(currentKey) {
+  // Оставляем только последние 3 градиента (текущий + 2 предыдущих)
+  const maxGradients = 3;
+  const gradientKeys = [];
+  
+  // Собираем все ключи градиентов
+  this.textures.list.forEach((texture, key) => {
+    if (key.startsWith('bg-grad-game-')) {
+      gradientKeys.push(key);
+    }
+  });
+  
+  // Если градиентов больше лимита
+  if (gradientKeys.length > maxGradients) {
+    // Сортируем по времени создания (старые первыми)
+    gradientKeys.sort();
+    
+    // Удаляем старые, кроме текущего
+    const toRemove = gradientKeys.length - maxGradients;
+    for (let i = 0; i < toRemove; i++) {
+      const oldKey = gradientKeys[i];
+      if (oldKey !== currentKey) {
+        console.log('🗑️ Removing old gradient:', oldKey);
+        this.textures.remove(oldKey);
+      }
+    }
+  }
+}
 
   makePlaceholdersIfNeeded() {
     if (this.textures.exists('back')) return;
