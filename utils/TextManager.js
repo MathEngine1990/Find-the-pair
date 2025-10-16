@@ -124,6 +124,16 @@ window.TextManager = class TextManager {
     );
   }
 
+    if (preset.autoStroke2) {
+    const strokeCfg = preset.stroke || THEME.strokes?.levelNumber || {};
+    const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
+    
+    text.setStroke(
+      strokeCfg.color,
+      strokeSize
+    );
+  }
+
     return text;
   }
 
@@ -276,7 +286,7 @@ window.TEXT_PRESETS = {
     font: window.THEME?.fontButton,
     color: window.THEME?.colors?.levelNumber || '#1A1A2E00',
     style: 'bold',
-    autoStroke: true,
+    autoStroke2: true,
     autoShadow: true,
     // 🔥 Белая обводка для контраста с оранжевым фоном
     strokeConfig: window.THEME?.strokes?.levelNumber || '#4ECDC4',
