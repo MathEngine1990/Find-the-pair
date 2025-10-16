@@ -284,13 +284,13 @@ window.TEXT_PRESETS = {
     mobileScale: 1.1,
     landscapeScale: 0.95,
     font: window.THEME?.fontButton,
-    color: window.THEME?.colors?.levelNumber || '#1A1A2E00',
+    color: window.THEME?.colors?.levelNumber,// || '#1A1A2E00',
     style: 'bold',
     autoStroke2: true,
-    autoShadow: true,
+    autoShadow: true//,
     // 🔥 Белая обводка для контраста с оранжевым фоном
-    strokeConfig: window.THEME?.strokes?.levelNumber || '#4ECDC4',
-    shadowConfig: window.THEME?.shadows?.levelNumber
+   // strokeConfig: window.THEME?.strokes?.levelNumber || '#4ECDC4',
+   // shadowConfig: window.THEME?.shadows?.levelNumber
   },
 
   // === СТАТИСТИКА ===
