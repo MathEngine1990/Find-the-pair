@@ -125,7 +125,7 @@ window.TextManager = class TextManager {
   }
 
     if (preset.autoStroke2) {
-    const strokeCfg = preset.stroke || THEME.strokes?.levelNumber || {};
+    const strokeCfg = preset.stroke || THEME.strokes?.titleThick || {};
     const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
     
     text.setStroke(
