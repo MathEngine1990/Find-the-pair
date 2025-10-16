@@ -4,6 +4,11 @@
 // ГЛОБАЛЬНЫЕ КОНСТАНТЫ (ВНЕ IIFE!)
 // ========================================
 
+// === main.js:1 - ДОБАВИТЬ В САМОЕ НАЧАЛО ===
+
+// ✅ FIX #7: Кэшируем DPR ПЕРЕД любыми вычислениями
+window._rawDPR = window.devicePixelRatio || 1;
+
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = /Android/.test(navigator.userAgent);
@@ -864,8 +869,57 @@ window.addEventListener('beforeunload', () => {
   screen: `${screen.width}x${screen.height}`
 });
 
+   // === main.js:870 - ВСТАВИТЬ ПЕРЕД responsiveManager ===
+
+// ✅ FIX #1: Определяем класс устройства
+const getDeviceClass = () => {
+  const hardwareConcurrency = navigator.hardwareConcurrency || 2;
+  const deviceMemory = navigator.deviceMemory || 2;
+  
+  const isLowEnd = hardwareConcurrency <= 2 || deviceMemory <= 2;
+  
+  return {
+    isLowEnd: isLowEnd,
+    isHighEnd: hardwareConcurrency >= 4 && deviceMemory >= 4
+  };
+};
+
+const deviceClass = getDeviceClass();
+
+// ✅ FIX #1: Адаптивный DPR (КРИТИЧНО!)
+const getOptimalDPR = () => {
+  const rawDPR = window.devicePixelRatio || 1;
+  
+  if (deviceClass.isLowEnd) {
+    return Math.min(1.0, rawDPR); // Слабые: 1x максимум
+  }
+  
+  if (isMobile) {
+    return Math.min(1.5, rawDPR); // Мобильные: 1.5x максимум
+  }
+  
+  return Math.min(2.0, rawDPR); // Десктоп: 2x максимум
+};
+
+window._cachedDPR = getOptimalDPR(); // ✅ Кэшируем
+
+console.log('📱 Device config:', {
+  isMobile,
+  isLowEnd: deviceClass.isLowEnd,
+  rawDPR: window.devicePixelRatio || 1,
+  usedDPR: window._cachedDPR
+});
+
+// === main.js:885 - ЗАМЕНИТЬ ===
+
 const responsiveManager = new window.ResponsiveManager();
+
+// ✅ Передаём данные в ResponsiveManager
+responsiveManager.deviceClass = deviceClass;
+responsiveManager.cachedDPR = window._cachedDPR;
+
 const gameConfig = responsiveManager.getOptimalGameConfig();
+   
 gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
 
 // Добавить callbacks
@@ -972,6 +1026,9 @@ window.game.scale.on('resize', (gameSize, baseSize, displaySize, previousWidth, 
         window.game.registry.set('isMobile', isMobile);
         window.game.registry.set('isIOS', isIOS);
         window.game.registry.set('isAndroid', isAndroid);
+        window.game.registry.set('deviceClass', deviceClass);
+window.game.registry.set('cachedDPR', window._cachedDPR);
+window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
         
         setTimeout(() => {
           try {
