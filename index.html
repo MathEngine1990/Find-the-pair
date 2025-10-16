@@ -28,6 +28,11 @@
   <link rel="preload" href="ui/Theme.js" as="script">
   <link rel="preload" href="game/Data.js" as="script">
 
+  
+<link rel="preload" href="fonts/YourFont-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/YourFont-Bold.woff2" as="font" type="font/woff2" crossorigin>
+
+
   <!-- Менеджер адаптивного текста -->
 <script src="utils/TextManager.js"></script>
   
@@ -70,6 +75,14 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    @font-face {
+  font-family: 'YourFont';
+  src: url('fonts/YourFont-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block; /* ← ВАЖНО: блокирует рендер до загрузки */
+}
     
     /* Скрываем прелоадер когда игра загружена */
     .game-loaded #preloader {
