@@ -170,8 +170,8 @@ loadGameAssets() {
   // ✅ FIX: Загружаем карты с @2x суффиксом для HD
   window.ALL_CARD_KEYS.forEach(key => {
     const path = useHD 
-      ? `cards/${key}.png`  // 400×600px для HD
-      : `cards/${key}@2x.png`;     // 200×300px для обычных
+      ? `cards/${key}@2x.png`  // 400×600px для HD
+      : `cards/${key}.png`;     // 200×300px для обычных
     
     this.load.image(key, path);
   });
