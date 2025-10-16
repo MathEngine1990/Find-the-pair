@@ -7,7 +7,19 @@
 // === main.js:1 - ДОБАВИТЬ В САМОЕ НАЧАЛО ===
 
 // ✅ FIX #7: Кэшируем DPR ПЕРЕД любыми вычислениями
-window._rawDPR = window.devicePixelRatio || 1;
+//window._rawDPR = window.devicePixelRatio || 1;
+
+// ✅ ЕДИНСТВЕННЫЙ источник DPR
+window._DPR = (() => {
+  const raw = window.devicePixelRatio || 1;
+  const isLowEnd = (navigator.hardwareConcurrency || 2) <= 2;
+  
+  if (isLowEnd) return 1.0;
+  if (/Mobile/i.test(navigator.userAgent)) return Math.min(1.5, raw);
+  return Math.min(2.0, raw);
+})();
+
+console.log('🎯 DPR locked:', window._DPR);
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -901,7 +913,9 @@ const getOptimalDPR = () => {
   return Math.min(2.0, rawDPR); // Десктоп: 2x максимум
 };
 
-window._cachedDPR = getOptimalDPR(); // ✅ Кэшируем
+//window._cachedDPR = getOptimalDPR(); // ✅ Кэшируем
+   game.registry.set('cachedDPR', window._DPR);
+game.registry.set('useHDTextures', window._DPR >= 1.5);
 
 console.log('📱 Device config:', {
   isMobile,
