@@ -64,10 +64,10 @@ window.ResponsiveManager = class ResponsiveManager {
       backgroundColor: '#1d2330',
       scale: {
         // ✅ FIX #3: FIT для мобильных (стабильный canvas)
-        mode: this.isMobile ? Phaser.Scale.FIT : Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: this.isMobile ? 1280 : window.innerWidth,  
-        height: this.isMobile ? 720 : window.innerHeight 
+mode: Phaser.Scale.RESIZE, // ✅ Единый режим для всех устройств
+autoCenter: Phaser.Scale.CENTER_BOTH,
+width: window.innerWidth,   // ✅ Всегда реальный viewport
+height: window.innerHeight  // ✅ Всегда реальный viewport
       },
       // ✅ FIX #1: Используем оптимальный DPR из main.js
       resolution: DPR,
