@@ -70,7 +70,7 @@ width: window.innerWidth,   // ✅ Всегда реальный viewport
 height: window.innerHeight  // ✅ Всегда реальный viewport
       },
       // ✅ FIX #1: Используем оптимальный DPR из main.js
-      resolution: DPR,
+      resolution: window._DPR,
       render: {
         // ✅ FIX #2: Всегда включаем antialias для гладкой графики
         antialias: true,
