@@ -913,9 +913,9 @@ const getOptimalDPR = () => {
   return Math.min(2.0, rawDPR); // Десктоп: 2x максимум
 };
 
-//window._cachedDPR = getOptimalDPR(); // ✅ Кэшируем
-   game.registry.set('cachedDPR', window._DPR);
-game.registry.set('useHDTextures', window._DPR >= 1.5);
+window._cachedDPR = getOptimalDPR(); // ✅ Кэшируем
+   //game.registry.set('cachedDPR', window._DPR);
+//game.registry.set('useHDTextures', window._DPR >= 1.5);
 
 console.log('📱 Device config:', {
   isMobile,
