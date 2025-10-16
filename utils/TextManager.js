@@ -167,7 +167,7 @@ window.TEXT_PRESETS = {
     mobileScale: 1.15,   // ⬇️ Уменьшено с 1.2
     landscapeScale: 0.9,
     font: window.THEME?.fontTitle,
-    color: window.THEME?.colors?.titlePrimary || '#FFE066',
+    color: window.THEME?.colors?.titlePrimary || '#66fffc',
     style: 'bold',
     autoStroke: true,
     autoShadow: true,
