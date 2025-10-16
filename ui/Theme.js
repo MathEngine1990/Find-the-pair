@@ -73,6 +73,10 @@ window.THEME = {
       color: '#000000',
       thickness: 4
     },
+    titleThick3: {
+      color: '##8000ff',
+      thickness: 4
+    },
     titleThin: {
       color: 'rgba(0, 0, 0, 0.8)',
       thickness: 2
