@@ -216,6 +216,7 @@ window.TEXT_PRESETS = {
     color: window.THEME?.colors?.titleSecondary || '#4ECDC4',
     style: 'bold',
     autoShadow: true,
+    autoStroke2: true,
     shadowConfig: window.THEME?.shadows?.text
   },
 
