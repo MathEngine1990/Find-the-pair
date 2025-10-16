@@ -251,7 +251,56 @@ loadGameAssets() {
   create() {
     // Этот метод вызывается после preload
     // Здесь можно добавить дополнительную логику, если нужно
+    this.applyTextureFiltering();
   }
+
+  applyTextureFiltering() {
+  console.log('🎨 Applying texture filtering...');
+  
+  const textures = this.textures;
+  const useHD = this.registry.get('useHDTextures') || false;
+  
+  // ✅ ВАРИАНТ A: Для стилизованной/векторной графики (плавные края)
+  // Используем LINEAR фильтр + antialias
+  const applySmooth = (key) => {
+    if (textures.exists(key)) {
+      const texture = textures.get(key);
+      // LINEAR = 1 (smooth scaling)
+      texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
+  };
+  
+  // ✅ ВАРИАНТ B: Для пиксель-арт графики (четкие края)
+  // Используем NEAREST фильтр
+  const applySharp = (key) => {
+    if (textures.exists(key)) {
+      const texture = textures.get(key);
+      // NEAREST = 0 (pixel-perfect)
+      texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+    }
+  };
+  
+  // ✅ ВЫБЕРИТЕ ОДИН ИЗ ВАРИАНТОВ:
+  
+  // Если у вас ВЕКТОРНАЯ/ФОТОГРАФИЧЕСКАЯ графика:
+  console.log('Using SMOOTH filtering (LINEAR + antialias)');
+  window.ALL_CARD_KEYS.forEach(key => applySmooth(key));
+  applySmooth('back');
+  applySmooth('button01');
+  applySmooth('star');
+  applySmooth('trophy');
+  
+  /* ИЛИ если у вас ПИКСЕЛЬНАЯ графика:
+  console.log('Using SHARP filtering (NEAREST)');
+  window.ALL_CARD_KEYS.forEach(key => applySharp(key));
+  applySharp('back');
+  applySharp('button01');
+  applySharp('star');
+  applySharp('trophy');
+  */
+  
+  console.log('✅ Texture filtering applied');
+}
 };
 
 // VK Achievement Manager - система достижений для VK
