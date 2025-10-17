@@ -417,24 +417,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
       this.startGame(this.currentLevel);
     });
 
-    // ✅ НОВОЕ: Глобальный обработчик ошибок tweens
-    this.tweens.on('error', (tween, target, error) => {
-      console.error('❌ Tween error:', error);
-      console.warn('Target:', target);
-      
-      // Останавливаем проблемный tween
-      if (tween && typeof tween.stop === 'function') {
-        tween.stop();
-      }
-      
-      // Разблокируем игру если она застряла
-      if (this._processingCards) {
-        console.log('🔓 Unlocking game after tween error');
-        this._processingCards = false;
-        this.canClick = true;
-        this.opened = [];
-      }
-    });
+
     
     console.log('✅ GameScene created successfully');
     
