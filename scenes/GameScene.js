@@ -378,6 +378,25 @@ window.GameScene = class GameScene extends Phaser.Scene {
       // Запускаем игру только после полной инициализации
       this.startGame(this.currentLevel);
     });
+
+    // ✅ НОВОЕ: Глобальный обработчик ошибок tweens
+    this.tweens.on('error', (tween, target, error) => {
+      console.error('❌ Tween error:', error);
+      console.warn('Target:', target);
+      
+      // Останавливаем проблемный tween
+      if (tween && typeof tween.stop === 'function') {
+        tween.stop();
+      }
+      
+      // Разблокируем игру если она застряла
+      if (this._processingCards) {
+        console.log('🔓 Unlocking game after tween error');
+        this._processingCards = false;
+        this.canClick = true;
+        this.opened = [];
+      }
+    });
     
     console.log('✅ GameScene created successfully');
     
@@ -587,7 +606,17 @@ setCardSize(card, width, height) {
   // GameScene.js:379 - ЗАМЕНИТЬ метод setCardTexture
 // GameScene.js:379 - ЗАМЕНИТЬ setCardTexture
 setCardTexture(card, textureKey) {
-  if (!card || !card.scene) return;
+  // ✅ КРИТИЧНО: Тройная проверка существования
+  if (!card || !card.scene || !card.active) {
+    console.warn('⚠️ Attempt to change texture on destroyed card');
+    return;
+  }
+
+  // ✅ НОВОЕ: Проверка существования текстуры
+  if (!this.textures.exists(textureKey)) {
+    console.error(`❌ Texture "${textureKey}" does not exist!`);
+    return;
+  }
   
   // ✅ КРИТИЧНО: Сохраняем ТОЧНЫЕ размеры ПЕРЕД сменой текстуры
   const currentDisplayWidth = card.displayWidth;
@@ -1432,12 +1461,17 @@ checkPair() {
     if (this.mistakeText) {
       this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
     }
+
+      const savedScale1X = card1?.scaleX;
+  const savedScale1Y = card1?.scaleY;
+  const savedScale2X = card2?.scaleX;
+  const savedScale2Y = card2?.scaleY;
     
     // Закрываем карты через 800ms
     this.time.delayedCall(800, () => {
           // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card1
-    const savedScale1X = card1.scaleX;
-    const savedScale1Y = card1.scaleY;
+   // const savedScale1X = card1.scaleX;
+   // const savedScale1Y = card1.scaleY;
       
       if (card1 && card1.scene) {
         this.tweens.add({
@@ -1445,12 +1479,26 @@ checkPair() {
           scaleX: 0,
           duration: 150,
           onComplete: () => {
+            if (!card1 || !card1.scene || !card1.active) {
+            console.warn('⚠️ card1 destroyed during animation');
+            return;
+          }
+            
             this.setCardTexture(card1, 'back');
+
+            // ✅ КРИТИЧНО: Проверка перед вторым tween
+          if (!card1 || !card1.scene || !card1.active) {
+            console.warn('⚠️ card1 destroyed after texture change');
+            return;
+          }
+            
             this.tweens.add({
-           scaleX: savedScale1X,
-            scaleY: savedScale1Y,  // ✅ ДОБАВЛЕНО
-              duration: 150,
-              onComplete: () => {
+            targets: card1,
+            scaleX: savedScale1X,
+            scaleY: savedScale1Y,
+            duration: 150,
+            onComplete: () => {
+              if (card1 && card1.scene && card1.active) {
                 card1.setData('opened', false);
               }
             });
@@ -1459,16 +1507,29 @@ checkPair() {
       }
 
           // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card2
-    const savedScale2X = card2.scaleX;
-    const savedScale2Y = card2.scaleY;
+   // const savedScale2X = card2.scaleX;
+   // const savedScale2Y = card2.scaleY;
       
-      if (card2 && card2.scene) {
+      if (card2 && card2.scene && card2.active) {
         this.tweens.add({
           targets: card2,
           scaleX: 0,
           duration: 150,
           onComplete: () => {
+            // ✅ КРИТИЧНО: Повторная проверка перед текстурой
+          if (!card2 || !card2.scene || !card2.active) {
+            console.warn('⚠️ card2 destroyed during animation');
+            return;
+          }
+            
             this.setCardTexture(card2, 'back');
+
+            // ✅ КРИТИЧНО: Проверка перед вторым tween
+          if (!card2 || !card2.scene || !card2.active) {
+            console.warn('⚠️ card2 destroyed after texture change');
+            return;
+          }
+            
             this.tweens.add({
               targets: card2,
             scaleX: savedScale2X,
