@@ -170,9 +170,24 @@ window.GameScene = class GameScene extends Phaser.Scene {
 
   async create() {
     try {
-    await document.fonts.ready;
-          // ✅ ДОБАВИТЬ: Создаем менеджер текста
-    this.textManager = new TextManager(this);
+      this.textManager = new TextManager(this);
+      
+    // ⏳ Теперь ждем шрифты (но TextManager уже создан)
+    if (document.fonts && document.fonts.ready) {
+      try {
+        console.log('⏳ Waiting for fonts...');
+        await document.fonts.ready;
+        this._fontsReady = true;
+        console.log('✅ Fonts loaded');
+      } catch (error) {
+        console.warn('⚠️ Fonts API error:', error);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        this._fontsReady = true;
+      }
+    }
+
+        
+    
       
     console.log('✅ Fonts ready');
   } catch (error) {
@@ -180,6 +195,10 @@ window.GameScene = class GameScene extends Phaser.Scene {
     // Fallback: простая задержка
     await new Promise(resolve => setTimeout(resolve, 300));
   }
+
+    // 🔄 Обновляем размеры после загрузки шрифтов
+    this.textManager.updateDimensions();
+    
   try {
     // ===== 1. ИНИЦИАЛИЗАЦИЯ БАЗОВЫХ ПЕРЕМЕННЫХ =====
     if (this.scale && this.scale.updateBounds) {
@@ -859,17 +878,25 @@ setCardTexture(card, textureKey) {
   // Обновление HUD с таймером
   // GameScene.js:623 - ЗАМЕНИТЬ МЕТОД drawHUD
 
+// === GameScene.js:623-686 - ЗАМЕНИТЬ МЕТОД drawHUD ===
+
 async drawHUD() {
-  // ✅ FIX #5: КРИТИЧНО - ждём загрузки шрифтов ДО создания текста
+  // ✅ FIX #2: КРИТИЧЕСКАЯ ПРОВЕРКА перед созданием текста
+  if (!this.textManager) {
+    console.error('❌ FATAL: TextManager not initialized!');
+    // Экстренное создание
+    this.textManager = new TextManager(this);
+  }
+  
+  // ✅ FIX #2: Ждем шрифты если еще не загрузились
   if (document.fonts && !this._fontsReady) {
     try {
-      console.log('⏳ Waiting for fonts...');
+      console.log('⏳ HUD: Waiting for fonts...');
       await document.fonts.ready;
       this._fontsReady = true;
-      console.log('✅ Fonts loaded');
+      console.log('✅ HUD: Fonts loaded');
     } catch (error) {
-      console.warn('⚠️ Fonts API error:', error);
-      // Fallback: простая задержка 300ms
+      console.warn('⚠️ HUD: Fonts API error:', error);
       await new Promise(resolve => setTimeout(resolve, 300));
       this._fontsReady = true;
     }
@@ -878,10 +905,8 @@ async drawHUD() {
   this.clearHUD();
   const { W, H } = this.getSceneWH();
 
-  // ✅ ДОБАВИТЬ: Обновляем размеры TextManager
-  if (this.textManager) {
-    this.textManager.updateDimensions();
-  }
+  // ✅ Обновляем размеры TextManager
+  this.textManager.updateDimensions();
     
   const hudH = Math.min(100, Math.round(H * 0.12));
 
@@ -891,8 +916,8 @@ async drawHUD() {
   hud.fillRoundedRect(0, 0, W, hudH, 0);
   this.hud = hud;
 
-  // ✅ FIX #5: Теперь текст создаётся ПОСЛЕ загрузки шрифтов
-  if (this.textManager) {
+  // ✅ FIX #2: Безопасное создание текста с fallback
+  try {
     // Счётчик ошибок
     this.mistakeText = this.textManager.createText(
       20, hudH/2, 
@@ -909,18 +934,19 @@ async drawHUD() {
       'hudTimer'
     );
     this.timeText.setOrigin(0.5, 0.5).setDepth(6);
-  } else {
-    // Fallback если TextManager не инициализирован
-    console.warn('⚠️ TextManager not available, using fallback');
     
+  } catch (error) {
+    console.error('❌ Failed to create HUD text:', error);
+    
+    // ✅ FALLBACK: Используем базовый Phaser.Text
     this.mistakeText = this.add.text(20, hudH/2, 'Ошибок: ' + this.mistakeCount, {
-      fontFamily: window.THEME.font || 'Arial',
+      fontFamily: 'Arial, sans-serif',
       fontSize: Math.min(20, Math.round(H * 0.035)) + 'px',
       color: '#FF6B6B'
     }).setOrigin(0, 0.5).setDepth(6);
     
     this.timeText = this.add.text(W/2, hudH/2, this.formatTime(this.currentTimeSeconds), {
-      fontFamily: window.THEME.font || 'Arial',
+      fontFamily: 'Arial, sans-serif',
       fontSize: Math.min(24, Math.round(H * 0.04)) + 'px',
       color: '#FFFFFF',
       fontStyle: 'bold'
@@ -940,7 +966,7 @@ async drawHUD() {
   homeBtn.setDepth(7);
   this.exitBtn = homeBtn;
   
-  console.log('✅ HUD created with fonts loaded');
+  console.log('✅ HUD created successfully');
 }
 
   clearHUD() {
