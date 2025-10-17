@@ -26,12 +26,24 @@ window.TextManager = class TextManager {
    * @returns {number} - Размер шрифта в пикселях
    */
   getSize(type, options = {}) {
+    // ✅ FIX #3: Проверка инициализации размеров
+  if (!this.W || !this.H || !this.baseSize) {
+    console.warn('⚠️ TextManager dimensions not initialized, using fallback');
+    this.updateDimensions();
+  }
+    
     const cacheKey = `${type}_${this.W}_${this.H}`;
     if (this.cache.has(cacheKey) && !options.forceRecalc) {
       return this.cache.get(cacheKey);
     }
 
     const config = TEXT_PRESETS[type] || TEXT_PRESETS.default;
+
+      // ✅ FIX #3: Защита от undefined
+  if (!config) {
+    console.error(`❌ No preset for type: ${type}`);
+    return 16; // Минимальный fallback
+  }
     
     // Базовый расчет
     let size;
