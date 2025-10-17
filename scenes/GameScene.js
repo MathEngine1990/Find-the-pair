@@ -1262,7 +1262,7 @@ flipAllCardsAndStartGame() {
     const savedScaleX = card.scaleX;
     const savedScaleY = card.scaleY;
     
-    console.log(`Card ${index} scales:`, originalScaleX, originalScaleY);
+    console.log(`Card ${index} scales:`, savedScaleX, savedScaleY);
     
     this.tweens.add({
       targets: card,
@@ -1335,7 +1335,7 @@ onCardClick(card, event) {
   const cardKey = card.getData('key');
   
 
-   console.log(`Click: card scales before flip:`, originalScaleX, originalScaleY);
+   console.log(`Click: card scales before flip:`, savedScaleX, savedScaleY);
   
   card.setData('isAnimating', true);
   this._lastClickTime = now;
