@@ -1254,7 +1254,7 @@ handleResize(gameSize) {
   // Перерисовываем HUD
   this.clearHUD();
   this.drawHUD();
-}
+}}
   // 5-секундный показ карт для запоминания
   showCardsForMemorization() {
     console.log('Showing cards for memorization (5 seconds)...');
