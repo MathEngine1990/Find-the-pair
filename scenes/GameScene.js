@@ -1500,7 +1500,7 @@ checkPair() {
             onComplete: () => {
               if (card1 && card1.scene && card1.active) {
                 card1.setData('opened', false);
-              }
+              } }
             });
           }
         });
