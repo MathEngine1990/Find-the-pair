@@ -26,20 +26,27 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 
 // === MenuScene.js:48-56 - ЗАМЕНИТЬ ===
 
+// === MenuScene.js:48-87 - ЗАМЕНИТЬ async create() ===
+
 async create() {
   console.log('MenuScene.create() started');
   
+  // ✅ FIX #4: Создаем TextManager ДО любых операций
   this.textManager = new TextManager(this);
+  
+  // ✅ FIX #4: Блокируем resize до полной инициализации
+  this._isInitializing = true;
   
   this.progress = this.getProgressLocal();
   this.ensureGradientBackground();
   this.drawMenu(this.levelPage);
   
+  // ⏳ Асинхронная инициализация
   Promise.all([
     document.fonts.ready.catch(() => console.warn('Fonts timeout')),
     this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
   ]).then(async () => {
-    // ⬇️ КРИТИЧНО: Триггерим синхронизацию после инициализации
+    // ⬇️ КРИТИЧНО: Синхронизация ПОСЛЕ полной инициализации
     if (this.syncManager && this.syncManager.isVKAvailable()) {
       try {
         console.log('🔄 Triggering initial sync in MenuScene');
@@ -51,28 +58,43 @@ async create() {
       } catch (err) {
         console.warn('⚠️ Initial sync failed:', err);
       }
-    }});
+    }
+    
+    // ✅ FIX #4: Разблокируем resize ПОСЛЕ всех операций
+    this._isInitializing = false;
+  });
   
-  // ✅ ИЗМЕНЕНО: Используем глобальный debounced-resize event
+  // ✅ Глобальный debounced-resize event
   this.game.events.on('debounced-resize', this.handleResize, this);
   
   this.events.once('shutdown', this.cleanup, this);
 }
 
 // ✅ НОВЫЙ МЕТОД
+// === MenuScene.js:90-103 - ЗАМЕНИТЬ handleResize ===
+
 handleResize() {
-  if (!this.scene.isActive()) return;
+  // ✅ FIX #5: Блокируем resize во время инициализации
+  if (this._isInitializing) {
+    console.log('⏸️ Resize blocked: scene initializing');
+    return;
+  }
+  
+  if (!this.scene.isActive()) {
+    console.log('⏸️ Resize blocked: scene inactive');
+    return;
+  }
+  
+  // ✅ Проверка TextManager
+  if (!this.textManager) {
+    console.warn('⚠️ TextManager missing during resize, recreating');
+    this.textManager = new TextManager(this);
+  }
   
   // 1️⃣ Обновляем размеры в TextManager
   this.textManager.updateDimensions();
   
-  // 2️⃣ Обновляем существующие элементы (если не перерисовываем всё)
-  // Если drawMenu() полностью пересоздаёт UI, можно пропустить
-  // Иначе добавить:
-  // this.levelButtons.forEach(btn => {
-  //   if (btn.levelText) this.textManager.updateText(btn.levelText, 'levelNumber');
-  // });
-  
+  // 2️⃣ Перерисовываем UI
   this.ensureGradientBackground();
   this.drawMenu(this.levelPage);
 }
