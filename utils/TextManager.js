@@ -194,7 +194,7 @@ window.TEXT_PRESETS = {
     max: 48,             // ← Больше максимум
     mobileScale: 0.5,    // ← Не нужен множитель
     landscapeScale: 0.85,
-    font: window.THEME?.fontTitle,
+    font: 'BoldPixels',
     color: window.THEME?.colors?.titlePrimary,
     style: 'bold',
     autoStroke: true,
@@ -209,7 +209,7 @@ window.TEXT_PRESETS = {
     scale: 0.050,        // ← Меньше для десктопа
     min: 32,
     max: 56,
-    font: window.THEME?.fontTitle,
+    font: 'BoldPixels',
     color: window.THEME?.colors?.titlePrimary || '#7CDFFF',
     style: 'bold',
     autoStroke3: true,
