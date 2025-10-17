@@ -585,36 +585,28 @@ setCardSize(card, width, height) {
 
   // УЛУЧШЕННЫЙ МЕТОД: Смена текстуры карты с сохранением размера
   // GameScene.js:379 - ЗАМЕНИТЬ метод setCardTexture
+// GameScene.js:379 - ЗАМЕНИТЬ setCardTexture
 setCardTexture(card, textureKey) {
   if (!card || !card.scene) return;
   
-  // ✅ FIX: Сохраняем ВСЕ параметры масштабирования ПЕРЕД сменой текстуры
-  const savedData = {
-    targetWidth: card.getData('targetWidth'),
-    targetHeight: card.getData('targetHeight'),
-    scaleX: card.scaleX,  // ⚠️ Берём ТЕКУЩИЙ scale, а не из getData!
-    scaleY: card.scaleY,
-    displayWidth: card.displayWidth,
-    displayHeight: card.displayHeight
-  };
-  
-  console.log(`🔄 Changing texture ${card.texture.key} → ${textureKey}`, savedData);
+  // ✅ КРИТИЧНО: Сохраняем ТОЧНЫЕ размеры ПЕРЕД сменой текстуры
+  const currentDisplayWidth = card.displayWidth;
+  const currentDisplayHeight = card.displayHeight;
   
   // Меняем текстуру
   card.setTexture(textureKey);
   
-  // ✅ FIX: Восстанавливаем ТОЧНЫЕ размеры через displaySize
-  if (savedData.displayWidth && savedData.displayHeight) {
-    card.setDisplaySize(savedData.displayWidth, savedData.displayHeight);
-    
-    // Пересохраняем данные для новой текстуры
-    card.setData('targetWidth', savedData.displayWidth);
-    card.setData('targetHeight', savedData.displayHeight);
-    card.setData('scaleX', card.scaleX);  // ⚠️ Новый scale после setDisplaySize
-    card.setData('scaleY', card.scaleY);
+  // ✅ КРИТИЧНО: Восстанавливаем ТОЧНЫЕ размеры через displaySize
+  // (НЕ через scale, который зависит от исходных размеров текстуры!)
+  if (currentDisplayWidth && currentDisplayHeight) {
+    card.setDisplaySize(currentDisplayWidth, currentDisplayHeight);
   }
   
-  console.log(`✅ Texture changed, final scale:`, card.scaleX, card.scaleY);
+  // Обновляем сохранённые данные
+  card.setData('targetWidth', card.displayWidth);
+  card.setData('targetHeight', card.displayHeight);
+  card.setData('scaleX', card.scaleX);
+  card.setData('scaleY', card.scaleY);
 }
 
 
@@ -1267,8 +1259,8 @@ flipAllCardsAndStartGame() {
   
   this.cards.forEach((card, index) => {
     // ✅ FIX: Сохраняем ОБА scale
-    const originalScaleX = card.scaleX;  // ⚠️ Берём ТЕКУЩИЙ, а не из getData
-    const originalScaleY = card.scaleY;
+    const savedScaleX = card.scaleX;
+    const savedScaleY = card.scaleY;
     
     console.log(`Card ${index} scales:`, originalScaleX, originalScaleY);
     
@@ -1283,8 +1275,8 @@ flipAllCardsAndStartGame() {
         
         this.tweens.add({
           targets: card,
-          scaleX: originalScaleX,
-          scaleY: originalScaleY,  // ✅ FIX: Восстанавливаем scaleY!
+          scaleX: savedScaleX,
+          scaleY: savedScaleY,  // ✅ ДОБАВЛЕНО: восстанавливаем scaleY
           duration: 200,
           ease: 'Power2.easeOut'
         });
@@ -1338,9 +1330,10 @@ onCardClick(card, event) {
   this._processingCards = true;
   
   // ✅ FIX #4: Анимация flip через смену текстуры (БЕЗ scaleX искажений)
-   const originalScaleX = card.scaleX;
-  const originalScaleY = card.scaleY;
+ const savedScaleX = card.scaleX;
+  const savedScaleY = card.scaleY;
   const cardKey = card.getData('key');
+  
 
    console.log(`Click: card scales before flip:`, originalScaleX, originalScaleY);
   
@@ -1363,7 +1356,8 @@ onCardClick(card, event) {
       // Фаза 3: Разворачиваем обратно (показываем)
       this.tweens.add({
         targets: card,
-        scaleX: originalScaleX,
+        scaleX: savedScaleX,
+        scaleY: savedScaleY,  // ✅ ДОБАВЛЕНО: восстанавливаем scaleY
         duration: 150,
         ease: 'Power2.easeOut',
         onComplete: () => {
@@ -1441,6 +1435,10 @@ checkPair() {
     
     // Закрываем карты через 800ms
     this.time.delayedCall(800, () => {
+          // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card1
+    const savedScale1X = card1.scaleX;
+    const savedScale1Y = card1.scaleY;
+      
       if (card1 && card1.scene) {
         this.tweens.add({
           targets: card1,
@@ -1449,8 +1447,8 @@ checkPair() {
           onComplete: () => {
             this.setCardTexture(card1, 'back');
             this.tweens.add({
-              targets: card1,
-              scaleX: card1.getData('scaleX') || 1,
+           scaleX: savedScale1X,
+            scaleY: savedScale1Y,  // ✅ ДОБАВЛЕНО
               duration: 150,
               onComplete: () => {
                 card1.setData('opened', false);
@@ -1459,6 +1457,10 @@ checkPair() {
           }
         });
       }
+
+          // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card2
+    const savedScale2X = card2.scaleX;
+    const savedScale2Y = card2.scaleY;
       
       if (card2 && card2.scene) {
         this.tweens.add({
@@ -1469,7 +1471,8 @@ checkPair() {
             this.setCardTexture(card2, 'back');
             this.tweens.add({
               targets: card2,
-              scaleX: card2.getData('scaleX') || 1,
+            scaleX: savedScale2X,
+            scaleY: savedScale2Y,  // ✅ ДОБАВЛЕНО
               duration: 150,
               onComplete: () => {
                 card2.setData('opened', false);
