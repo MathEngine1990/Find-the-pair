@@ -1214,29 +1214,47 @@ handleResize(gameSize) {
     // Пересчитываем layout только если игра не активна
     if (!this.gameState.gameStarted && !this.gameState.isMemorizationPhase) {
         this.createCardLayout(this.gameState.deck);
-    } else if (this.cardsContainer) {
-        // ОПТИМИЗАЦИЯ: Просто масштабируем контейнер при активной игре
-        const { width: W, height: H } = gameSize;
-        const hudH = Math.min(80, Math.round(H * 0.1));
-        const gameAreaH = H - hudH - 10;
-        
-        const totalW = this.gameState.cardWidth * this.currentLevel.cols + 
-                       this.gameState.gapSize * (this.currentLevel.cols - 1);
-        const totalH = this.gameState.cardHeight * this.currentLevel.rows + 
-                       this.gameState.gapSize * (this.currentLevel.rows - 1);
-        
-        const scaleX = W / totalW * 0.95;
-        const scaleY = gameAreaH / totalH * 0.95;
-        const scale = Math.min(scaleX, scaleY, 1);
-        
-        this.cardsContainer.setScale(scale);
-        
-        // Центрируем контейнер
-        this.cardsContainer.x = (W - totalW * scale) / 2;
-        this.cardsContainer.y = hudH + (gameAreaH - totalH * scale) / 2;
+    // GameScene.js:1110 - ЗАМЕНИТЬ БЛОК
+} else if (this.cardsContainer && this.gameState.gameStarted) {
+  // ✅ КРИТИЧНО: Пересоздаём layout вместо масштабирования
+  console.log('🔄 Recreating layout during active game');
+  
+  // Сохраняем состояние карт
+  const cardStates = this.cards.map(card => ({
+    key: card.getData('key'),
+    opened: card.getData('opened'),
+    matched: card.getData('matched'),
+    index: card.getData('index')
+  }));
+  
+  // Пересоздаём layout
+  this.createCardLayout(this.gameState.deck);
+  
+  // Восстанавливаем состояние
+  this.cards.forEach((card, index) => {
+    const savedState = cardStates[index];
+    if (savedState) {
+      card.setData('key', savedState.key);
+      card.setData('opened', savedState.opened);
+      card.setData('matched', savedState.matched);
+      
+      // Визуальное восстановление
+      if (savedState.opened || savedState.matched) {
+        this.setCardTexture(card, savedState.key);
+      } else {
+        this.setCardTexture(card, 'back');
+      }
+      
+      if (savedState.matched) {
+        card.setAlpha(window.THEME.cardDimAlpha).disableInteractive();
+      }
     }
+  });
+  
+  // Перерисовываем HUD
+  this.clearHUD();
+  this.drawHUD();
 }
-
   // 5-секундный показ карт для запоминания
   showCardsForMemorization() {
     console.log('Showing cards for memorization (5 seconds)...');
