@@ -538,10 +538,10 @@ cleanup() {
   }
 
   // НОВЫЙ МЕТОД: Универсальная функция для установки размера карты
-  setCardSize(card, width, height) {
+  // GameScene.js:357 - ЗАМЕНИТЬ метод setCardSize
+setCardSize(card, width, height) {
   if (!card || !card.scene || !card.texture) return;
   
-  // ИСПРАВЛЕНО: Безопасное получение размеров текстуры
   const source = card.texture.source;
   if (!source || !source[0]) {
     console.warn('Card texture not ready');
@@ -555,10 +555,18 @@ cleanup() {
   const scaleY = height / originalHeight;
   
   card.setScale(scaleX, scaleY);
+  
+  // ✅ FIX: Сохраняем КАК ДАННЫЕ, ТАК И В displayWidth/displayHeight
   card.setData('targetWidth', width);
   card.setData('targetHeight', height);
   card.setData('scaleX', scaleX);
   card.setData('scaleY', scaleY);
+  card.setData('originalTextureWidth', originalWidth);   // ✅ НОВОЕ
+  card.setData('originalTextureHeight', originalHeight); // ✅ НОВОЕ
+  
+  // ✅ НОВОЕ: Дублируем в displaySize для гарантии
+  card.displayWidth = width;
+  card.displayHeight = height;
 }
 
   // НОВЫЙ МЕТОД: Восстановление размера карты
@@ -576,21 +584,38 @@ cleanup() {
   }
 
   // УЛУЧШЕННЫЙ МЕТОД: Смена текстуры карты с сохранением размера
-  setCardTexture(card, textureKey) {
-    if (!card || !card.scene) return;
+  // GameScene.js:379 - ЗАМЕНИТЬ метод setCardTexture
+setCardTexture(card, textureKey) {
+  if (!card || !card.scene) return;
+  
+  // ✅ FIX: Сохраняем ВСЕ параметры масштабирования ПЕРЕД сменой текстуры
+  const savedData = {
+    targetWidth: card.getData('targetWidth'),
+    targetHeight: card.getData('targetHeight'),
+    scaleX: card.scaleX,  // ⚠️ Берём ТЕКУЩИЙ scale, а не из getData!
+    scaleY: card.scaleY,
+    displayWidth: card.displayWidth,
+    displayHeight: card.displayHeight
+  };
+  
+  console.log(`🔄 Changing texture ${card.texture.key} → ${textureKey}`, savedData);
+  
+  // Меняем текстуру
+  card.setTexture(textureKey);
+  
+  // ✅ FIX: Восстанавливаем ТОЧНЫЕ размеры через displaySize
+  if (savedData.displayWidth && savedData.displayHeight) {
+    card.setDisplaySize(savedData.displayWidth, savedData.displayHeight);
     
-    // Сохраняем текущие размеры
-    const targetWidth = card.getData('targetWidth') || this.gameState.cardWidth;
-    const targetHeight = card.getData('targetHeight') || this.gameState.cardHeight;
-    
-    // Меняем текстуру
-    card.setTexture(textureKey);
-    
-    // Восстанавливаем размер
-    if (targetWidth && targetHeight) {
-      this.setCardSize(card, targetWidth, targetHeight);
-    }
+    // Пересохраняем данные для новой текстуры
+    card.setData('targetWidth', savedData.displayWidth);
+    card.setData('targetHeight', savedData.displayHeight);
+    card.setData('scaleX', card.scaleX);  // ⚠️ Новый scale после setDisplaySize
+    card.setData('scaleY', card.scaleY);
   }
+  
+  console.log(`✅ Texture changed, final scale:`, card.scaleX, card.scaleY);
+}
 
 
 
@@ -1238,15 +1263,15 @@ handleResize(gameSize) {
   // GameScene.js:1179 - ЗАМЕНИТЬ МЕТОД flipAllCardsAndStartGame
 
 flipAllCardsAndStartGame() {
-  console.log('Flipping all cards and starting game...');
+ console.log('Flipping all cards and starting game...');
   
-  // ✅ FIX #4: Анимированное переворачивание карт БЕЗ scaleX искажений
   this.cards.forEach((card, index) => {
-    // Сохраняем данные о размерах перед анимацией
-    const originalScaleX = card.getData('scaleX') || 1;
-    const originalScaleY = card.getData('scaleY') || 1;
+    // ✅ FIX: Сохраняем ОБА scale
+    const originalScaleX = card.scaleX;  // ⚠️ Берём ТЕКУЩИЙ, а не из getData
+    const originalScaleY = card.scaleY;
     
-    // Последовательная анимация с задержкой
+    console.log(`Card ${index} scales:`, originalScaleX, originalScaleY);
+    
     this.tweens.add({
       targets: card,
       scaleX: 0,
@@ -1254,13 +1279,12 @@ flipAllCardsAndStartGame() {
       delay: index * 30,
       ease: 'Power2.easeIn',
       onComplete: () => {
-        // Меняем текстуру на заднюю сторону
         this.setCardTexture(card, 'back');
         
-        // Возвращаем анимацию
         this.tweens.add({
           targets: card,
           scaleX: originalScaleX,
+          scaleY: originalScaleY,  // ✅ FIX: Восстанавливаем scaleY!
           duration: 200,
           ease: 'Power2.easeOut'
         });
@@ -1314,8 +1338,15 @@ onCardClick(card, event) {
   this._processingCards = true;
   
   // ✅ FIX #4: Анимация flip через смену текстуры (БЕЗ scaleX искажений)
-  const originalScaleX = card.getData('scaleX') || 1;
+   const originalScaleX = card.scaleX;
+  const originalScaleY = card.scaleY;
   const cardKey = card.getData('key');
+
+   console.log(`Click: card scales before flip:`, originalScaleX, originalScaleY);
+  
+  card.setData('isAnimating', true);
+  this._lastClickTime = now;
+  this._processingCards = true;
   
   // Фаза 1: Сжимаем карту до 0 по X (скрываем)
   this.tweens.add({
@@ -1326,6 +1357,8 @@ onCardClick(card, event) {
     onComplete: () => {
       // Фаза 2: Меняем текстуру на лицевую сторону
       this.setCardTexture(card, cardKey);
+
+       console.log(`After texture change, scale:`, card.scaleX, card.scaleY);
       
       // Фаза 3: Разворачиваем обратно (показываем)
       this.tweens.add({
@@ -1334,6 +1367,7 @@ onCardClick(card, event) {
         duration: 150,
         ease: 'Power2.easeOut',
         onComplete: () => {
+          console.log(`Final scale after flip:`, card.scaleX, card.scaleY);
           // Снимаем флаг анимации
           card.setData('isAnimating', false);
           card.setData('opened', true);
