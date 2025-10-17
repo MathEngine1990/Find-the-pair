@@ -186,7 +186,8 @@ window.GameScene = class GameScene extends Phaser.Scene {
       }
     }
 
-        
+        // 🔄 Обновляем размеры после загрузки шрифтов
+    this.textManager.updateDimensions();
     
       
     console.log('✅ Fonts ready');
@@ -196,8 +197,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     await new Promise(resolve => setTimeout(resolve, 300));
   }
 
-    // 🔄 Обновляем размеры после загрузки шрифтов
-    this.textManager.updateDimensions();
+    
     
   try {
     // ===== 1. ИНИЦИАЛИЗАЦИЯ БАЗОВЫХ ПЕРЕМЕННЫХ =====
