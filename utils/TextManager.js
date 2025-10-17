@@ -88,11 +88,30 @@ window.TextManager = class TextManager {
     };
   }
 
+  getStyle2(type, overrides = {}) {
+    const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
+    
+    return {
+      fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
+      fontSize: this.getSize(type) + 'px',
+      color: preset.color || '#4ECDC4',
+      fontStyle: preset.style || 'normal',
+      stroke: preset.stroke || null,
+      strokeThickness: preset.strokeThickness || 0,
+      shadow: preset.shadow || null,
+      align: preset.align || 'center',
+      wordWrap: preset.wordWrap ? { 
+        width: this.W * (preset.wordWrap.widthFactor || 0.9) 
+      } : null,
+      ...overrides
+    };
+  }
+
   /**
    * Создать адаптивный текст
    */
   createText(x, y, content, type, overrides = {}) {
-    const style = this.getStyle(type, overrides);
+    const style = isMobile ? this.getStyle(type, overrides) : this.getStyle2(type, overrides) ;
     const text = this.scene.add.text(x, y, content, style);
     
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
