@@ -73,7 +73,7 @@ window.TextManager = class TextManager {
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
     
     return {
-      fontFamily:   'BoldPixels' || preset.font || window.THEME.font,
+      fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#4ECDC4',
       fontStyle: preset.style || 'normal',
