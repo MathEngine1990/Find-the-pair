@@ -1,8 +1,11 @@
 window.THEME = {
   // === ШРИФТЫ ===
-  font: 'Geologica-Light, Roboto_Condensed-Bold, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontTitle: 'Geologica-Light, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontButton: 'Geologica-Light, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  font: 'BoldPixels,Geologica-Light, Roboto_Condensed-Bold, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontTitle: 'BoldPixels, Geologica-Light, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontButton: 'BoldPixels, Geologica-Light, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+
+//<link rel="preload" href="fonts/YourFont-Regular.woff2" as="font" type="font/woff2" crossorigin>
+//<link rel="preload" href="fonts/YourFont-Bold.woff2" as="font" type="font/woff2" crossorigin>
   
   titleStyle: 'bold',
   buttonStyle: 'bold',
