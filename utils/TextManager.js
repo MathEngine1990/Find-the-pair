@@ -73,7 +73,7 @@ window.TextManager = class TextManager {
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
     
     return {
-      fontFamily: preset.font || window.THEME.font,
+      fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#4ECDC4',
       fontStyle: preset.style || 'normal',
@@ -176,7 +176,7 @@ window.TEXT_PRESETS = {
     max: 42,
     mobileScale: 1.15,   // ⬇️ Уменьшено с 1.2
     landscapeScale: 0.9,
-    font: window.THEME?.fontTitle,
+    font: window.THEME?.fontTitle || 'BoldPixels',
     color: window.THEME?.colors?.titlePrimary || '#7CDFFF',
     style: 'bold',
     autoStroke: true,
@@ -194,7 +194,7 @@ window.TEXT_PRESETS = {
     max: 48,             // ← Больше максимум
     mobileScale: 0.5,    // ← Не нужен множитель
     landscapeScale: 0.85,
-    font: window.THEME?.fontTitle,
+    font: 'BoldPixels',
     color: window.THEME?.colors?.titlePrimary,
     style: 'bold',
     autoStroke: true,
@@ -209,7 +209,7 @@ window.TEXT_PRESETS = {
     scale: 0.050,        // ← Меньше для десктопа
     min: 32,
     max: 56,
-    font: window.THEME?.fontTitle,
+    font: 'BoldPixels',
     color: window.THEME?.colors?.titlePrimary || '#7CDFFF',
     style: 'bold',
     autoStroke3: true,
@@ -248,7 +248,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 19,            // ⬇️ Уменьшено с 20
     mobileScale: 1.25,  // ⬇️ Уменьшено с 1.3
-    font: window.THEME?.font,
+    font: window.THEME?.font || 'BoldPixels',
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold'
   },
@@ -271,7 +271,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 22,            // ⬇️ Уменьшено с 24
     mobileScale: 1.3,
-    font: window.THEME?.fontButton,
+    font: window.THEME?.fontButton || 'BoldPixels',
     color: window.THEME?.colors?.titleThick,
     style: 'bold'
   },
@@ -294,7 +294,7 @@ window.TEXT_PRESETS = {
     max: 64,
     mobileScale: 1.1,
     landscapeScale: 0.95,
-    font: window.THEME?.fontButton,
+    font: window.THEME?.fontButton || 'BoldPixels',
     color: window.THEME?.colors?.levelNumber || '#9EF9FF',
     style: 'bold',
     autoStroke2: true,
