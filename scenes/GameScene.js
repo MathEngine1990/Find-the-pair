@@ -171,6 +171,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
   async create() {
     try {
       this.textManager = new TextManager(this);
+      this._isInitializing = true;  // ← Флаг для блокировки cleanup
       
     // ⏳ Теперь ждем шрифты (но TextManager уже создан)
     if (document.fonts && document.fonts.ready) {
@@ -278,16 +279,34 @@ window.GameScene = class GameScene extends Phaser.Scene {
     }
 
     // Теперь безопасно создавать тексты
-    await this.drawHUD();
+     this.drawHUD();
     
     // ===== 3. АСИНХРОННАЯ ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРОВ =====
     
     // Инициализация синхронизации БЕЗ блокировки
-    this.initializeSyncManager().then(() => {
-      console.log('✅ Sync manager initialized');
-    }).catch(error => {
-      console.warn('⚠️ Sync manager failed, using local storage:', error);
-    });
+      // 🔥 Неблокирующая параллельная инициализация
+  const initPromises = [
+    // Fonts с timeout
+    Promise.race([
+      document.fonts.ready,
+      new Promise(resolve => setTimeout(resolve, 2000))
+    ]).then(() => {
+      this._fontsReady = true;
+      this.textManager.updateDimensions();
+    }),
+    
+    // Sync в фоне
+    this.initializeSyncManager().catch(e => {
+      console.warn('⚠️ Sync failed, using fallback:', e);
+      this.syncManager = null;
+    })
+  ];
+
+      // 🎯 НЕ ЖДЁМ Promise.all, продолжаем сразу!
+  Promise.all(initPromises).then(() => {
+    this._isInitializing = false;
+    console.log('✅ Background init complete');
+  });
     
     // ===== 4. ПОДГОТОВКА ВИЗУАЛЬНЫХ РЕСУРСОВ =====
     
