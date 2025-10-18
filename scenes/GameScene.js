@@ -1331,10 +1331,10 @@ handleResize(gameSize) {
   // GameScene.js:1179 - ЗАМЕНИТЬ МЕТОД flipAllCardsAndStartGame
 
 flipAllCardsAndStartGame() {
- console.log('Flipping all cards and starting game...');
+  console.log('Flipping all cards and starting game...');
   
   this.cards.forEach((card, index) => {
-    // ✅ FIX: Сохраняем ОБА scale
+    // Сохраняем scale
     const savedScaleX = card.scaleX;
     const savedScaleY = card.scaleY;
     
@@ -1343,26 +1343,26 @@ flipAllCardsAndStartGame() {
     this.tweens.add({
       targets: card,
       scaleX: 0,
-      duration: 100,
+      duration: 100,  // ← УСКОРЕНО: было 200
       delay: index * 30,
       ease: 'Power2.easeIn',
       onComplete: () => {
         this.setCardTexture(card, 'back');
         
         this.tweens.add({
-  targets: card,
-  scaleX: savedScaleX,
-  duration: 100,
-  ease: 'Power2.easeOut',
-  onComplete: () => {
-    // ✅ КРИТИЧНО: Восстанавливаем displaySize ПОСЛЕ tween
-    const targetW = card.getData('targetWidth');
-    const targetH = card.getData('targetHeight');
-    if (targetW && targetH) {
-      card.setDisplaySize(targetW, targetH);
-    }
-  }
-});
+          targets: card,
+          scaleX: savedScaleX,
+          duration: 100,  // ← УСКОРЕНО: было 200
+          ease: 'Power2.easeOut',
+          onComplete: () => {
+            // Восстанавливаем displaySize ПОСЛЕ tween
+            const targetW = card.getData('targetWidth');
+            const targetH = card.getData('targetHeight');
+            if (targetW && targetH) {
+              card.setDisplaySize(targetW, targetH);
+            }
+          }
+        });
       }
     });
   });
@@ -1391,7 +1391,6 @@ flipAllCardsAndStartGame() {
 
   // ✅ НОВЫЙ КОД:
 // GameScene.js:1334 - ЗАМЕНИТЬ МЕТОД onCardClick
-
 onCardClick(card, event) {
   // Предотвращаем стандартное поведение
   if (event) {
@@ -1405,57 +1404,55 @@ onCardClick(card, event) {
   if (card.getData('isAnimating')) return;
   
   const now = Date.now();
-  if (this._lastClickTime && now - this._lastClickTime < 50) return;
+  if (this._lastClickTime && now - this._lastClickTime < 50) return; // ← ИСПРАВЛЕНО: было 300
   
   // Помечаем карту как анимирующуюся
   card.setData('isAnimating', true);
   this._lastClickTime = now;
   this._processingCards = true;
   
-  // ✅ FIX #4: Анимация flip через смену текстуры (БЕЗ scaleX искажений)
- const savedScaleX = card.scaleX;
+  // Сохраняем scale
+  const savedScaleX = card.scaleX;
   const savedScaleY = card.scaleY;
   const cardKey = card.getData('key');
   
-
-   console.log(`Click: card scales before flip:`, savedScaleX, savedScaleY);
-  
-  card.setData('isAnimating', true);
-  this._lastClickTime = now;
-  this._processingCards = true;
+  console.log(`Click: card scales before flip:`, savedScaleX, savedScaleY);
   
   // Фаза 1: Сжимаем карту до 0 по X (скрываем)
   this.tweens.add({
     targets: card,
     scaleX: 0,
-    duration: 80,
+    duration: 80,  // ← УСКОРЕНО: было 150
     ease: 'Power2.easeIn',
     onComplete: () => {
       // Фаза 2: Меняем текстуру на лицевую сторону
       this.setCardTexture(card, cardKey);
-
-       console.log(`After texture change, scale:`, card.scaleX, card.scaleY);
+      
+      console.log(`After texture change, scale:`, card.scaleX, card.scaleY);
       
       // Фаза 3: Разворачиваем обратно (показываем)
       this.tweens.add({
         targets: card,
         scaleX: savedScaleX,
-        scaleY: savedScaleY,  // ✅ ДОБАВЛЕНО: восстанавливаем scaleY
-        duration: 80,
+        scaleY: savedScaleY,
+        duration: 80,  // ← УСКОРЕНО: было 150
         ease: 'Power2.easeOut',
         onComplete: () => {
-  console.log(`Final scale after flip:`, card.scaleX, card.scaleY);
-  card.setData('isAnimating', false);
-  card.setData('opened', true);
-  this.opened.push(card);
-  
-  // ✅ КРИТИЧНО: Разблокируем СРАЗУ после flip
-  this._processingCards = false;
-  
-  if (this.opened.length === 2) {
-    this.checkPair();
-  }
-}
+          console.log(`Final scale after flip:`, card.scaleX, card.scaleY);
+          
+          // Снимаем флаг анимации
+          card.setData('isAnimating', false);
+          card.setData('opened', true);
+          this.opened.push(card);
+          
+          // ✅ КРИТИЧНО: Разблокируем СРАЗУ
+          this._processingCards = false;
+          
+          // Проверяем пару если открыты 2 карты
+          if (this.opened.length === 2) {
+            this.checkPair();
+          }
+        }
       });
     }
   });
@@ -1515,81 +1512,75 @@ checkPair() {
       this.mistakeText.setText('Ошибок: ' + this.mistakeCount);
     }
 
-      const savedScale1X = card1?.scaleX;
-  const savedScale1Y = card1?.scaleY;
-  const savedScale2X = card2?.scaleX;
-  const savedScale2Y = card2?.scaleY;
+    // Сохраняем scale ДО анимации
+    const savedScale1X = card1?.scaleX;
+    const savedScale1Y = card1?.scaleY;
+    const savedScale2X = card2?.scaleX;
+    const savedScale2Y = card2?.scaleY;
     
-    // Закрываем карты через 800ms
+    // Закрываем карты через 400ms (БЫЛО 800ms)
     this.time.delayedCall(400, () => {
-          // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card1
-   // const savedScale1X = card1.scaleX;
-   // const savedScale1Y = card1.scaleY;
       
-      if (card1 && card1.scene) {
+      if (card1 && card1.scene && card1.active) {
         this.tweens.add({
           targets: card1,
           scaleX: 0,
-          duration: 80,
+          duration: 80,  // ← УСКОРЕНО
           onComplete: () => {
             if (!card1 || !card1.scene || !card1.active) {
-            console.warn('⚠️ card1 destroyed during animation');
-            return;
-          }
+              console.warn('⚠️ card1 destroyed during animation');
+              return;
+            }
             
             this.setCardTexture(card1, 'back');
 
-            // ✅ КРИТИЧНО: Проверка перед вторым tween
-          if (!card1 || !card1.scene || !card1.active) {
-            console.warn('⚠️ card1 destroyed after texture change');
-            return;
-          }
+            if (!card1 || !card1.scene || !card1.active) {
+              console.warn('⚠️ card1 destroyed after texture change');
+              return;
+            }
             
             this.tweens.add({
-            targets: card1,
-            scaleX: savedScale1X,
-            scaleY: savedScale1Y,
-            duration: 80,
-            onComplete: () => {
-              if (card1 && card1.scene && card1.active) {
-                card1.setData('opened', false);
-              } }
+              targets: card1,
+              scaleX: savedScale1X,
+              scaleY: savedScale1Y,
+              duration: 80,  // ← УСКОРЕНО
+              onComplete: () => {
+                if (card1 && card1.scene && card1.active) {
+                  card1.setData('opened', false);
+                }
+              }
             });
           }
         });
       }
 
-          // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card2
-   // const savedScale2X = card2.scaleX;
-   // const savedScale2Y = card2.scaleY;
-      
       if (card2 && card2.scene && card2.active) {
         this.tweens.add({
           targets: card2,
           scaleX: 0,
-          duration: 80,
+          duration: 80,  // ← УСКОРЕНО
           onComplete: () => {
-            // ✅ КРИТИЧНО: Повторная проверка перед текстурой
-          if (!card2 || !card2.scene || !card2.active) {
-            console.warn('⚠️ card2 destroyed during animation');
-            return;
-          }
+            if (!card2 || !card2.scene || !card2.active) {
+              console.warn('⚠️ card2 destroyed during animation');
+              return;
+            }
             
             this.setCardTexture(card2, 'back');
 
-            // ✅ КРИТИЧНО: Проверка перед вторым tween
-          if (!card2 || !card2.scene || !card2.active) {
-            console.warn('⚠️ card2 destroyed after texture change');
-            return;
-          }
+            if (!card2 || !card2.scene || !card2.active) {
+              console.warn('⚠️ card2 destroyed after texture change');
+              return;
+            }
             
             this.tweens.add({
               targets: card2,
-            scaleX: savedScale2X,
-            scaleY: savedScale2Y,  // ✅ ДОБАВЛЕНО
-              duration: 80,
+              scaleX: savedScale2X,
+              scaleY: savedScale2Y,
+              duration: 80,  // ← УСКОРЕНО
               onComplete: () => {
-                card2.setData('opened', false);
+                if (card2 && card2.scene && card2.active) {
+                  card2.setData('opened', false);
+                }
               }
             });
           }
