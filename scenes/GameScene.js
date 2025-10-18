@@ -1444,19 +1444,18 @@ onCardClick(card, event) {
         duration: 80,
         ease: 'Power2.easeOut',
         onComplete: () => {
-          console.log(`Final scale after flip:`, card.scaleX, card.scaleY);
-          // Снимаем флаг анимации
-          card.setData('isAnimating', false);
-          card.setData('opened', true);
-          this.opened.push(card);
-          
-          // Проверяем пару если открыты 2 карты
-          if (this.opened.length === 2) {
-            this.checkPair();
-          } else {
-            this._processingCards = false;
-          }
-        }
+  console.log(`Final scale after flip:`, card.scaleX, card.scaleY);
+  card.setData('isAnimating', false);
+  card.setData('opened', true);
+  this.opened.push(card);
+  
+  // ✅ КРИТИЧНО: Разблокируем СРАЗУ после flip
+  this._processingCards = false;
+  
+  if (this.opened.length === 2) {
+    this.checkPair();
+  }
+}
       });
     }
   });
