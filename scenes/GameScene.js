@@ -1196,6 +1196,15 @@ handleResize(gameSize) {
   if (!this.gameState || !this.cardsContainer) {
     return;
   }
+
+  // ✅ КРИТИЧНО: Удаляем старый контейнер ПЕРЕД созданием нового
+  if (this._isRecreatingLayout) {
+    if (this.cardsContainer) {
+      this.cardsContainer.destroy(true); // ← destroyChildren = true
+      this.cardsContainer = null;
+    }
+  }
+  
     console.log('Resize to:', gameSize.width, 'x', gameSize.height);
 
     // ✅ ДОБАВИТЬ: Обновляем текстовый менеджер
@@ -1216,8 +1225,18 @@ handleResize(gameSize) {
         this.createCardLayout(this.gameState.deck);
     // GameScene.js:1110 - ЗАМЕНИТЬ БЛОК
 } else if (this.cardsContainer && this.gameState.gameStarted) {
-  // ✅ КРИТИЧНО: Пересоздаём layout вместо масштабирования
-  console.log('🔄 Recreating layout during active game');
+  console.log('🔄 Recalculating layout position');
+  
+  // ✅ КРИТИЧНО: Пересчитываем Y-позицию контейнера
+  const rm = window.responsiveManager;
+  const hudH = rm?.getAdaptiveFontSize(80, 60, 100) || 80;
+  this.cardsContainer.y = hudH; // ← FIX: Синхронизируем с текущим HUD
+  
+  // ✅ Масштабируем контейнер вместо пересоздания layout
+  const { W, H } = this.getSceneWH();
+  const scale = Math.min(W / this.scale.width, (H - hudH) / (this.scale.height - hudH));
+  this.cardsContainer.setScale(scale);
+  this.cardsContainer.x = (W - this.cardsContainer.width * scale) / 2;
   
   // Сохраняем состояние карт
   const cardStates = this.cards.map(card => ({
@@ -1349,12 +1368,19 @@ flipAllCardsAndStartGame() {
         this.setCardTexture(card, 'back');
         
         this.tweens.add({
-          targets: card,
-          scaleX: savedScaleX,
-          scaleY: savedScaleY,  // ✅ ДОБАВЛЕНО: восстанавливаем scaleY
-          duration: 200,
-          ease: 'Power2.easeOut'
-        });
+  targets: card,
+  scaleX: savedScaleX,
+  duration: 200,
+  ease: 'Power2.easeOut',
+  onComplete: () => {
+    // ✅ КРИТИЧНО: Восстанавливаем displaySize ПОСЛЕ tween
+    const targetW = card.getData('targetWidth');
+    const targetH = card.getData('targetHeight');
+    if (targetW && targetH) {
+      card.setDisplaySize(targetW, targetH);
+    }
+  }
+});
       }
     });
   });
