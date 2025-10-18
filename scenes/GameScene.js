@@ -1190,24 +1190,17 @@ getSceneWH() {
     return { W: width, H: height };
 }
 
-// УЛУЧШЕННЫЙ МЕТОД: Обработка resize
+// === ЗАМЕНИТЬ ВЕСЬ БЛОК handleResize НА: ===
+
 handleResize(gameSize) {
-  // Добавьте проверку:
+  // ✅ FIX #1: Проверка существования контейнера
   if (!this.gameState || !this.cardsContainer) {
     return;
   }
-
-  // ✅ КРИТИЧНО: Удаляем старый контейнер ПЕРЕД созданием нового
-  if (this._isRecreatingLayout) {
-    if (this.cardsContainer) {
-      this.cardsContainer.destroy(true); // ← destroyChildren = true
-      this.cardsContainer = null;
-    }
-  }
   
-    console.log('Resize to:', gameSize.width, 'x', gameSize.height);
-
-    // ✅ ДОБАВИТЬ: Обновляем текстовый менеджер
+  console.log('Resize to:', gameSize.width, 'x', gameSize.height);
+  
+  // ✅ FIX #2: Обновляем размеры TextManager
   if (this.textManager) {
     this.textManager.updateDimensions();
     
@@ -1219,61 +1212,50 @@ handleResize(gameSize) {
       this.textManager.updateText(this.timeText, 'hudTimer');
     }
   }
-    
-    // Пересчитываем layout только если игра не активна
-    if (!this.gameState.gameStarted && !this.gameState.isMemorizationPhase) {
-        this.createCardLayout(this.gameState.deck);
-    // GameScene.js:1110 - ЗАМЕНИТЬ БЛОК
-} else if (this.cardsContainer && this.gameState.gameStarted) {
-  console.log('🔄 Recalculating layout position');
   
-  // ✅ КРИТИЧНО: Пересчитываем Y-позицию контейнера
-  const rm = window.responsiveManager;
-  const hudH = rm?.getAdaptiveFontSize(80, 60, 100) || 80;
-  this.cardsContainer.y = hudH; // ← FIX: Синхронизируем с текущим HUD
-  
-  // ✅ Масштабируем контейнер вместо пересоздания layout
+  // ✅ FIX #3: КРИТИЧНО - Пересчитываем Y-позицию контейнера!
   const { W, H } = this.getSceneWH();
-  const scale = Math.min(W / this.scale.width, (H - hudH) / (this.scale.height - hudH));
-  this.cardsContainer.setScale(scale);
-  this.cardsContainer.x = (W - this.cardsContainer.width * scale) / 2;
+  const rm = window.responsiveManager || {
+    getAdaptiveFontSize: (base) => Math.floor(H * (base / 1000))
+  };
+  const currentHudH = rm.getAdaptiveFontSize(80, 60, 100);
   
-  // Сохраняем состояние карт
-  const cardStates = this.cards.map(card => ({
-    key: card.getData('key'),
-    opened: card.getData('opened'),
-    matched: card.getData('matched'),
-    index: card.getData('index')
-  }));
+  // ← КЛЮЧЕВАЯ СТРОКА: Синхронизируем позицию с текущим HUD
+  this.cardsContainer.y = currentHudH;
   
-  // Пересоздаём layout
-  this.createCardLayout(this.gameState.deck);
+  // ✅ FIX #4: Масштабируем контейнер вместо пересоздания layout
+  if (this.gameState.gameStarted || this.gameState.isMemorizationPhase) {
+    // Сохраняем aspect ratio контейнера
+    const containerW = this.cardsContainer.getBounds().width;
+    const containerH = this.cardsContainer.getBounds().height;
+    const availableH = H - currentHudH;
+    
+    // Вычисляем scale (fit to screen)
+    const scaleX = W / containerW;
+    const scaleY = availableH / containerH;
+    const scale = Math.min(scaleX, scaleY, 1); // Не увеличиваем больше 1
+    
+    this.cardsContainer.setScale(scale);
+    
+    // Центрируем по горизонтали
+    const scaledW = containerW * scale;
+    this.cardsContainer.x = (W - scaledW) / 2;
+    
+    console.log(`✅ Container repositioned: y=${currentHudH}, scale=${scale.toFixed(2)}`);
+  } else {
+    // Если игра ещё не началась - пересоздаём layout
+    this.createCardLayout(this.gameState.deck);
+  }
   
-  // Восстанавливаем состояние
-  this.cards.forEach((card, index) => {
-    const savedState = cardStates[index];
-    if (savedState) {
-      card.setData('key', savedState.key);
-      card.setData('opened', savedState.opened);
-      card.setData('matched', savedState.matched);
-      
-      // Визуальное восстановление
-      if (savedState.opened || savedState.matched) {
-        this.setCardTexture(card, savedState.key);
-      } else {
-        this.setCardTexture(card, 'back');
-      }
-      
-      if (savedState.matched) {
-        card.setAlpha(window.THEME.cardDimAlpha).disableInteractive();
-      }
-    }
-  });
+  // Перерисовываем фон
+  this.ensureGradientBackground();
   
-  // Перерисовываем HUD
-  this.clearHUD();
-  this.drawHUD();
-}}
+  // Перерисовываем HUD (если нужно)
+  if (!this.gameState.gameStarted && !this.gameState.isMemorizationPhase) {
+    this.clearHUD();
+    this.drawHUD();
+  }
+}
   // 5-секундный показ карт для запоминания
   showCardsForMemorization() {
     console.log('Showing cards for memorization (5 seconds)...');
