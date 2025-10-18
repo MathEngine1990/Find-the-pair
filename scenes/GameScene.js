@@ -835,7 +835,7 @@ setCardTexture(card, textureKey) {
 
   getSceneWH() {
     const s = this.scale, cam = this.cameras?.main;
-    const W = (s && (s.width ?? s.gameSize?.width)) || cam?.width || this.sys.game.config.width || 800;
+    const W = (s && (s.width ?? s.gameSize?.width)) || cam?.width || this.sys.game.config.width || ;
     const H = (s && (s.height ?? s.gameSize?.height)) || cam?.height || this.sys.game.config.height || 600;
     return { W: Math.floor(W), H: Math.floor(H) };
   }
@@ -1311,7 +1311,7 @@ handleResize(gameSize) {
           this.tweens.add({
             targets: countdownText,
             scale: 1.3,
-            duration: 200,
+            duration: 100,
             yoyo: true,
             ease: 'Power2'
           });
@@ -1343,7 +1343,7 @@ flipAllCardsAndStartGame() {
     this.tweens.add({
       targets: card,
       scaleX: 0,
-      duration: 200,
+      duration: 100,
       delay: index * 30,
       ease: 'Power2.easeIn',
       onComplete: () => {
@@ -1352,7 +1352,7 @@ flipAllCardsAndStartGame() {
         this.tweens.add({
   targets: card,
   scaleX: savedScaleX,
-  duration: 200,
+  duration: 100,
   ease: 'Power2.easeOut',
   onComplete: () => {
     // ✅ КРИТИЧНО: Восстанавливаем displaySize ПОСЛЕ tween
@@ -1405,7 +1405,7 @@ onCardClick(card, event) {
   if (card.getData('isAnimating')) return;
   
   const now = Date.now();
-  if (this._lastClickTime && now - this._lastClickTime < 300) return;
+  if (this._lastClickTime && now - this._lastClickTime < 50) return;
   
   // Помечаем карту как анимирующуюся
   card.setData('isAnimating', true);
@@ -1428,7 +1428,7 @@ onCardClick(card, event) {
   this.tweens.add({
     targets: card,
     scaleX: 0,
-    duration: 150,
+    duration: 80,
     ease: 'Power2.easeIn',
     onComplete: () => {
       // Фаза 2: Меняем текстуру на лицевую сторону
@@ -1441,7 +1441,7 @@ onCardClick(card, event) {
         targets: card,
         scaleX: savedScaleX,
         scaleY: savedScaleY,  // ✅ ДОБАВЛЕНО: восстанавливаем scaleY
-        duration: 150,
+        duration: 80,
         ease: 'Power2.easeOut',
         onComplete: () => {
           console.log(`Final scale after flip:`, card.scaleX, card.scaleY);
@@ -1522,7 +1522,7 @@ checkPair() {
   const savedScale2Y = card2?.scaleY;
     
     // Закрываем карты через 800ms
-    this.time.delayedCall(800, () => {
+    this.time.delayedCall(400, () => {
           // ✅ КРИТИЧНО: Сохраняем scale ДО анимации для card1
    // const savedScale1X = card1.scaleX;
    // const savedScale1Y = card1.scaleY;
@@ -1531,7 +1531,7 @@ checkPair() {
         this.tweens.add({
           targets: card1,
           scaleX: 0,
-          duration: 150,
+          duration: 80,
           onComplete: () => {
             if (!card1 || !card1.scene || !card1.active) {
             console.warn('⚠️ card1 destroyed during animation');
@@ -1550,7 +1550,7 @@ checkPair() {
             targets: card1,
             scaleX: savedScale1X,
             scaleY: savedScale1Y,
-            duration: 150,
+            duration: 80,
             onComplete: () => {
               if (card1 && card1.scene && card1.active) {
                 card1.setData('opened', false);
@@ -1568,7 +1568,7 @@ checkPair() {
         this.tweens.add({
           targets: card2,
           scaleX: 0,
-          duration: 150,
+          duration: 80,
           onComplete: () => {
             // ✅ КРИТИЧНО: Повторная проверка перед текстурой
           if (!card2 || !card2.scene || !card2.active) {
@@ -1588,7 +1588,7 @@ checkPair() {
               targets: card2,
             scaleX: savedScale2X,
             scaleY: savedScale2Y,  // ✅ ДОБАВЛЕНО
-              duration: 150,
+              duration: 80,
               onComplete: () => {
                 card2.setData('opened', false);
               }
