@@ -835,7 +835,7 @@ setCardTexture(card, textureKey) {
 
   getSceneWH() {
     const s = this.scale, cam = this.cameras?.main;
-    const W = (s && (s.width ?? s.gameSize?.width)) || cam?.width || this.sys.game.config.width || ;
+    const W = (s && (s.width ?? s.gameSize?.width)) || cam?.width || this.sys.game.config.width || 800;
     const H = (s && (s.height ?? s.gameSize?.height)) || cam?.height || this.sys.game.config.height || 600;
     return { W: Math.floor(W), H: Math.floor(H) };
   }
