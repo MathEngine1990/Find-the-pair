@@ -207,7 +207,7 @@ window.TEXT_PRESETS = {
     max: 42,
     mobileScale: 1.15,   // ⬇️ Уменьшено с 1.2
     landscapeScale: 0.9,
-    font: window.THEME?.fontTitle || 'BoldPixels',
+    font:'BoldPixels',// window.THEME?.fontTitle || 
     color: window.THEME?.colors?.titlePrimary || '#7CDFFF',
     style: 'bold',
     autoStroke: true,
@@ -267,7 +267,7 @@ window.TEXT_PRESETS = {
     min: 16,
     max: 24,
     mobileScale: 1.1,
-    font: window.THEME?.fontTitle,
+    font: 'BoldPixels',//window.THEME?.fontTitle,
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold'
   },
@@ -279,7 +279,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 19,            // ⬇️ Уменьшено с 20
     mobileScale: 1.25,  // ⬇️ Уменьшено с 1.3
-    font: window.THEME?.font || 'BoldPixels',
+    font: 'BoldPixels',//window.THEME?.font || 'BoldPixels',
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold'
   },
@@ -290,7 +290,7 @@ window.TEXT_PRESETS = {
     min: 15,
     max: 20,            // ⬇️ Уменьшено с 22
     mobileScale: 1.25,
-    font: window.THEME?.font,
+    font: 'BoldPixels',//window.THEME?.font,
     color: window.THEME?.colors?.hudTimer || '#4ECDC4',
     style: 'bold'
   },
@@ -302,7 +302,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 22,            // ⬇️ Уменьшено с 24
     mobileScale: 1.3,
-    font: window.THEME?.fontButton || 'BoldPixels',
+    font: 'BoldPixels',//window.THEME?.fontButton || 'BoldPixels',
     color: window.THEME?.colors?.titleThick,
     style: 'bold'
   },
@@ -313,7 +313,7 @@ window.TEXT_PRESETS = {
     min: 18,
     max: 28,            // ⬇️ Уменьшено с 32
     mobileScale: 1.25,
-    font: window.THEME?.fontButton,
+    font: 'BoldPixels',// window.THEME?.fontButton,
     style: 'bold'
   },
 
@@ -325,7 +325,7 @@ window.TEXT_PRESETS = {
     max: 64,
     mobileScale: 1.1,
     landscapeScale: 0.95,
-    font: window.THEME?.fontButton || 'BoldPixels',
+    font: 'BoldPixels',//window.THEME?.fontButton || 'BoldPixels',
     color: window.THEME?.colors?.levelNumber || '#9EF9FF',
     style: 'bold',
     autoStroke2: true,
@@ -342,7 +342,7 @@ window.TEXT_PRESETS = {
     min: 16,            // ⬇️ Уменьшено с 14
     max: 22,            // ⬇️ Уменьшено с 18
     mobileScale: 1.2,
-    font: window.THEME?.font,
+    font: 'BoldPixels',//window.THEME?.font,
     color: window.THEME?.colors?.textSecondary || '#B8C5D6'
   },
 
@@ -352,7 +352,7 @@ window.TEXT_PRESETS = {
     min: 11,            // ⬇️ Уменьшено с 12
     max: 15,            // ⬇️ Уменьшено с 16
     mobileScale: 1.15,
-    font: window.THEME?.font,
+    font: 'BoldPixels',//window.THEME?.font,
     color: window.THEME?.colors?.statsAccuracy || '#A8DADC'
   },
 
@@ -363,7 +363,7 @@ window.TEXT_PRESETS = {
     min: 13,
     max: 18,
     mobileScale: 1.3,
-    font: window.THEME?.font,
+    font: 'BoldPixels',//window.THEME?.font,
     color: window.THEME?.colors?.statsAccuracy || '#A8DADC',
     style: 'normal'
   },
