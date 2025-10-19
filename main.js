@@ -158,14 +158,20 @@ const isVKEnvironment = /vk_(app_id|user_id|platform)/i.test(window.location.sea
 function showGameNotification(message, type = 'info') {
     // Если игра ещё не создана, сохраняем сообщение
     if (!window.game || !window.game.scene) {
-        console.warn('Game notification pending:', message);
-        window.pendingNotifications = window.pendingNotifications || [];
-        window.pendingNotifications.push({ message, type });
-        return;
+       console.warn('⚠️ Game not ready, using native alert:', message);
+       // ✅ Используем нативный alert через сохранённую ссылку
+       if (window._nativeAlert) {
+           window._nativeAlert(message);
+       }
+       return;
     }
     
     const activeScene = window.game.scene.getScenes(true)[0];
-    if (!activeScene) return;
+       if (!activeScene || !activeScene.add || !activeScene.tweens) {
+       console.warn('⚠️ Scene not ready for notifications');
+       if (window._nativeAlert) window._nativeAlert(message);
+       return;
+   }
     
     const { width, height } = activeScene.scale;
     
@@ -215,6 +221,8 @@ function showGameNotification(message, type = 'info') {
         }
     });
 }
+
+  window._nativeAlert = window.alert.bind(window);
 
 // Заменяем все вызовы alert
 window.alert = showGameNotification;
