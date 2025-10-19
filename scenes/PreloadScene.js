@@ -160,6 +160,23 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
 
   // PreloadScene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
 
+  // ПЕРЕД loadGameAssets()
+async preload() {
+  this.createLoadingScreen();
+  this.setupLoadingHandlers();
+  
+  // ✅ ФИХ: Ждём загрузки всех шрифтов
+  try {
+    await document.fonts.ready;
+    console.log('✅ Fonts ready');
+  } catch (e) {
+    console.warn('⚠️ Font load timeout, using fallback');
+  }
+  
+  this.loadGameAssets();
+  this.loadVKAssets();
+}
+
 loadGameAssets() {
   // ✅ FIX: Определяем нужно ли загружать HD версии
   const DPR = window.devicePixelRatio || 1;
