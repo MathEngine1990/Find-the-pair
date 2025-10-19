@@ -742,15 +742,15 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
       if (stats.completedLevels > 0) {
         let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
         
-        if (stats.gamesPlayed > 0) {
-          statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
-          if (stats.perfectGames > 0) {
-            statsText += ` | Идеальных: ${stats.perfectGames}`;
-          }
-          if (stats.bestTime) {
-            statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
-          }
-        }
+        // if (stats.gamesPlayed > 0) {
+        //   statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
+        //   if (stats.perfectGames > 0) {
+        //     statsText += ` | Идеальных: ${stats.perfectGames}`;
+        //   }
+        //   if (stats.bestTime) {
+        //     statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
+        //   }
+        // }
         
         statsElement.setText(statsText);
       }
