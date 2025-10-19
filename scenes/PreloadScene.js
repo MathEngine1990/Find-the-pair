@@ -44,12 +44,13 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     bg.fillRect(0, 0, width, height);
 
     // Логотип/заголовок
-    this.titleText = this.add.text(width/2, height/2 - 100, 'Find the Pair', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '48px',
-      color: '#4ECDC4',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+  // ✅ ФИХ: Теперь используем BoldPixels везде
+  this.titleText = this.add.text(width/2, height/2 - 100, 'Find the Pair', {
+    fontFamily: 'BoldPixels, "Courier New", monospace', // ✅ ИЗМЕНЕНО
+    fontSize: '48px',
+    color: '#4ECDC4',
+    fontStyle: 'bold'
+  }).setOrigin(0.5);
 
     // Описание
     this.subtitleText = this.add.text(width/2, height/2 - 50, 'Тренируйте память с красивыми карточками', {
