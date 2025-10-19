@@ -162,7 +162,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
   // PreloadScene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
 
   // ПЕРЕД loadGameAssets()
-async preload() {
+preload() {
   const { width, height } = this.scale;
   
   // ✅ ФИХ КРИТИЧНО: Загрузить BoldPixels ПЕРВЫМ ДЕЛОМ
@@ -356,6 +356,9 @@ loadGameAssets() {
     // Этот метод вызывается после preload
     // Здесь можно добавить дополнительную логику, если нужно
     this.applyTextureFiltering();
+
+     // ✅ ДОБАВИТЬ: Переход к следующей сцене
+  this.startNextScene();
   }
 
   applyTextureFiltering() {
