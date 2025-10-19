@@ -253,7 +253,7 @@ window.TEXT_PRESETS = {
     min: 18,
     max: 32,
     mobileScale: 1.1,
-    font: window.THEME?.fontTitle,
+    font: 'BoldPixels',
     color: window.THEME?.colors?.titleSecondary || '#4ECDC4',
     style: 'bold',
     autoShadow: true,
