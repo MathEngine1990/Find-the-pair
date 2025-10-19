@@ -1,8 +1,8 @@
 window.THEME = {
   // === ШРИФТЫ ===
-  font: 'BoldPixels,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontTitle: 'BoldPixels, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontButton: 'BoldPixels,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  font: 'BoldPixels',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontTitle: 'BoldPixels',//, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontButton: 'BoldPixels',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
 
 //<link rel="preload" href="fonts/YourFont-Regular.woff2" as="font" type="font/woff2" crossorigin>
 //<link rel="preload" href="fonts/YourFont-Bold.woff2" as="font" type="font/woff2" crossorigin>
