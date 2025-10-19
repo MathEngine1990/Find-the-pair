@@ -162,19 +162,105 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
 
   // ПЕРЕД loadGameAssets()
 async preload() {
-  this.createLoadingScreen();
+  const { width, height } = this.scale;
+  
+  // ✅ ФИХ КРИТИЧНО: Загрузить BoldPixels ПЕРВЫМ ДЕЛОМ
+  await this.loadCustomFont();
+  
+  // Создаем загрузочный экран (теперь с правильным шрифтом)
+  this.createLoadingScreen(width, height);
+  
+  // Настраиваем обработчики загрузки
   this.setupLoadingHandlers();
   
-  // ✅ ФИХ: Ждём загрузки всех шрифтов
-  try {
-    await document.fonts.ready;
-    console.log('✅ Fonts ready');
-  } catch (e) {
-    console.warn('⚠️ Font load timeout, using fallback');
-  }
-  
+  // Единый базовый путь для ассетов
+  this.load.setPath('assets/');
+
+  // Основные ассеты игры
   this.loadGameAssets();
-  this.loadVKAssets();
+  
+  // VK специфичные ассеты (если нужно)
+  if (this.isVKEnvironment) {
+    this.loadVKAssets();
+  }
+}
+
+// ✅ НОВЫЙ МЕТОД: Загрузка кастомного шрифта
+async loadCustomFont() {
+  console.log('🔤 Loading BoldPixels font...');
+  
+  const fontName = 'BoldPixels';
+  const fontPath = 'assets/fonts/BoldPixels.ttf'; // Относительно index.html
+  
+  try {
+    // Проверяем, загружен ли уже через CSS
+    const isFontInDocument = document.fonts.check(`16px "${fontName}"`);
+    
+    if (isFontInDocument) {
+      console.log('✅ BoldPixels already loaded via CSS');
+      return;
+    }
+    
+    // Если нет — загружаем программно
+    console.log('📥 Loading BoldPixels programmatically...');
+    
+    const fontFace = new FontFace(fontName, `url(${fontPath})`);
+    
+    // Загружаем с таймаутом 5 секунд
+    const loadedFont = await Promise.race([
+      fontFace.load(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Font load timeout')), 5000)
+      )
+    ]);
+    
+    // Добавляем в document
+    document.fonts.add(loadedFont);
+    
+    console.log('✅ BoldPixels loaded programmatically');
+    
+    // Ждём готовности всех шрифтов
+    await document.fonts.ready;
+    
+    // Финальная проверка
+    const isReady = document.fonts.check(`16px "${fontName}"`);
+    if (!isReady) {
+      throw new Error('Font check failed after load');
+    }
+    
+    console.log('✅ BoldPixels ready for use');
+    
+  } catch (error) {
+    console.error('❌ Failed to load BoldPixels:', error);
+    console.warn('⚠️ Falling back to system font');
+    
+    // Показать предупреждение пользователю
+    this.showFontErrorNotification();
+  }
+}
+
+// ✅ НОВЫЙ МЕТОД: Уведомление об ошибке шрифта
+showFontErrorNotification() {
+  // Показать временное уведомление
+  const { width, height } = this.scale;
+  
+  const warningText = this.add.text(
+    width / 2, 
+    height - 50, 
+    '⚠️ Кастомный шрифт не загружен',
+    {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '14px',
+      color: '#F39C12',
+      backgroundColor: '#2C3E50',
+      padding: { x: 10, y: 5 }
+    }
+  ).setOrigin(0.5);
+  
+  // Удалить через 3 секунды
+  this.time.delayedCall(3000, () => {
+    warningText.destroy();
+  });
 }
 
 loadGameAssets() {
