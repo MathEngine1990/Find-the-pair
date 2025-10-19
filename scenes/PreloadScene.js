@@ -166,7 +166,7 @@ preload() {
   const { width, height } = this.scale;
   
   // ✅ ФИХ КРИТИЧНО: Загрузить BoldPixels ПЕРВЫМ ДЕЛОМ
-  await this.loadCustomFont();
+  //await this.loadCustomFont();
   
   // Создаем загрузочный экран (теперь с правильным шрифтом)
   this.createLoadingScreen(width, height);
