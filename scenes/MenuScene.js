@@ -948,7 +948,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
   const levelProgress = progressLevels[levelIndex];
     
     // ✅ Создаём контейнеры ОДИН РАЗ при создании кнопки
-    btn.starsContainer = this.add.container(x, y + h * 0.38);
+    btn.starsContainer = this.add.container(x, y + h * 0.45);
     btn.starsContainer.setDepth(btn.depth + 1);
     
     const starSpacing = starSize + 4;
@@ -972,7 +972,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     }
     
     // ✅ Статистика под звёздами
-    btn.statsContainer = this.add.container(x, y + h * 0.52);
+    btn.statsContainer = this.add.container(x, y + h * 0.60);
     btn.statsContainer.setDepth(btn.depth + 1);
     
     if (levelProgress && levelProgress.bestTime) {
