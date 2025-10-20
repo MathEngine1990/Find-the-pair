@@ -15,7 +15,7 @@ window.THEME = {
   colors: {
     // Заголовки
     titlePrimary: '#FFE066',    // Жёлто-золотой (яркий, но не режущий)
-    titleSecondary: '#4ECDC4',  // Бирюзовый (для приветствия VK)
+    titleSecondary: '#C4451A',  // Бирюзовый (для приветствия VK)
     
     // Основной текст
     textPrimary: '#FFFFFF',     // Белый (основной)
