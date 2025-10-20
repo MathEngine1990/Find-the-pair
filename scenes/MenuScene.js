@@ -427,7 +427,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
   title.setOrigin(0.5);
   this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('titleLarge') + 25; // Сдвиг вниз
+    currentY += this.textManager.getSize('titleLarge') + 50; // Сдвиг вниз
     
 
   // ✅ НОВЫЙ КОД: Статистика
