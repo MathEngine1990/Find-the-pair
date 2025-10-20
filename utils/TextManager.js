@@ -87,7 +87,7 @@ window.TextManager = class TextManager {
     return {
       fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
       fontSize: this.getSize(type) + 'px',
-      color: preset.color || '#4ECDC4',
+      color: preset.color || '#C4451A',
       fontStyle: preset.style || 'normal',
       stroke: preset.stroke || null,
       strokeThickness: preset.strokeThickness || 0,
@@ -106,7 +106,7 @@ window.TextManager = class TextManager {
     return {
       fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
       fontSize: this.getSize(type) + 'px',
-      color: preset.color || '#4ECDC4',
+      color: preset.color || '#C4451A',
       fontStyle: preset.style || 'normal',
       stroke: preset.stroke || null,
       strokeThickness: preset.strokeThickness || 0,
