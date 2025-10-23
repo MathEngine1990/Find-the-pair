@@ -291,7 +291,7 @@ window.TEXT_PRESETS = {
     max: 20,            // ⬇️ Уменьшено с 22
     mobileScale: 1.25,
     font: 'BoldPixels',//window.THEME?.font,
-    color: window.THEME?.colors?.hudTimer || '#4ECDC4',
+    color: window.THEME?.colors?.hudTimer || '#FFEBB4',
     style: 'bold'
   },
 

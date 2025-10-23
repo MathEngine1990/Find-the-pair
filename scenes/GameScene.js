@@ -910,7 +910,7 @@ async drawHUD() {
   // ✅ Обновляем размеры TextManager
   this.textManager.updateDimensions();
     
-  const hudH = Math.min(100, Math.round(H * 0.12));
+  const hudH = Math.min(70, Math.round(H * 0.085));
 
   // Фон HUD
   const hud = this.add.graphics().setDepth(5);
@@ -927,7 +927,7 @@ async drawHUD() {
       'hudText'
     );
     this.mistakeText.setOrigin(0, 0.5).setDepth(6);
-    this.mistakeText.setColor('#FF6B6B');
+    this.mistakeText.setColor('#B6561A');
 
     // Таймер
     this.timeText = this.textManager.createText(
