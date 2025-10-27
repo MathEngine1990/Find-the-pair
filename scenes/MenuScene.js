@@ -411,7 +411,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
       'titleMedium'
     );
     greeting.setOrigin(0.5,0);
-    greeting.setColor('#012615');
+    greeting.setColor('#243540');
     this.levelButtons.push(greeting);
 
     currentY += this.textManager.getSize('statLabel') + 30;
