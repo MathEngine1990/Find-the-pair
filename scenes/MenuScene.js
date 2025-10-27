@@ -411,7 +411,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
       'titleMedium'
     );
     greeting.setOrigin(0.5,0);
-    greeting.setColor('#5EFFC9');
+    greeting.setColor('#012615');
     this.levelButtons.push(greeting);
 
     currentY += this.textManager.getSize('statLabel') + 45;
@@ -427,7 +427,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
   title.setOrigin(0.5);
   this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('titleLarge') + 15; // Сдвиг вниз
+    currentY += this.textManager.getSize('titleLarge') + 10; // Сдвиг вниз
     
 
   // ✅ НОВЫЙ КОД: Статистика
