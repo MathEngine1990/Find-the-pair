@@ -401,7 +401,7 @@ clearMenu() {
     // ✅ ДОБАВИТЬ после строки 285:
 const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
 const topSafeZone = safeArea.top + 10; // 10px отступ от notch
-    let currentY = safeArea.top + 30; // Начинаем с safe area
+    let currentY = safeArea.top + 10; // Начинаем с safe area
 
       // ✅ НОВЫЙ КОД: Персонализация для VK
   if (this.vkUserData && this.vkUserData.first_name) {

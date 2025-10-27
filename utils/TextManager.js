@@ -250,11 +250,11 @@ window.TEXT_PRESETS = {
   titleMedium: {
     method: 'height',
     scale: 0.040,        // ⬇️ Уменьшено с 0.045
-    min: 18,
-    max: 32,
+    min: 16,
+    max: 24,
     mobileScale: 1.1,
-    font: 'BoldPixels',
-    color: window.THEME?.colors?.titleSecondary || '#4ECDC4',
+    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.titleSecondary || '#012615',
     style: 'bold',
     autoShadow: true,
     autoStroke2: true,
