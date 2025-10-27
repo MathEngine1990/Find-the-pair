@@ -1,8 +1,10 @@
 window.THEME = {
   // === ШРИФТЫ ===
-  font: 'BoldPixels',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontTitle: 'BoldPixels',//, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontButton: 'BoldPixels',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  font: 'Arial',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontTitle: 'Arial',//, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontButton: 'Arial',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+
+  fontNot: 'Loreley Antiqua',
 
 //<link rel="preload" href="fonts/YourFont-Regular.woff2" as="font" type="font/woff2" crossorigin>
 //<link rel="preload" href="fonts/YourFont-Bold.woff2" as="font" type="font/woff2" crossorigin>
@@ -14,12 +16,12 @@ window.THEME = {
   // 🔥 КРИТИЧНО: Высококонтрастные цвета для читабельности
   colors: {
     // Заголовки
-    titlePrimary: '#FFE066',    // Жёлто-золотой (яркий, но не режущий)
-    titleSecondary: '#C4451A',  // Бирюзовый (для приветствия VK)
+    titlePrimary:  '#FFE066',    // Жёлто-золотой (яркий, но не режущий)
+    titleSecondary: '#F2C791',  // Бирюзовый (для приветствия VK)
     
     // Основной текст
     textPrimary: '#FFFFFF',     // Белый (основной)
-    textSecondary: '#C4451A',   // Светло-серый (статистика)
+    textSecondary: '#BF3715',   // Светло-серый (статистика)
     textMuted: '#8A9BAE',       // Приглушённый (неактивные элементы)
     
     // Акцентные цвета
@@ -32,11 +34,13 @@ window.THEME = {
     stars: '#FFD36E',           // Золотой (заполненные звёзды)
     starsEmpty: '#4A5568',      // Тёмно-серый (пустые звёзды)
     statsTime: '#4ECDC4',       // Бирюзовый (время)
-    statsAccuracy: '#A8DADC',   // Светло-бирюзовый (точность)
+    statsAccuracy: '#243540',   // Светло-бирюзовый (точность)
     
     // Кнопки уровней
-    levelNumber: '#1A1A2E00',     // Почти чёрный (контраст с оранжевым фоном)
+    levelNumber: '#3A5939',     // Почти чёрный (контраст с оранжевым фоном)
     levelNumberShadow: 'rgba(255, 107, 53, 0.8)', // Оранжевая тень
+
+    titleThick: '#BF3715', // Оранжевая тень
     
     // HUD
     hudTimer: '#4ECDC4',        // Бирюзовый (таймер)
@@ -73,11 +77,15 @@ window.THEME = {
   // === ОБВОДКА ===
   strokes: {
     titleThick: {
-      color: '#000000',
+      color: '#3A5939',
       thickness: 4
     },
+        titleThick2: {
+      color: '#BF3715',
+      thickness: 2
+    },
     titleThick3: {
-      color: '##8000ff',
+      color: '#012615',
       thickness: 4
     },
     titleThin: {

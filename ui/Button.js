@@ -1,6 +1,6 @@
-//---ui/Button.js - путь отдельного файл
-// Без инлайна. Зона клика = zone, визуал = img + text.
-// Никаких числовых '700' в fontStyle (только 'bold', 'italic' и т.п.)
+//---ui/Button.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// ✅ Добавлена поддержка кастомных цветов фона/границы для makeIconButton
+// ✅ Цвета можно передавать через opts.bgColor и opts.borderColor
 
 window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
   const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
@@ -18,8 +18,8 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     fontSize: `${fs}px`,
     fontStyle: (window.THEME?.buttonStyle || 'bold'),
     color,
-        stroke: '#000000',
-        strokeThickness: 2
+    stroke: '#000000',
+    strokeThickness: 2
   }).setOrigin(0.5).setScrollFactor(0);
   
   const zone = scene.add.zone(0, 0, w, h)
@@ -27,7 +27,6 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     .setInteractive({ useHandCursor: true })
     .setScrollFactor(0);
   
-  // ВАЖНО: Объявление children должно быть ПОСЛЕ создания img, txt, zone
   const children = [img, txt, zone];
   const cont = scene.add.container(Math.round(x), Math.round(y), children);
   
@@ -46,14 +45,22 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
   return cont;
 };
 
+// 🔥 НОВОЕ: Поддержка кастомных цветов фона и границы
 window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}){
-  const color      = opts.color      || (window.THEME?.buttonTextColor || '#FFFFFF');
-  const hoverColor = opts.hoverColor || color;
+  const color       = opts.color       || (window.THEME?.buttonTextColor || '#B6561A');
+  const hoverColor  = opts.hoverColor  || color;
+  const bgColor     = opts.bgColor     || 0x000000;  // 🔥 НОВОЕ: цвет фона (hex number)
+  const borderColor = opts.borderColor || 0xFFFFFF;  // 🔥 НОВОЕ: цвет границы (hex number)
+  const bgAlpha     = opts.bgAlpha     || 0;         // 🔥 НОВОЕ: прозрачность фона (0-1)
+  const borderAlpha = opts.borderAlpha || 0.5;       // 🔥 НОВОЕ: прозрачность границы (0-1)
+  const borderWidth = opts.borderWidth || 2;         // 🔥 НОВОЕ: толщина границы
+  
   const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
   const ts         = Math.round(size * (opts.fontFactor ?? 0.34));
   
-  const bg  = scene.add.circle(0, 0, size/2, 0x000000, 0).setScrollFactor(0);
-  bg.setStrokeStyle(2, 0xFFFFFF, 0.5);
+  // ✅ Используем переданные цвета вместо хардкода
+  const bg  = scene.add.circle(0, 0, size/2, bgColor, bgAlpha).setScrollFactor(0);
+  bg.setStrokeStyle(borderWidth, borderColor, borderAlpha);
   
   const txt = scene.add.text(0, 0, iconText, {
     fontFamily, 
@@ -80,7 +87,8 @@ window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}
     scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); 
   });
   
-  cont.label = txt; 
+  cont.label = txt;
+  cont.bg = bg;  // 🔥 НОВОЕ: сохраняем ссылку на фон
   cont.zone = zone;
   return cont;
 };

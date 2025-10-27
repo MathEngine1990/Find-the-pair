@@ -85,7 +85,7 @@ window.TextManager = class TextManager {
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
     
     return {
-      fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
+      fontFamily:   preset.font || window.THEME?.font || 'BoldPixels',
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#C4451A',
       fontStyle: preset.style || 'normal',
@@ -104,7 +104,7 @@ window.TextManager = class TextManager {
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
     
     return {
-      fontFamily:   'BoldPixels',// || preset.font || window.THEME.font,
+      fontFamily:   preset.font || window.THEME?.font || 'BoldPixels',
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#C4451A',
       fontStyle: preset.style || 'normal',
@@ -123,7 +123,7 @@ window.TextManager = class TextManager {
    * Создать адаптивный текст
    */
   createText(x, y, content, type, overrides = {}) {
-    const style = isMobile ? this.getStyle(type, overrides) : this.getStyle2(type, overrides) ;
+    const style = this.isMobile ? this.getStyle(type, overrides) : this.getStyle2(type, overrides) ;
     const text = this.scene.add.text(x, y, content, style);
     
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
@@ -156,7 +156,7 @@ window.TextManager = class TextManager {
   }
 
     if (preset.autoStroke2) {
-    const strokeCfg = preset.stroke || THEME.strokes?.titleThick || {};
+    const strokeCfg = preset.stroke || THEME.strokes?.titleThick2 || {};
     const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
     
     text.setStroke(
@@ -207,8 +207,8 @@ window.TEXT_PRESETS = {
     max: 42,
     mobileScale: 1.15,   // ⬇️ Уменьшено с 1.2
     landscapeScale: 0.9,
-    font:'BoldPixels',// window.THEME?.fontTitle || 
-    color: window.THEME?.colors?.titlePrimary || '#C4451A',
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.titlePrimary || '#F2DC9B',
     style: 'bold',
     autoStroke: true,
     autoShadow: true,
@@ -225,10 +225,10 @@ window.TEXT_PRESETS = {
     max: 48,             // ← Больше максимум
     mobileScale: 0.5,    // ← Не нужен множитель
     landscapeScale: 0.85,
-    font: 'BoldPixels',
-    color: window.THEME?.colors?.titlePrimary,
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.titlePrimary || '#F2DC9B',
     style: 'bold',
-    autoStroke: true,
+    autoStroke2: true,
     autoShadow: true,
     shadowConfig: window.THEME?.shadows?.title,
     strokeConfig: window.THEME?.strokes?.titleThick
@@ -240,10 +240,10 @@ window.TEXT_PRESETS = {
     scale: 0.050,        // ← Меньше для десктопа
     min: 32,
     max: 56,
-    font: 'BoldPixels',
-    color: window.THEME?.colors?.titlePrimary || '#7CDFFF',
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.titlePrimary || '#F2DC9B',
     style: 'bold',
-    autoStroke3: true,
+    autoStroke2: true,
     autoShadow: true
   },
 
@@ -279,7 +279,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 19,            // ⬇️ Уменьшено с 20
     mobileScale: 1.25,  // ⬇️ Уменьшено с 1.3
-    font: 'BoldPixels',//window.THEME?.font || 'BoldPixels',
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold'
   },
@@ -290,7 +290,7 @@ window.TEXT_PRESETS = {
     min: 15,
     max: 20,            // ⬇️ Уменьшено с 22
     mobileScale: 1.25,
-    font: 'BoldPixels',//window.THEME?.font,
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.hudTimer || '#FFEBB4',
     style: 'bold'
   },
@@ -303,7 +303,7 @@ window.TEXT_PRESETS = {
     max: 22,            // ⬇️ Уменьшено с 24
     mobileScale: 1.3,
     font: 'BoldPixels',//window.THEME?.fontButton || 'BoldPixels',
-    color: window.THEME?.colors?.titleThick,
+    color: '#F2C791',
     style: 'bold'
   },
 
@@ -325,8 +325,8 @@ window.TEXT_PRESETS = {
     max: 64,
     mobileScale: 1.1,
     landscapeScale: 0.95,
-    font: 'BoldPixels',//window.THEME?.fontButton || 'BoldPixels',
-    color: window.THEME?.colors?.levelNumber || '#9EF9FF',
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
+    color: window.THEME?.colors?.levelNumber || '#F2C791',
     style: 'bold',
     autoStroke2: true,
     autoShadow: true//,
@@ -338,12 +338,12 @@ window.TEXT_PRESETS = {
   // === СТАТИСТИКА ===
   statLabel: {
     method: 'height',
-    scale: 0.024,        // ⬇️ Уменьшено с 0.022
-    min: 16,            // ⬇️ Уменьшено с 14
-    max: 22,            // ⬇️ Уменьшено с 18
-    mobileScale: 1.2,
-    font: 'BoldPixels',//window.THEME?.font,
-    color: window.THEME?.colors?.textSecondary || '#B8C5D6'
+    scale: 0.018,        // ⬇️ Уменьшено с 0.022
+    min: 11,            // ⬇️ Уменьшено с 14
+    max: 15,            // ⬇️ Уменьшено с 18
+    mobileScale: 1.15,
+    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.textSecondary || '#243540'
   },
 
   statValue: {
@@ -352,8 +352,8 @@ window.TEXT_PRESETS = {
     min: 11,            // ⬇️ Уменьшено с 12
     max: 15,            // ⬇️ Уменьшено с 16
     mobileScale: 1.15,
-    font: 'BoldPixels',//window.THEME?.font,
-    color: window.THEME?.colors?.statsAccuracy || '#A8DADC'
+    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.statsAccuracy || '#243540'//'#3A5939'
   },
 
   // 🔥 НОВОЕ: Статистика под кнопками уровней
@@ -364,7 +364,7 @@ window.TEXT_PRESETS = {
     max: 18,
     mobileScale: 1.3,
     font: 'BoldPixels',//window.THEME?.font,
-    color: window.THEME?.colors?.statsAccuracy || '#A8DADC',
+    color: window.THEME?.colors?.statsAccuracy || '#243540',
     style: 'normal'
   },
 
@@ -375,7 +375,7 @@ window.TEXT_PRESETS = {
     min: 16,
     max: 26,
     mobileScale: 1.15,
-    font: window.THEME?.font,
+    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
     style: 'bold'
   },
 
@@ -386,7 +386,7 @@ window.TEXT_PRESETS = {
     min: 19,
     max: 30,
     mobileScale: 1.1,
-    font: window.THEME?.fontTitle,
+    get font() { return window.THEME?.fontTitle || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold',
     autoStroke: true,
@@ -399,7 +399,7 @@ window.TEXT_PRESETS = {
     min: 13,
     max: 17,
     mobileScale: 1.1,
-    font: window.THEME?.font,
+    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8',
     wordWrap: { widthFactor: 0.85 }
   },
@@ -411,7 +411,7 @@ window.TEXT_PRESETS = {
     min: 15,
     max: 20,
     mobileScale: 1.15,
-    font: window.THEME?.font,
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.accent || '#FF6B35',
     style: 'bold'
   },
@@ -422,7 +422,7 @@ window.TEXT_PRESETS = {
     min: 11,
     max: 15,
     mobileScale: 1.15,
-    font: window.THEME?.font,
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8'
   },
 
@@ -433,9 +433,10 @@ window.TEXT_PRESETS = {
     min: 17,
     max: 26,
     mobileScale: 1.2,
-    font: window.THEME?.font,
-    color: window.THEME?.colors?.notificationText || '#FFE066',
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
+    color: window.THEME?.colors?.notificationText || '#FFEBB4',
     style: 'bold',
+    autoStroke: true,
     autoShadow: true,
     shadowConfig: window.THEME?.shadows?.title
   },
@@ -446,8 +447,8 @@ window.TEXT_PRESETS = {
     min: 30,
     max: 52,
     mobileScale: 1.1,
-    font: window.THEME?.fontTitle,
-    color: window.THEME?.colors?.error || '#E74C3C',
+    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    color: window.THEME?.colors?.error || '#CE8535',
     style: 'bold',
     autoStroke: true,
     strokeConfig: window.THEME?.strokes?.titleThick
@@ -459,7 +460,7 @@ window.TEXT_PRESETS = {
     scale: 0.023,
     min: 13,
     max: 19,
-    font: window.THEME?.font,
+    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
     color: window.THEME?.colors?.textPrimary || '#FFFFFF'
   }
 };

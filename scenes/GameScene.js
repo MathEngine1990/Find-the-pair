@@ -965,6 +965,7 @@ async drawHUD() {
       this.scene.start('MenuScene', { page: this.levelPage }); 
     }
   );
+  
   homeBtn.setDepth(7);
   this.exitBtn = homeBtn;
   
@@ -1639,8 +1640,8 @@ checkPair() {
   const panelY = H/2;
 
   const panel = this.add.graphics();
-  panel.fillStyle(0x2C3E50, 0.95);
-  panel.lineStyle(3, 0x3498DB, 0.8);
+  panel.fillStyle(0x243540, 0.95);
+  panel.lineStyle(3, 0x3A5939, 0.8);
   panel.fillRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
   panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
   this.victoryContainer.add(panel);
@@ -1649,26 +1650,26 @@ checkPair() {
   const title = this.textManager.createText(
     panelX, panelY - panelH/2 + 50,
     'ПОБЕДА!',
-    'titleLarge'
+     'titleLarge'
   );
   title.setOrigin(0.5);
-  title.setColor('#F39C12');
+  title.setColor('#F2DC9B');
   this.victoryContainer.add(title);
 
   // Звездочки (без изменений)
   this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
 
   // ✅ НОВЫЙ КОД: Статистика
-  const statsY = panelY - panelH/2 + 160;
+  const statsY = panelY - panelH/2 + 180;
   const lineHeight = this.textManager.getSize('statLabel') * 1.8; // Межстрочный интервал
 
   const timeText = this.textManager.createText(
     panelX, statsY,
     `Время: ${this.formatTime(gameTime)}`,
-    'statLabel'
+     'statLabel'
   );
   timeText.setOrigin(0.5);
-  timeText.setColor('#4ECDC4');
+  timeText.setColor('#F2C791');
   this.victoryContainer.add(timeText);
 
   const attemptsText = this.textManager.createText(
@@ -1677,6 +1678,7 @@ checkPair() {
     'statValue'
   );
   attemptsText.setOrigin(0.5);
+  attemptsText.setColor('#F2C791');
   this.victoryContainer.add(attemptsText);
 
   const errorsText = this.textManager.createText(
@@ -1685,7 +1687,7 @@ checkPair() {
     'statValue'
   );
   errorsText.setOrigin(0.5);
-  errorsText.setColor('#E74C3C');
+  errorsText.setColor('#BF3715');
   this.victoryContainer.add(errorsText);
 
   const accuracyText = this.textManager.createText(
@@ -1694,7 +1696,7 @@ checkPair() {
     'statValue'
   );
   accuracyText.setOrigin(0.5);
-  accuracyText.setColor('#2ECC71');
+  accuracyText.setColor('#F2C791');
   this.victoryContainer.add(accuracyText);
 
   // Улучшение результата (если есть)
@@ -1716,7 +1718,7 @@ checkPair() {
       'statValue'
     );
     syncText.setOrigin(0.5);
-    syncText.setColor('#27AE60');
+    syncText.setColor('#02733E');
     this.victoryContainer.add(syncText);
   } else if (progressResult.syncError) {
     const syncErrorText = this.textManager.createText(
@@ -1725,7 +1727,7 @@ checkPair() {
       'statValue'
     );
     syncErrorText.setOrigin(0.5);
-    syncErrorText.setColor('#E74C3C');
+    syncErrorText.setColor('#BF3715');
     this.victoryContainer.add(syncErrorText);
   }
 
@@ -1737,9 +1739,11 @@ checkPair() {
   const playAgainBtn = window.makeImageButton(
     this, panelX - btnW/2 - 10, btnY, btnW, btnH,
     'Еще раз',
-    () => this.restartLevel()
+    () => this.restartLevel(),
+    {color: '#F2C791'}
   );
   playAgainBtn.setDepth(102);
+  //playAgainBtn.setColor('#F2C791');
 
   const menuBtn = window.makeImageButton(
     this, panelX + btnW/2 + 10, btnY, btnW, btnH,
@@ -1748,9 +1752,11 @@ checkPair() {
       this.clearVictoryScreen();
       this.gameState.gameStarted = false;
       this.scene.start('MenuScene', { page: this.levelPage });
-    }
+    },
+    {color: '#F2C791'}
   );
   menuBtn.setDepth(102);
+ // menuBtn.setColor('#F2C791');
 
   this.victoryElements = [playAgainBtn, menuBtn];
 }
@@ -2172,9 +2178,10 @@ checkPair() {
     for (let i = 1; i <= 3; i++) {
       const starX = x + (i - 2) * starSpacing;
       const filled = i <= stars;
-      const star = this.add.text(starX, y, filled ? '★' : '☆', {
+      const star = this.add.text(starX, y, filled ? '♣' : '♧', {
         fontSize: `${starSize}px`,
-        color: filled ? '#FFD700' : '#666666'
+        color: filled ? '#F2DC9B' : '#BF3715' ,
+        fontStyle: 'bold'
       }).setOrigin(0.5)
         .setDepth(102); // ← ДОБАВИТЬ depth
       
@@ -2204,11 +2211,11 @@ checkPair() {
     }
     
     // Текст с количеством звёзд
-    const starsText = `${stars}/3 ⭐`;
-    const starsLabel = this.add.text(x, y + 50, starsText, {
+    const starsText = `${stars}/3 ♣`;
+    const starsLabel = this.add.text(x, y + 35, starsText, {
       fontFamily: 'Arial, sans-serif',
       fontSize: '18px',
-      color: '#F39C12',
+      color: '#F2DC9B',
       fontStyle: 'bold'
     }).setOrigin(0.5)
       .setDepth(102); // ← ДОБАВИТЬ depth

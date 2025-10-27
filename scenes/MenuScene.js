@@ -401,7 +401,7 @@ clearMenu() {
     // ✅ ДОБАВИТЬ после строки 285:
 const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
 const topSafeZone = safeArea.top + 10; // 10px отступ от notch
-    let currentY = safeArea.top + 10; // Начинаем с safe area
+    let currentY = safeArea.top + 30; // Начинаем с safe area
 
       // ✅ НОВЫЙ КОД: Персонализация для VK
   if (this.vkUserData && this.vkUserData.first_name) {
@@ -509,9 +509,30 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     const prevActive = this.levelPage > 0;
     const nextActive = this.levelPage < PAGES - 1;
 
+    // Например, оранжевый цвет:
+const arrowColors = {
+  color: '#FFFFFF',
+  hoverColor: '#E67E22',
+  bgColor: 0x3E2723,
+  borderColor: 0xE67E22,
+  bgAlpha: 0.8,
+  borderAlpha: 1.0,
+  borderWidth: 3
+};
+
     // Кнопка "Назад"
     const prevBtn = window.makeIconButton(this, W * 0.25, yNav, navSize, '‹', () => {
         if (prevActive) this.drawMenu(this.levelPage - 1);
+          () => this.drawMenu(page - 1),
+  {
+    color: '#FFCC00',        // Цвет текста стрелки (← →)
+    hoverColor: '#FFF700',   // Цвет при наведении
+    bgColor: 0x1A3A5C,       // Цвет фона (hex number, БЕЗ '#')
+    bgAlpha: 0.8,            // Прозрачность фона (0-1)
+    borderColor: 0x4A90E2,   // Цвет границы (hex number)
+    borderAlpha: 1.0,        // Прозрачность границы (0-1)
+    borderWidth: 3           // Толщина границы (px)
+  }
     });
     prevBtn.setAlpha(prevActive ? 1 : 0.45);
     this.levelButtons.push(prevBtn);
@@ -531,8 +552,22 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
   this.levelButtons.push(pageTxt);
 
     // Кнопка "Вперед"
-    const nextBtn = window.makeIconButton(this, W * 0.75, yNav, navSize, '›', () => {
-        if (nextActive) this.drawMenu(this.levelPage + 1);
+    const nextBtn = window.makeIconButton(this, 
+    W * 0.75, 
+    yNav, 
+    navSize, 
+    '›', 
+    () => {
+        if (nextActive) this.drawMenu(this.levelPage + 1),
+        {
+    color: '#FFCC00',        // Цвет текста стрелки (← →)
+    hoverColor: '#FFF700',   // Цвет при наведении
+    bgColor: 0x1A3A5C,       // Цвет фона (hex number, БЕЗ '#')
+    bgAlpha: 0.8,            // Прозрачность фона (0-1)
+    borderColor: 0x4A90E2,   // Цвет границы (hex number)
+    borderAlpha: 1.0,        // Прозрачность границы (0-1)
+    borderWidth: 3           // Толщина границы (px)
+  }
     });
     nextBtn.setAlpha(nextActive ? 1 : 0.45);
     this.levelButtons.push(nextBtn);
@@ -696,7 +731,7 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
         '3. Возрастные ограничения\n' +
         'Возрастное ограничение: 0+\n\n' +
         '4. Контакты\n' +
-        'По вопросам: support@findpair-game.example', 
+        'По вопросам: mr.kinder@mail.ru', 
         {
             fontFamily: 'BoldPixels, sans-serif',
             fontSize: Math.max(16, Math.round(H * 0.025)) + 'px',
@@ -768,8 +803,8 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     if (button.starsContainer && button.starsContainer.list) {
         button.starsContainer.list.forEach((starText, index) => {
             const filled = (index + 1) <= stars;
-            starText.setText(filled ? '★' : '☆');
-            starText.setColor(filled ? '#FFD700' : '#666666');
+            starText.setText(filled ? '♣' : '♧');
+            starText.setColor(filled ? '#5B818F' : '#F2C791');
         });
     }
     
@@ -844,7 +879,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
       .setDepth(1001);
 
     const title = this.add.text(W/2, H/2 - modalH/2 + 50, 'Пользовательское соглашение', {
-      fontFamily: 'BoldPixels, sans-serif',
+      fontFamily: 'Loreley Antiqua',
       fontSize: '24px',
       color: '#FFFFFF',
       fontStyle: 'bold'
@@ -864,7 +899,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
 Версия: 2025-09-13`;
 
     const text = this.add.text(W/2, H/2 - 50, agreementText, {
-      fontFamily: 'BoldPixels, sans-serif',
+      fontFamily: 'Arial',
       fontSize: '14px',
       color: '#E8E8E8',
       align: 'center',
@@ -933,7 +968,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     
   // 🔥 НОВОЕ: Номер уровня с правильным пресетом
   const levelText = this.textManager.createText(
-    0, -h*0.02,  // ⬆️ Чуть выше, чтобы не перекрывались звёзды
+    0, h*0.03,  // ⬆️ Чуть выше, чтобы не перекрывались звёзды
     lvl.label,
     'levelNumber'  // ⬅️ ИЗМЕНЕНО: используем новый пресет
   );
@@ -948,7 +983,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
   const levelProgress = progressLevels[levelIndex];
     
     // ✅ Создаём контейнеры ОДИН РАЗ при создании кнопки
-    btn.starsContainer = this.add.container(x, y + h * 0.45);
+    btn.starsContainer = this.add.container(x, y + h * 0.52);
     btn.starsContainer.setDepth(btn.depth + 1);
     
     const starSpacing = starSize + 4;
@@ -957,9 +992,9 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     for (let star = 1; star <= 3; star++) {
         const starX = (star - 2) * starSpacing;
         const filled = star <= stars;
-        const starText = this.add.text(starX, 0, filled ? '★' : '☆', {
+        const starText = this.add.text(starX, 0, filled ? '♣' : '♧', {
             fontSize: starSize + 'px',
-            color: filled ? '#FFD700' : '#666666',
+            color: filled ? '#243540' : '#F2DC9B',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
@@ -972,7 +1007,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     }
     
     // ✅ Статистика под звёздами
-    btn.statsContainer = this.add.container(x, y + h * 0.60);
+    btn.statsContainer = this.add.container(x, y + h * 0.65);
     btn.statsContainer.setDepth(btn.depth + 1);
     
     if (levelProgress && levelProgress.bestTime) {
