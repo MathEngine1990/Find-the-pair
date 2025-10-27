@@ -521,7 +521,7 @@ const arrowColors = {
 };
 
     // Кнопка "Назад"
-    const prevBtn = window.makeIconButton(this, W * 0.25, yNav, navSize, '‹', () => {
+    const prevBtn = window.makeIconButton(this, W * 0.25, yNav+20, navSize, '‹', () => {
         if (prevActive) this.drawMenu(this.levelPage - 1);
           () => this.drawMenu(page - 1),
   {
@@ -544,7 +544,7 @@ const arrowColors = {
     );
     
   const pageTxt = this.textManager.createText(
-    W * 0.5, yNav,
+    W * 0.5, yNav+20,
     `${this.levelPage + 1} / ${PAGES}`,
     'buttonText'
   );
@@ -554,7 +554,7 @@ const arrowColors = {
     // Кнопка "Вперед"
     const nextBtn = window.makeIconButton(this, 
     W * 0.75, 
-    yNav, 
+    yNav+20, 
     navSize, 
     '›', 
     () => {
