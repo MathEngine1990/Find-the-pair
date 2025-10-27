@@ -733,7 +733,7 @@ const arrowColors = {
         '4. Контакты\n' +
         'По вопросам: mr.kinder@mail.ru', 
         {
-            fontFamily: 'BoldPixels, sans-serif',
+            fontFamily: 'Loreley Antiqua, sans-serif',
             fontSize: Math.max(16, Math.round(H * 0.025)) + 'px',
             color: '#FFFFFF',
             wordWrap: { width: Math.min(W * 0.8, 800) },
@@ -830,7 +830,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     bg.fillRoundedRect(-100, -15, 200, 30, 15);
     
     const text = this.add.text(0, 0, message, {
-      fontFamily: 'BoldPixels, sans-serif',
+      fontFamily: 'Loreley Antiqua, sans-serif',
       fontSize: '14px',
       color: '#FFFFFF',
       fontStyle: 'bold'

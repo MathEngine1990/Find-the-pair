@@ -85,7 +85,7 @@ window.TextManager = class TextManager {
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
     
     return {
-      fontFamily:   preset.font || window.THEME?.font || 'BoldPixels',
+      fontFamily:   preset.font || window.THEME?.font || 'Loreley Antiqua',
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#C4451A',
       fontStyle: preset.style || 'normal',
@@ -104,7 +104,7 @@ window.TextManager = class TextManager {
     const preset = TEXT_PRESETS[type] || TEXT_PRESETS.default;
     
     return {
-      fontFamily:   preset.font || window.THEME?.font || 'BoldPixels',
+      fontFamily:   preset.font || window.THEME?.font || 'Loreley Antiqua',
       fontSize: this.getSize(type) + 'px',
       color: preset.color || '#C4451A',
       fontStyle: preset.style || 'normal',
@@ -207,7 +207,7 @@ window.TEXT_PRESETS = {
     max: 42,
     mobileScale: 1.15,   // ⬇️ Уменьшено с 1.2
     landscapeScale: 0.9,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.titlePrimary || '#F2DC9B',
     style: 'bold',
     autoStroke: true,
@@ -225,7 +225,7 @@ window.TEXT_PRESETS = {
     max: 48,             // ← Больше максимум
     mobileScale: 0.5,    // ← Не нужен множитель
     landscapeScale: 0.85,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.titlePrimary || '#F2DC9B',
     style: 'bold',
     autoStroke2: true,
@@ -240,7 +240,7 @@ window.TEXT_PRESETS = {
     scale: 0.050,        // ← Меньше для десктопа
     min: 32,
     max: 56,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.titlePrimary || '#F2DC9B',
     style: 'bold',
     autoStroke2: true,
@@ -253,7 +253,7 @@ window.TEXT_PRESETS = {
     min: 16,
     max: 24,
     mobileScale: 1.1,
-    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.titleSecondary || '#012615',
     style: 'bold',
     autoShadow: true,
@@ -267,7 +267,7 @@ window.TEXT_PRESETS = {
     min: 16,
     max: 24,
     mobileScale: 1.1,
-    font: 'BoldPixels',//window.THEME?.fontTitle,
+    font: 'Loreley Antiqua',//window.THEME?.fontTitle,
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold'
   },
@@ -279,7 +279,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 19,            // ⬇️ Уменьшено с 20
     mobileScale: 1.25,  // ⬇️ Уменьшено с 1.3
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold'
   },
@@ -290,7 +290,7 @@ window.TEXT_PRESETS = {
     min: 15,
     max: 20,            // ⬇️ Уменьшено с 22
     mobileScale: 1.25,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.hudTimer || '#FFEBB4',
     style: 'bold'
   },
@@ -302,7 +302,7 @@ window.TEXT_PRESETS = {
     min: 14,
     max: 22,            // ⬇️ Уменьшено с 24
     mobileScale: 1.3,
-    font: 'BoldPixels',//window.THEME?.fontButton || 'BoldPixels',
+    font: 'Loreley Antiqua',//window.THEME?.fontButton || 'Loreley Antiqua',
     color: '#F2C791',
     style: 'bold'
   },
@@ -313,7 +313,7 @@ window.TEXT_PRESETS = {
     min: 18,
     max: 28,            // ⬇️ Уменьшено с 32
     mobileScale: 1.25,
-    font: 'BoldPixels',// window.THEME?.fontButton,
+    font: 'Loreley Antiqua',// window.THEME?.fontButton,
     style: 'bold'
   },
 
@@ -342,7 +342,7 @@ window.TEXT_PRESETS = {
     min: 11,            // ⬇️ Уменьшено с 14
     max: 15,            // ⬇️ Уменьшено с 18
     mobileScale: 1.15,
-    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.textSecondary || '#243540'
   },
 
@@ -352,7 +352,7 @@ window.TEXT_PRESETS = {
     min: 11,            // ⬇️ Уменьшено с 12
     max: 15,            // ⬇️ Уменьшено с 16
     mobileScale: 1.15,
-    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.statsAccuracy || '#243540'//'#3A5939'
   },
 
@@ -363,7 +363,7 @@ window.TEXT_PRESETS = {
     min: 13,
     max: 18,
     mobileScale: 1.3,
-    font: 'BoldPixels',//window.THEME?.font,
+    font: 'Loreley Antiqua',//window.THEME?.font,
     color: window.THEME?.colors?.statsAccuracy || '#243540',
     style: 'normal'
   },
@@ -375,7 +375,7 @@ window.TEXT_PRESETS = {
     min: 16,
     max: 26,
     mobileScale: 1.15,
-    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     style: 'bold'
   },
 
@@ -386,7 +386,7 @@ window.TEXT_PRESETS = {
     min: 19,
     max: 30,
     mobileScale: 1.1,
-    get font() { return window.THEME?.fontTitle || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontTitle || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.textPrimary || '#FFFFFF',
     style: 'bold',
     autoStroke: true,
@@ -399,7 +399,7 @@ window.TEXT_PRESETS = {
     min: 13,
     max: 17,
     mobileScale: 1.1,
-    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8',
     wordWrap: { widthFactor: 0.85 }
   },
@@ -411,7 +411,7 @@ window.TEXT_PRESETS = {
     min: 15,
     max: 20,
     mobileScale: 1.15,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.accent || '#FF6B35',
     style: 'bold'
   },
@@ -422,7 +422,7 @@ window.TEXT_PRESETS = {
     min: 11,
     max: 15,
     mobileScale: 1.15,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8'
   },
 
@@ -447,7 +447,7 @@ window.TEXT_PRESETS = {
     min: 30,
     max: 52,
     mobileScale: 1.1,
-    get font() { return window.THEME?.fontNot || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.error || '#CE8535',
     style: 'bold',
     autoStroke: true,
@@ -460,7 +460,7 @@ window.TEXT_PRESETS = {
     scale: 0.023,
     min: 13,
     max: 19,
-    get font() { return window.THEME?.font || 'BoldPixels'; },  // ✅ Геттер
+    get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.textPrimary || '#FFFFFF'
   }
 };
