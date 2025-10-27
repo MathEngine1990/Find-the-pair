@@ -928,17 +928,9 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
       this, W/2 + 70, H/2 + modalH/2 - 60, 
       120, 45, 'Отклонить', 
       () => {
-        if (confirm('Без принятия соглашения игра недоступна.\nВы уверены, что хотите выйти?')) {
-          this.cleanupAgreementDialog([
-            overlay, modal, title, text, acceptBtn, declineBtn
-          ]);
-          
-          try {
-            window.close();
-          } catch (e) {
-            window.history.back();
-          }
-        }
+        this.showExitConfirmation([
+      overlay, modal, title, text, acceptBtn, declineBtn
+    ]);
       }
     );
     declineBtn.setDepth(1003);
@@ -955,6 +947,81 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
       }
     });
   }
+
+  // === MenuScene.js:958+ - ДОБАВИТЬ НОВЫЙ МЕТОД ===
+
+showExitConfirmation(previousDialogElements) {
+  const { W, H } = this.getSceneWH();
+  
+  // Затемнение (более темное для второго слоя)
+  const confirmOverlay = this.add.graphics()
+    .fillStyle(0x000000, 0.95)
+    .fillRect(0, 0, W, H)
+    .setDepth(2000)
+    .setInteractive();
+
+  const confirmW = Math.min(W * 0.8, 400);
+  const confirmH = 200;
+  
+  // Модалка подтверждения
+  const confirmModal = this.add.graphics()
+    .fillStyle(0x2C3E50, 0.98)
+    .fillRoundedRect(W/2 - confirmW/2, H/2 - confirmH/2, confirmW, confirmH, 15)
+    .lineStyle(3, 0xE74C3C, 0.9)
+    .strokeRoundedRect(W/2 - confirmW/2, H/2 - confirmH/2, confirmW, confirmH, 15)
+    .setDepth(2001);
+
+  const confirmTitle = this.add.text(W/2, H/2 - 50, '⚠️ Подтверждение выхода', {
+    fontFamily: 'BoldPixels, Arial',
+    fontSize: '20px',
+    color: '#E74C3C',
+    fontStyle: 'bold'
+  }).setOrigin(0.5).setDepth(2002);
+
+  const confirmText = this.add.text(W/2, H/2, 
+    'Без принятия соглашения\nигра недоступна.\n\nВы уверены, что хотите выйти?', {
+    fontFamily: 'Arial',
+    fontSize: '14px',
+    color: '#E8E8E8',
+    align: 'center',
+    lineSpacing: 4
+  }).setOrigin(0.5).setDepth(2002);
+
+  // Кнопка "Да, выйти"
+  const yesBtn = window.makeImageButton(
+    this, W/2 - 60, H/2 + 60, 
+    100, 40, 'Выйти', 
+    () => {
+      // Закрываем все диалоги
+      [confirmOverlay, confirmModal, confirmTitle, confirmText, yesBtn, noBtn].forEach(el => el.destroy());
+      previousDialogElements.forEach(el => el.destroy?.());
+      
+      // Пытаемся выйти
+      try {
+        window.close();
+      } catch (e) {
+        window.history.back();
+      }
+    }
+  );
+  yesBtn.setDepth(2003);
+
+  // Кнопка "Отмена"
+  const noBtn = window.makeImageButton(
+    this, W/2 + 60, H/2 + 60, 
+    100, 40, 'Отмена', 
+    () => {
+      // Просто закрываем диалог подтверждения
+      confirmOverlay.destroy();
+      confirmModal.destroy();
+      confirmTitle.destroy();
+      confirmText.destroy();
+      yesBtn.destroy();
+      noBtn.destroy();
+    }
+  );
+  noBtn.setDepth(2003);
+}
 
   // === MenuScene.js:444-472 - ЗАМЕНИТЬ createLevelButton ===
 
