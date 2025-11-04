@@ -476,11 +476,19 @@ async initializeSyncManager() {
   
   // Загружаем прогресс асинхронно
   try {
+  // ✅ Проверяем метод существует
+  if (this.syncManager?.getProgress) {
     this.progressData = await this.syncManager.getProgress();
-  } catch (error) {
-    console.error('Failed to load progress:', error);
+  } else if (this.syncManager?.loadProgress) {
+    this.progressData = await this.syncManager.loadProgress();
+  } else {
+    console.warn('⚠️ No progress method available');
     this.progressData = { levels: {} };
   }
+} catch (error) {
+  console.error('Failed to load progress:', error);
+  this.progressData = { levels: {} };
+}
 }
 
 // НОВЫЙ МЕТОД: Правильная очистка с проверками
