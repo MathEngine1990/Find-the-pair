@@ -125,20 +125,50 @@ class ProgressSyncManager {
 
 // === ProgressSyncManager.js:85-126 - ЗАМЕНИТЬ performSync ===
 
+// === ProgressSyncManager.js:125-175 ЗАМЕНИТЬ ЦЕЛИКОМ ===
+
 async performSync() {
-  // ✅ ДОБАВИТЬ: Проверка существующего debounce
+  // ✅ FIX: Если sync уже pending — ЖДЁМ его завершения
   if (this._syncDebounceTimer) {
-    console.log('⏳ Sync debounced (timer active)');
-    return false; // Прерываем, не создаём новый Promise
+    console.log('⏳ Sync pending, waiting for completion...');
+    
+    return new Promise((resolve) => {
+      // Создаём callback для завершения
+      const checkCompletion = setInterval(() => {
+        if (!this._syncDebounceTimer && !this.isSyncing) {
+          clearInterval(checkCompletion);
+          resolve(false); // Sync уже выполнен другим вызовом
+        }
+      }, 100);
+      
+      // Таймаут 10 секунд
+      setTimeout(() => {
+        clearInterval(checkCompletion);
+        resolve(false);
+      }, 10000);
+    });
   }
   
-  // ✅ ДОБАВИТЬ: Защита от параллельных вызовов
+  // ✅ FIX: Если sync уже в процессе — ЖДЁМ его
   if (this.isSyncing) {
-    console.log('⏳ Sync already in progress');
-    return false;
+    console.log('⏳ Sync in progress, waiting...');
+    
+    return new Promise((resolve) => {
+      const checkProgress = setInterval(() => {
+        if (!this.isSyncing) {
+          clearInterval(checkProgress);
+          resolve(false);
+        }
+      }, 100);
+      
+      setTimeout(() => {
+        clearInterval(checkProgress);
+        resolve(false);
+      }, 10000);
+    });
   }
-
-  // ✅ ДОБАВЛЕНО: Блокируем повторные вызовы немедленно
+  
+  // ✅ КРИТИЧНО: Блокируем НЕМЕДЛЕННО
   this.isSyncing = true;
   
   return new Promise((resolve, reject) => {
@@ -147,12 +177,10 @@ async performSync() {
       
       if (!this.isVKAvailable()) {
         console.log('📱 Sync skipped - VK not available');
-        this.isSyncing = false; // ✅ Разблокируем
+        this.isSyncing = false;
         resolve(false);
         return;
       }
-      
-      this.isSyncing = true;
       
       if (this.onSyncStart) {
         this.onSyncStart();
