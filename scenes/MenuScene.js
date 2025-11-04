@@ -37,24 +37,31 @@ async create() {
   // ✅ FIX #4: Блокируем resize до полной инициализации
   this._isInitializing = true;
   
-  this.progress = this.getProgressLocal();
+  this.progress = {};
   this.ensureGradientBackground();
-  this.drawMenu(this.levelPage);
+  await this.drawMenu(this.levelPage);
   
   // ⏳ Асинхронная инициализация
   Promise.all([
     document.fonts.ready.catch(() => console.warn('Fonts timeout')),
     this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
-  ]).then(async () => {
-    // ⬇️ КРИТИЧНО: Синхронизация ПОСЛЕ полной инициализации
-    if (this.syncManager && this.syncManager.isVKAvailable()) {
+]).then(async () => {
+    // ⬇️ КРИТИЧНО: Загружаем прогресс СНАЧАЛА
+    if (this.syncManager) {
       try {
-        console.log('🔄 Triggering initial sync in MenuScene');
-        const synced = await this.syncManager.performSync();
-        if (synced) {
-          this.progress = await this.syncManager.loadProgress();
-          this.refreshUI();
+        // Сначала загружаем текущий прогресс
+        this.progress = await this.syncManager.getProgress();
+        
+        // Потом пытаемся синхронизировать (если VK доступен)
+        if (this.syncManager.isVKAvailable()) {
+          console.log('🔄 Triggering initial sync in MenuScene');
+          const synced = await this.syncManager.performSync();
+          if (synced) {
+            this.progress = await this.syncManager.getProgress();
+          }
         }
+        
+        this.refreshUI();
       } catch (err) {
         console.warn('⚠️ Initial sync failed:', err);
       }
@@ -96,7 +103,7 @@ handleResize() {
   
   // 2️⃣ Перерисовываем UI
   this.ensureGradientBackground();
-  this.drawMenu(this.levelPage);
+  await this.drawMenu(this.levelPage);
 }
 
 
@@ -112,10 +119,27 @@ async initializeSyncManager() {
     // ✅ ПОЛНЫЙ fallback с ВСЕМИ методами из ProgressSyncManager
     this.syncManager = {
   // Только критичные методы для работы UI
-  loadProgress: () => this.getProgressLocal(),
+  loadProgress: async () => {
+    try {
+      const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+      const saved = localStorage.getItem(key);
+      if (!saved) return { levels: {} };
+      
+      const parsed = JSON.parse(saved);
+      return parsed;
+    } catch (e) {
+      console.warn('Fallback load error:', e);
+      return { levels: {} };
+    }
+  },
+  getProgress: async () => {
+    const data = await this.syncManager.loadProgress();
+    return data;
+  },
   saveProgress: (data) => {
     try {
-      localStorage.setItem('findpair_progress', JSON.stringify(data));
+      const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+      localStorage.setItem(key, JSON.stringify(data));
     } catch (e) {
       console.error('💾 Fallback save error:', e);
     }
@@ -196,36 +220,24 @@ async initializeSyncManager() {
     console.log('MenuScene cleanup completed');
   }
 
-  getProgress() {
+async getProgress() {
     try {
-      // Если есть синхронизированные данные - используем их
-      if (this.progress && this.progress.levels) {
-        return this.progress.levels;
+      // Используем только syncManager
+      if (this.syncManager) {
+        const progress = await this.syncManager.getProgress();
+        return progress?.levels || {};
       }
-      
-      // Иначе загружаем локальные
-      return this.getProgressLocal();
+      return {};
     } catch (e) {
       console.warn('Error loading progress:', e);
       return {};
     }
-}
+  }
 
-  getProgressLocal() {
-    try {
-      const saved = localStorage.getItem('findpair_progress');
-      if (!saved) return {};
-      
-      const parsed = JSON.parse(saved);
-      return parsed.levels || parsed || {};
-    } catch (e) {
-      console.warn('Error loading local progress:', e);
-      return {};
-    }
-}
 
-  getStats() {
-    const progressLevels = this.getProgress();
+
+  async getStats() {
+    const progressLevels = await this.getProgress();
     const levels = Object.keys(progressLevels);
     
     const stats = {
@@ -356,7 +368,7 @@ clearMenu() {
   }
 }
 
-  drawMenu(page = 0) {
+    async drawMenu(page = 0) {
     console.log('Drawing menu, page:', page);
     this.clearMenu();
     const { W, H } = this.getSceneWH();
@@ -431,7 +443,8 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     
 
   // ✅ НОВЫЙ КОД: Статистика
-  const stats = this.getStats();
+// ✅ НОВЫЙ КОД: Статистика
+  const stats = await this.getStats();
   if (stats.completedLevels > 0) {
     let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
     
@@ -455,10 +468,6 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     currentY += this.textManager.getSize('statLabel') + 18;
   }
 
-    // Кнопка синхронизации (если есть)
-    if (this.syncManager) {
-        this.createSyncButton(W, H, this.textManager.getSize('titleLarge'));
-    }
 
     // КРИТИЧНО: Увеличенная область для кнопок на мобильных
     const topY = H * (isMobile ? 0.20 : 0.16);
@@ -479,6 +488,9 @@ const topSafeZone = safeArea.top + 10; // 10px отступ от notch
     console.log('Creating level buttons:', pageLevels.length, 'Mobile:', isMobile);
 
     // КРИТИЧНО: Создание увеличенных кнопок уровней
+// КРИТИЧНО: Создание увеличенных кнопок уровней
+    const progressLevels = await this.getProgress(); // ⬅️ ДОБАВИТЬ ЭТУ СТРОКУ
+    
     pageLevels.forEach((lvl, i) => {
         const levelIndex = startIdx + i;
         const r = Math.floor(i / COLS);
@@ -522,7 +534,7 @@ const arrowColors = {
 
     // Кнопка "Назад"
     const prevBtn = window.makeIconButton(this, W * 0.25, yNav+20, navSize, '‹', () => {
-        if (prevActive) this.drawMenu(this.levelPage - 1);
+        if (prevActive) await this.drawMenu(this.levelPage - 1);
           () => this.drawMenu(page - 1),
   {
     color: '#FFCC00',        // Цвет текста стрелки (← →)
@@ -558,7 +570,7 @@ const arrowColors = {
     navSize, 
     '›', 
     () => {
-        if (nextActive) this.drawMenu(this.levelPage + 1),
+        if (nextActive) await this.drawMenu(this.levelPage + 1),
         {
     color: '#FFCC00',        // Цвет текста стрелки (← →)
     hoverColor: '#FFF700',   // Цвет при наведении
@@ -575,8 +587,8 @@ const arrowColors = {
     // Колесо мыши (для десктопа)
     if (!isMobile) {
         this._wheelHandler = (_p, _objs, _dx, dy) => {
-            if (dy > 0 && nextActive) this.drawMenu(this.levelPage + 1);
-            else if (dy < 0 && prevActive) this.drawMenu(this.levelPage - 1);
+            if (dy > 0 && nextActive) await this.drawMenu(this.levelPage + 1);
+            else if (dy < 0 && prevActive) await this.drawMenu(this.levelPage - 1);
         };
         this.input.on('wheel', this._wheelHandler);
     }
@@ -586,128 +598,6 @@ const arrowColors = {
 
 
 
-  createSyncButton(W, H, titlePx) {
-    const syncStatus = this.syncManager.getSyncStatus();
-    
-    let btnColor = 0x3498DB;
-    let btnText = '🔄';
-    let btnTooltip = 'Синхронизация';
-    
-    if (!syncStatus.isVKAvailable) {
-      btnColor = 0x95A5A6;
-      btnText = '📱';
-      btnTooltip = 'Только локально';
-    } else if (this.isSyncing) {
-      btnColor = 0xF39C12;
-      btnText = '⏳';
-      btnTooltip = 'Синхронизация...';
-    } else if (syncStatus.lastSyncTime > 0) {
-      btnColor = 0x27AE60;
-      btnText = '✅';
-      btnTooltip = 'Синхронизировано';
-    }
-
-    const size = Math.round(titlePx * 0.8);
-    const x = W - 40;
-    const y = 40;
-
-    const syncButton = this.add.container(x, y);
-    
-    const bg = this.add.graphics();
-    bg.fillStyle(btnColor, 0.8);
-    bg.fillCircle(0, 0, size / 2);
-    bg.lineStyle(2, 0xFFFFFF, 0.3);
-    bg.strokeCircle(0, 0, size / 2);
-    
-    const text = this.add.text(0, 0, btnText, {
-      fontSize: Math.round(size * 0.5) + 'px',
-      color: '#FFFFFF'
-    }).setOrigin(0.5);
-    
-    syncButton.add([bg, text]);
-    syncButton.setDepth(10);
-    syncButton.setSize(size, size);
-    syncButton.setInteractive({ useHandCursor: true });
-    
-    syncButton.on('pointerdown', () => {
-      this.forceSyncProgress();
-    });
-    
-    syncButton.bgElement = bg;
-    syncButton.textElement = text;
-    syncButton.currentColor = btnColor;
-    syncButton.size = size;
-    
-    this.levelButtons.push(syncButton);
-    this.syncButton = syncButton;
-  }
-
-  updateSyncButton() {
-    // ✅ КРИТИЧНО: Проверка существования
-    if (!this.syncButton || !this.syncManager) {
-        console.warn('⚠️ syncButton or syncManager not initialized');
-        return;
-    }
-    
-    // ✅ ДОБАВИТЬ: Проверка уничтожения сцены
-    if (!this.scene.isActive() || !this.syncButton.scene) {
-        console.warn('⚠️ Scene inactive or button destroyed');
-        return;
-    }
-
-    const syncStatus = this.syncManager.getSyncStatus();
-    
-    let btnColor = 0x3498DB;
-    let btnText = '🔄';
-    
-    if (!syncStatus.isVKAvailable) {
-      btnColor = 0x95A5A6;
-      btnText = '📱';
-    } else if (this.isSyncing) {
-      btnColor = 0xF39C12;
-      btnText = '⏳';
-    } else if (syncStatus.lastSyncTime > 0) {
-      btnColor = 0x27AE60;
-      btnText = '✅';
-    }
-
-        // ✅ КРИТИЧНО: Проверка элементов перед использованием
-    if (!this.syncButton.bgElement || !this.syncButton.textElement) {
-        console.error('❌ syncButton elements missing');
-        return;
-    }
-
-    if (btnColor !== this.syncButton.currentColor) {
-      this.syncButton.bgElement.clear();
-      this.syncButton.bgElement.fillStyle(btnColor, 0.8);
-      this.syncButton.bgElement.fillCircle(0, 0, this.syncButton.size / 2);
-      this.syncButton.bgElement.lineStyle(2, 0xFFFFFF, 0.3);
-      this.syncButton.bgElement.strokeCircle(0, 0, this.syncButton.size / 2);
-      this.syncButton.currentColor = btnColor;
-    }
-
-    if (btnText !== this.syncButton.textElement.text) {
-      this.syncButton.textElement.setText(btnText);
-    }
-  }
-
-  async forceSyncProgress() {
-    if (!this.syncManager) return;
-
-    try {
-      console.log('🔄 Manual sync triggered');
-      const success = await this.syncManager.forceSync();
-      
-      if (success) {
-        this.showToast('✅ Данные синхронизированы', '#27AE60');
-      } else {
-        this.showToast('⚠️ Синхронизация не удалась', '#E74C3C');
-      }
-    } catch (error) {
-      console.error('❌ Manual sync failed:', error);
-      this.showToast('⚠️ Ошибка синхронизации', '#E74C3C');
-    }
-  }
 
   showFullText() {
     const { W, H } = this.getSceneWH();
@@ -762,18 +652,23 @@ const arrowColors = {
     this.updateStatsDisplay();
   }
 
-  updateLevelButtons() {
-    const progressLevels = this.getProgress();
+async updateLevelButtons() {
+    const progressLevels = await this.getProgress();
     
-    
+    // Обновляем кнопки уровней на экране
+    this.levelButtons.forEach(btn => {
+      if (btn.levelIndex !== undefined) {
+        this.updateSingleLevelButton(btn, btn.levelIndex, progressLevels);
+      }
+    });
   }
 
-  updateStatsDisplay() {
+  async updateStatsDisplay() {
     const statsElement = this.levelButtons.find(btn => 
       btn.type === 'Text' && btn.text && btn.text.includes('Пройдено:'));
     
     if (statsElement) {
-      const stats = this.getStats();
+      const stats = await this.getStats();
       if (stats.completedLevels > 0) {
         let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
         
@@ -919,7 +814,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
           overlay, modal, title, text, acceptBtn, declineBtn
         ]);
         
-        this.drawMenu(this.levelPage);
+        await this.drawMenu(this.levelPage);
       }
     );
     acceptBtn.setDepth(1003);
@@ -1025,7 +920,7 @@ showExitConfirmation(previousDialogElements) {
 
   // === MenuScene.js:444-472 - ЗАМЕНИТЬ createLevelButton ===
 
-createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
+async createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     const isMobile = w > 150;
     
     const btn = window.makeImageButton(this, x, y, w, h, '', () => {
@@ -1046,7 +941,7 @@ createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
     
   // 🔥 ИСПРАВЛЕНО: Звёзды с правильным размером
   const starSize = this.textManager.getSize('stars');
-  const progressLevels = this.getProgress();
+  const progressLevels = await this.getProgress();
   const levelProgress = progressLevels[levelIndex];
     
     // ✅ Создаём контейнеры ОДИН РАЗ при создании кнопки
