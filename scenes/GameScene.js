@@ -435,25 +435,52 @@ window.GameScene = class GameScene extends Phaser.Scene {
 // === GameScene.js:193-219 - УПРОСТИТЬ ===
 
 async initializeSyncManager() {
-  // ✅ ПРОСТО: получаем из registry
+  // ✅ Получаем из registry
   this.syncManager = this.registry.get('progressSyncManager');
   
   if (!this.syncManager) {
     console.error('❌ ProgressSyncManager not found in registry!');
+    
+    // ✅ ИСПРАВЛЕННЫЙ fallback с User ID
     this.syncManager = {
-      loadProgress: () => this.getProgressFallback(),
-      saveProgress: () => {},
+      getProgress: async () => {
+        try {
+          const userId = window.VK_USER_DATA?.id || 'guest';
+          const key = `findpair_progress_${userId}`;
+          const saved = localStorage.getItem(key);
+          
+          if (!saved) return { levels: {} };
+          
+          const parsed = JSON.parse(saved);
+          return parsed;
+        } catch (error) {
+          console.warn('Fallback getProgress error:', error);
+          return { levels: {} };
+        }
+      },
+      loadProgress: async function() {
+        return await this.getProgress();
+      },
+      saveProgress: (data) => {
+        try {
+          const userId = window.VK_USER_DATA?.id || 'guest';
+          const key = `findpair_progress_${userId}`;
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+          console.error('Fallback saveProgress error:', e);
+        }
+      },
       isVKAvailable: () => false
     };
   }
   
-  // Загружаем прогресс асинхронно (не блокируем create)
-  this.syncManager.loadProgress().then(data => {
-    this.progressData = data;
-  }).catch(error => {
+  // Загружаем прогресс асинхронно
+  try {
+    this.progressData = await this.syncManager.getProgress();
+  } catch (error) {
     console.error('Failed to load progress:', error);
-    this.progressData = this.getProgressFallback();
-  });
+    this.progressData = { levels: {} };
+  }
 }
 
 // НОВЫЙ МЕТОД: Правильная очистка с проверками
@@ -565,17 +592,6 @@ cleanup() {
 
   
 
-  // НОВЫЙ МЕТОД: Fallback загрузка прогресса
-  getProgressFallback() {
-    try {
-      const saved = localStorage.getItem('findpair_progress');
-      const parsed = saved ? JSON.parse(saved) : {};
-      return parsed.levels ? parsed : { levels: parsed };
-    } catch (error) {
-      console.warn('Error loading fallback progress:', error);
-      return { levels: {} };
-    }
-  }
 
   // НОВЫЙ МЕТОД: Универсальная функция для установки размера карты
   // GameScene.js:357 - ЗАМЕНИТЬ метод setCardSize
@@ -1881,7 +1897,17 @@ checkPair() {
   // ОБНОВЛЕННЫЙ МЕТОД: Fallback сохранение прогресса
   saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy) {
     try {
-      const progress = this.getProgressFallback();
+      // ✅ ИСПРАВЛЕНО: Используем User ID
+      const userId = window.VK_USER_DATA?.id || 'guest';
+      const storageKey = `findpair_progress_${userId}`;
+      
+      let progress;
+      try {
+        const saved = localStorage.getItem(storageKey);
+        progress = saved ? JSON.parse(saved) : { levels: {} };
+      } catch (e) {
+        progress = { levels: {} };
+      }
       
       let stars = 1;
       const errorRate = attempts > 0 ? errors / attempts : 0;
@@ -1906,7 +1932,7 @@ checkPair() {
       
       if (improved) {
         progress.levels[levelIndex] = newLevel;
-        localStorage.setItem('findpair_progress', JSON.stringify(progress));
+        localStorage.setItem(storageKey, JSON.stringify(progress));
         
         // Также пытаемся синхронизировать с VK если доступно
         if (this.isVKEnvironment && window.VKHelpers) {
