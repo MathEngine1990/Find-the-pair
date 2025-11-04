@@ -12,9 +12,9 @@ class ProgressSyncManager {
     }
     
     this.version = '1.0';
-    this.localKey = 'findpair_progress';
-    this.vkKey = 'findpair_progress';
-    this.achievementsKey = 'findpair_achievements';
+    
+    
+    
     
     this.isSyncing = false;
     this.isInitialized = false;
@@ -44,6 +44,24 @@ class ProgressSyncManager {
     console.log('🆕 ProgressSyncManager singleton created');
     // Запускаем инициализацию асинхронно
     //setTimeout(() => this.init().catch(console.error), 0);
+  }
+
+  // ========== USER ID ISOLATION ==========
+  getUserId() {
+    // Priority: VKManager > VK_USER_DATA > guest
+    return window.VKManager?.getUserData()?.id || 
+           window.VK_USER_DATA?.id || 
+           'guest';
+  }
+
+  getUserStorageKey() {
+    const userId = this.getUserId();
+    return `findpair_progress_${userId}`;
+  }
+
+  getAchievementsKey() {
+    const userId = this.getUserId();
+    return `findpair_achievements_${userId}`;
   }
 
   async init() {
@@ -180,9 +198,17 @@ async performSync() {
     for (let attempt = 1; attempt <= this.settings.retryAttempts; attempt++) {
       try {
         // ИСПРАВЛЕНО: Используем безопасный метод VK Bridge
-        const result = await this.safeVKCall('VKWebAppStorageGet', {
-          keys: [this.vkKey]
-        });
+        const storageKey = this.getUserStorageKey();
+
+// Try VKManager first (with cache/retry)
+let result;
+if (window.VKManager?.isAvailable()) {
+  result = await window.VKManager.getStorageData([storageKey]);
+} else {
+  result = await this.safeVKCall('VKWebAppStorageGet', {
+    keys: [storageKey]
+  });
+}
         
         if (result?.keys?.length > 0) {
           const rawData = result.keys[0].value;
@@ -257,7 +283,7 @@ async safeVKCall(method, params = {}) {
   saveToLocal(data) {
     try {
       const compressed = this.compressData(data);
-      localStorage.setItem(this.localKey, compressed);
+      localStorage.setItem(this.getUserStorageKey(), compressed);
       console.log('💾 Saved to localStorage');
     } catch (error) {
       console.error('❌ Failed to save to localStorage:', error);
@@ -266,7 +292,7 @@ async safeVKCall(method, params = {}) {
       if (error.name === 'QuotaExceededError') {
         this.cleanupLocalStorage();
         try {
-          localStorage.setItem(this.localKey, compressed);
+          localStorage.setItem(this.getUserStorageKey(), compressed);
         } catch (retryError) {
           throw retryError;
         }
@@ -289,9 +315,22 @@ async safeVKCall(method, params = {}) {
     console.log(`🧹 Cleaned up ${keysToRemove.length} old localStorage items`);
   }
 
-  loadFromLocal() {
-    try {
-      const compressed = localStorage.getItem(this.localKey);
+loadFromLocal() {
+  try {
+    // Migration from old key (without user ID)
+    const oldKey = 'findpair_progress';
+    const newKey = this.getUserStorageKey();
+    
+    if (newKey !== oldKey) {
+      const oldData = localStorage.getItem(oldKey);
+      if (oldData && !localStorage.getItem(newKey)) {
+        console.log('🔄 Migrating old progress to user-specific key');
+        localStorage.setItem(newKey, oldData);
+        localStorage.removeItem(oldKey);
+      }
+    }
+    
+    const compressed = localStorage.getItem(newKey);
       if (!compressed) return this.getDefaultProgressData();
       
       const data = this.decompressData(compressed);
@@ -331,15 +370,27 @@ async saveToVK(progressData) {
         }
         
         // Используем оптимизированные данные
-        await this.safeVKCall('VKWebAppStorageSet', {
-          key: this.vkKey,
-          value: optimizedString
-        });
+const storageKey = this.getUserStorageKey();
+
+if (window.VKManager?.isAvailable()) {
+  await window.VKManager.setStorageData(storageKey, optimizedString);
+} else {
+  await this.safeVKCall('VKWebAppStorageSet', {
+    key: storageKey,
+    value: optimizedString
+  });
+}
       } else {
-        await this.safeVKCall('VKWebAppStorageSet', {
-          key: this.vkKey,
-          value: dataString
-        });
+        const storageKey = this.getUserStorageKey();
+
+if (window.VKManager?.isAvailable()) {
+  await window.VKManager.setStorageData(storageKey, dataString);
+} else {
+  await this.safeVKCall('VKWebAppStorageSet', {
+    key: storageKey,
+    value: dataString
+  });
+}
       }
       
       console.log('✅ Saved to VK Storage');
@@ -359,7 +410,7 @@ async saveToVK(progressData) {
           const cleanedString = JSON.stringify(cleanedData);
           
           await this.safeVKCall('VKWebAppStorageSet', {
-            key: this.vkKey,
+            key: this.getUserStorageKey(),
             value: cleanedString
           });
           
@@ -854,14 +905,14 @@ getSyncStatus() {
 }
 
   async clearAllData() {
-    localStorage.removeItem(this.localKey);
+    localStorage.removeItem(this.getUserStorageKey());
     localStorage.removeItem('device_id');
-    localStorage.removeItem(this.achievementsKey);
+    localStorage.removeItem(this.getAchievementsKey());
     
     if (this.isVKAvailable()) {
       try {
         await this.safeVKCall('VKWebAppStorageSet', {
-          key: this.vkKey,
+          key: this.getUserStorageKey(),
           value: '{}'
         });
       } catch (error) {
