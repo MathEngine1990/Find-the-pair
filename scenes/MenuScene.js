@@ -80,7 +80,7 @@ async create() {
 // ✅ НОВЫЙ МЕТОД
 // === MenuScene.js:90-103 - ЗАМЕНИТЬ handleResize ===
 
-handleResize() {
+async handleResize() {
   // ✅ FIX #5: Блокируем resize во время инициализации
   if (this._isInitializing) {
     console.log('⏸️ Resize blocked: scene initializing');
@@ -354,7 +354,7 @@ clearMenu() {
     }
 }
 
-async  getSafeAreaInsets() {
+getSafeAreaInsets() {
   try {
     const style = getComputedStyle(document.body);
     return {
@@ -533,8 +533,8 @@ const arrowColors = {
 };
 
     // Кнопка "Назад"
-    const prevBtn = window.makeIconButton(this, W * 0.25, yNav+20, navSize, '‹', () => {
-        if (prevActive) await this.drawMenu(this.levelPage - 1);
+    const prevBtn = window.makeIconButton(this, W * 0.25, yNav+20, navSize, '‹', async () => {  // ← добавить async
+    if (prevActive) await this.drawMenu(this.levelPage - 1);
           () => this.drawMenu(page - 1),
   {
     color: '#FFCC00',        // Цвет текста стрелки (← →)
@@ -569,7 +569,7 @@ const arrowColors = {
     yNav+20, 
     navSize, 
     '›', 
-    () => {
+    async () => {  // ← добавить async
         if (nextActive) await this.drawMenu(this.levelPage + 1),
         {
     color: '#FFCC00',        // Цвет текста стрелки (← →)
@@ -586,10 +586,10 @@ const arrowColors = {
 
     // Колесо мыши (для десктопа)
     if (!isMobile) {
-        this._wheelHandler = (_p, _objs, _dx, dy) => {
-            if (dy > 0 && nextActive) await this.drawMenu(this.levelPage + 1);
-            else if (dy < 0 && prevActive) await this.drawMenu(this.levelPage - 1);
-        };
+        this._wheelHandler = async (_p, _objs, _dx, dy) => {  // ← добавить async
+    if (dy > 0 && nextActive) await this.drawMenu(this.levelPage + 1);
+    else if (dy < 0 && prevActive) await this.drawMenu(this.levelPage - 1);
+};
         this.input.on('wheel', this._wheelHandler);
     }
     
@@ -803,20 +803,21 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
     }).setOrigin(0.5).setDepth(1002);
 
     const acceptBtn = window.makeImageButton(
-      this, W/2 - 70, H/2 + modalH/2 - 60, 
-      120, 45, 'Принимаю', 
-      () => {
-        localStorage.setItem('acceptedAgreement', 'true');
-        localStorage.setItem('agreementVersion', '2025-09-13');
-        localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
-        
-        this.cleanupAgreementDialog([
-          overlay, modal, title, text, acceptBtn, declineBtn
-        ]);
-        
-        await this.drawMenu(this.levelPage);
-      }
-    );
+  this, W/2 - 70, H/2 + modalH/2 - 60, 
+  120, 45, 'Принимаю', 
+  async () => {  // ← добавить async
+    localStorage.setItem('acceptedAgreement', 'true');
+    localStorage.setItem('agreementVersion', '2025-09-13');
+    localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
+    
+    this.cleanupAgreementDialog([
+      overlay, modal, title, text, acceptBtn, declineBtn
+    ]);
+    
+    await this.drawMenu(this.levelPage);
+  }
+);
+    
     acceptBtn.setDepth(1003);
 
     const declineBtn = window.makeImageButton(
