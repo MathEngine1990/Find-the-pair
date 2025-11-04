@@ -13,6 +13,7 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.syncButton = null;
     this._resizeDebounce = false;
     this._wheelHandler = null;
+      this._syncInitiated = false; // ← ✅ НОВОЕ: Флаг для sync
     
     // Получаем VK данные если есть
     this.vkUserData = data?.userData || window.VK_USER_DATA;
@@ -68,14 +69,29 @@ async create() {
       console.log('✅ Progress loaded:', Object.keys(this.progress.levels || {}).length, 'levels');
       
       // Потом пытаемся синхронизировать (если VK доступен)
-      if (this.syncManager.isVKAvailable && this.syncManager.isVKAvailable()) {
-        console.log('🔄 Triggering initial sync in MenuScene');
-        const synced = await this.syncManager.performSync();
-        if (synced) {
-          this.progress = await this.syncManager.getProgress();
-          console.log('✅ Progress synced');
-        }
+      // === MenuScene.js:68-85 ЗАМЕНИТЬ ===
+
+// ✅ FIX: Синхронизируем ТОЛЬКО один раз + неблокирующе
+if (this.syncManager.isVKAvailable?.() && !this._syncInitiated) {
+  console.log('🔄 Triggering initial background sync');
+  this._syncInitiated = true; // ← Флаг для предотвращения повторных вызовов
+  
+  // Запускаем sync в фоне, НЕ ЖДЁМ результата
+  this.syncManager.performSync().then((synced) => {
+    if (synced) {
+      console.log('✅ Background sync completed');
+      // Обновляем UI только если сцена активна
+      if (this.scene.isActive()) {
+        this.syncManager.getProgress().then(progress => {
+          this.progress = progress;
+          this.refreshUI();
+        });
       }
+    }
+  }).catch(err => {
+    console.warn('⚠️ Background sync failed:', err);
+  });
+}
       
       this.refreshUI();
     } catch (err) {
