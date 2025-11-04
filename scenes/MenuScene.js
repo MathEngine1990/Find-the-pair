@@ -354,7 +354,7 @@ clearMenu() {
     }
 }
 
-  getSafeAreaInsets() {
+async  getSafeAreaInsets() {
   try {
     const style = getComputedStyle(document.body);
     return {
