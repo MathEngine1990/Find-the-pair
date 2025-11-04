@@ -41,35 +41,50 @@ async create() {
   this.ensureGradientBackground();
   await this.drawMenu(this.levelPage);
   
-  // ⏳ Асинхронная инициализация
-  Promise.all([
-    document.fonts.ready.catch(() => console.warn('Fonts timeout')),
-    this.initializeSyncManager().catch(e => console.error('Sync init failed:', e))
-]).then(async () => {
-    // ⬇️ КРИТИЧНО: Загружаем прогресс СНАЧАЛА
-    if (this.syncManager) {
-      try {
-        // Сначала загружаем текущий прогресс
-        this.progress = await this.syncManager.getProgress();
-        
-        // Потом пытаемся синхронизировать (если VK доступен)
-        if (this.syncManager.isVKAvailable()) {
-          console.log('🔄 Triggering initial sync in MenuScene');
-          const synced = await this.syncManager.performSync();
-          if (synced) {
-            this.progress = await this.syncManager.getProgress();
-          }
+  // ⏳ КРИТИЧНО: СНАЧАЛА ждём полной инициализации syncManager
+  try {
+    await this.initializeSyncManager();
+    console.log('✅ SyncManager initialized');
+  } catch (e) {
+    console.error('❌ Sync init failed:', e);
+  }
+  
+  // ⏳ ПОТОМ ждём шрифты параллельно
+  try {
+    await Promise.race([
+      document.fonts.ready,
+      new Promise(resolve => setTimeout(resolve, 2000))
+    ]);
+    console.log('✅ Fonts ready');
+  } catch (e) {
+    console.warn('⚠️ Fonts timeout:', e);
+  }
+  
+  // ⏳ ТЕПЕРЬ безопасно загружать прогресс
+  if (this.syncManager) {
+    try {
+      // Сначала загружаем текущий прогресс
+      this.progress = await this.syncManager.getProgress();
+      console.log('✅ Progress loaded:', Object.keys(this.progress.levels || {}).length, 'levels');
+      
+      // Потом пытаемся синхронизировать (если VK доступен)
+      if (this.syncManager.isVKAvailable && this.syncManager.isVKAvailable()) {
+        console.log('🔄 Triggering initial sync in MenuScene');
+        const synced = await this.syncManager.performSync();
+        if (synced) {
+          this.progress = await this.syncManager.getProgress();
+          console.log('✅ Progress synced');
         }
-        
-        this.refreshUI();
-      } catch (err) {
-        console.warn('⚠️ Initial sync failed:', err);
       }
+      
+      this.refreshUI();
+    } catch (err) {
+      console.warn('⚠️ Initial sync failed:', err);
     }
-    
-    // ✅ FIX #4: Разблокируем resize ПОСЛЕ всех операций
-    this._isInitializing = false;
-  });
+  }
+  
+  // ✅ FIX #4: Разблокируем resize ПОСЛЕ всех операций
+  this._isInitializing = false;
   
   // ✅ Глобальный debounced-resize event
   this.game.events.on('debounced-resize', this.handleResize, this);
