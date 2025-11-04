@@ -109,6 +109,7 @@ async handleResize() {
 
 
   // Инициализация менеджера синхронизации
+// Инициализация менеджера синхронизации
 async initializeSyncManager() {
   this.syncManager = this.registry.get('progressSyncManager');
   
@@ -116,82 +117,104 @@ async initializeSyncManager() {
     console.error('❌ ProgressSyncManager not found in registry!');
     console.warn('⚠️ Using fallback syncManager (localStorage only)');
     
-    // ✅ ПОЛНЫЙ fallback с ВСЕМИ методами из ProgressSyncManager
+    // ✅ ИСПРАВЛЕННЫЙ fallback
     this.syncManager = {
-  // Только критичные методы для работы UI
-  loadProgress: async () => {
-    try {
-      const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
-      const saved = localStorage.getItem(key);
-      if (!saved) return { levels: {} };
+      // Метод загрузки прогресса
+      loadProgress: async () => {
+        try {
+          const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+          const saved = localStorage.getItem(key);
+          if (!saved) return { levels: {} };
+          
+          const parsed = JSON.parse(saved);
+          return parsed;
+        } catch (e) {
+          console.warn('Fallback loadProgress error:', e);
+          return { levels: {} };
+        }
+      },
       
-      const parsed = JSON.parse(saved);
-      return parsed;
-    } catch (e) {
-      console.warn('Fallback load error:', e);
-      return { levels: {} };
-    }
-  },
-  getProgress: async () => {
-    const data = await this.syncManager.loadProgress();
-    return data;
-  },
-  saveProgress: (data) => {
-    try {
-      const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      console.error('💾 Fallback save error:', e);
-    }
-  },
-  isVKAvailable: () => false,
-  getSyncStatus: () => ({ 
-    isVKAvailable: false, 
-    lastSyncTime: 0,
-    isSyncing: false,
-    queueLength: 0,
-    timeSinceLastSync: 0,
-    isInitialized: true
-  }),
-  forceSync: async () => {
-    console.warn('⚠️ Fallback: VK not available');
-    return false;
-  },
-  setCurrentLevel: () => {},
-  getCurrentLevel: () => 0
-};
+      // ✅ ИСПРАВЛЕНО: независимая реализация
+      getProgress: async () => {
+        try {
+          const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+          const saved = localStorage.getItem(key);
+          if (!saved) return { levels: {} };
+          
+          const parsed = JSON.parse(saved);
+          return parsed;
+        } catch (e) {
+          console.warn('Fallback getProgress error:', e);
+          return { levels: {} };
+        }
+      },
+      
+      saveProgress: (data) => {
+        try {
+          const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+          console.error('💾 Fallback save error:', e);
+        }
+      },
+      
+      isVKAvailable: () => false,
+      
+      getSyncStatus: () => ({ 
+        isVKAvailable: false, 
+        lastSyncTime: 0,
+        isSyncing: false,
+        queueLength: 0,
+        timeSinceLastSync: 0,
+        isInitialized: true
+      }),
+      
+      forceSync: async () => {
+        console.warn('⚠️ Fallback: VK not available');
+        return false;
+      },
+      
+      setCurrentLevel: () => {},
+      getCurrentLevel: () => 0,
+      
+      // ✅ Пустые обработчики
+      onSyncStart: null,
+      onSyncComplete: null,
+      onSyncError: null
+    };
   }
   
+  // ⬇️ КРИТИЧНО: Подписка на события (только если методы существуют)
+  if (this.syncManager.onSyncStart !== undefined) {
+    const originalOnSyncStart = this.syncManager.onSyncStart;
+    this.syncManager.onSyncStart = () => {
+      if (originalOnSyncStart) originalOnSyncStart();
+      this.isSyncing = true;
+    };
+  }
   
+  if (this.syncManager.onSyncComplete !== undefined) {
+    const originalOnSyncComplete = this.syncManager.onSyncComplete;
+    this.syncManager.onSyncComplete = (data) => {
+      if (originalOnSyncComplete) originalOnSyncComplete(data);
+      this.isSyncing = false;
+      this.progress = data;
+      if (this.scene.isActive()) {
+        this.refreshUI();
+      }
+    };
+  }
   
-  // ⬇️ КРИТИЧНО: Подписка на события
-  const originalOnSyncStart = this.syncManager.onSyncStart;
-  this.syncManager.onSyncStart = () => {
-    if (originalOnSyncStart) originalOnSyncStart();
-    this.isSyncing = true;
-    if (this.scene.isActive()) this.updateSyncButton();
-  };
-  
-  const originalOnSyncComplete = this.syncManager.onSyncComplete;
-  this.syncManager.onSyncComplete = (data) => {
-    if (originalOnSyncComplete) originalOnSyncComplete(data);
-    this.isSyncing = false;
-    this.progress = data;
-    if (this.scene.isActive()) {
-      this.updateSyncButton();
-      this.refreshUI();
-    }
-  };
-  
-  const originalOnSyncError = this.syncManager.onSyncError;
-  this.syncManager.onSyncError = (error) => {
-    if (originalOnSyncError) originalOnSyncError(error);
-    this.isSyncing = false;
-    if (this.scene.isActive()) {
-      this.updateSyncButton();
-      this.showToast('⚠️ Ошибка синхронизации', '#E74C3C');
-    }
-  };
+  if (this.syncManager.onSyncError !== undefined) {
+    const originalOnSyncError = this.syncManager.onSyncError;
+    this.syncManager.onSyncError = (error) => {
+      if (originalOnSyncError) originalOnSyncError(error);
+      this.isSyncing = false;
+      if (this.scene.isActive()) {
+        this.showToast('⚠️ Ошибка синхронизации', '#E74C3C');
+      }
+    };
+  }
 }
 
   cleanup() {
