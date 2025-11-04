@@ -259,18 +259,20 @@ async initializeSyncManager() {
   }
 
 async getProgress() {
-    try {
-      // Используем только syncManager
-      if (this.syncManager) {
-        const progress = await this.syncManager.getProgress();
-        return progress?.levels || {};
-      }
-      return {};
-    } catch (e) {
-      console.warn('Error loading progress:', e);
+  try {
+    // ✅ Проверяем наличие метода перед вызовом
+    if (!this.syncManager?.getProgress) {
+      console.warn('⚠️ syncManager.getProgress not available');
       return {};
     }
+    
+    const progress = await this.syncManager.getProgress();
+    return progress?.levels || {};
+  } catch (e) {
+    console.warn('Error loading progress:', e);
+    return {};
   }
+}
 
 
 
