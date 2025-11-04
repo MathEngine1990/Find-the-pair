@@ -709,6 +709,16 @@ getCurrentLevel() {
     }
   }
 
+  // === ProgressSyncManager.js:325+ ДОБАВИТЬ НОВЫЙ МЕТОД ===
+
+/**
+ * Получить текущий прогресс (синоним для loadProgress)
+ * @returns {Promise<Object>} Объект прогресса
+ */
+async getProgress() {
+  return await this.loadProgress();
+}
+
   // НОВЫЙ МЕТОД: Сохранение прогресса уровня
   async saveLevelProgress(levelIndex, levelData) {
     const progress = await this.loadProgress();
