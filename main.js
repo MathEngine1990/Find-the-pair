@@ -368,6 +368,32 @@ window.alert = showGameNotification;
       platform: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Desktop'
     });
     
+    // ✅ НОВОЕ: Используем VKManager если доступен
+    if (window.VKManager) {
+      try {
+        console.log('🔄 Using VKManager for initialization...');
+        const success = await window.VKManager.init();
+        
+        if (success) {
+          window.VK_BRIDGE_READY = true;
+          window.VK_USER_DATA = window.VKManager.getUserData();
+          window.VK_LAUNCH_PARAMS = window.VKManager.getLaunchParams();
+          
+          debugLog('VK Manager initialized successfully');
+          
+          // ✅ Инициализируем ProgressSyncManager ПОСЛЕ VKManager
+          await window.initGlobalSyncManager();
+          
+          return true;
+        } else {
+          console.warn('VKManager init returned false, falling back to legacy...');
+        }
+      } catch (error) {
+        console.warn('VKManager init failed, falling back to legacy:', error);
+      }
+    }
+    
+    // ✅ FALLBACK: Старая логика (оставляем без изменений)
     try {
       const initTimeout = isMobile ? 15000 : 10000;
       
@@ -1130,10 +1156,22 @@ window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
   window.initGlobalSyncManager = async function() {
     try {
       if (!window.progressSyncManager) {
-        window.progressSyncManager = new ProgressSyncManager();
-        // Инициализируем явно
-      await window.progressSyncManager.init();
+        console.log('🔄 Creating ProgressSyncManager...');
         
+        // ✅ ИСПРАВЛЕНО: Ждём готовности VKManager
+        if (window.VKManager && !window.VKManager.isReady) {
+          console.log('⏳ Waiting for VKManager...');
+          await window.VKManager.init().catch(e => {
+            console.warn('VKManager init failed, continuing:', e);
+          });
+        }
+        
+        window.progressSyncManager = new ProgressSyncManager();
+        
+        // ✅ Инициализируем явно
+        await window.progressSyncManager.init();
+        
+        // ✅ Устанавливаем обработчики
         window.progressSyncManager.onSyncError = (error) => {
           console.error('🔄 Global sync error:', error);
           
@@ -1153,7 +1191,7 @@ window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
           }
         };
         
-        console.log('🔄 Global ProgressSyncManager initialized');
+        console.log('✅ Global ProgressSyncManager initialized');
       }
       
     } catch (error) {
@@ -1399,6 +1437,11 @@ window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
       }
     } else {
       debugLog('Not VK environment, starting directly');
+      
+      // ✅ НОВОЕ: Инициализируем ProgressSyncManager даже без VK
+      await window.initGlobalSyncManager().catch(e => {
+        console.warn('ProgressSyncManager init failed:', e);
+      });
     }
 
     const stabilizationDelay = isMobile ? 300 : 100;
