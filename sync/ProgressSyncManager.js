@@ -59,28 +59,39 @@ class ProgressSyncManager {
 
   //251123
 getCurrentUserId() {
-  // 1. Сначала пробуем launchParams от VKManager
-  if (window.VKManager?.getLaunchParams) {
-    const lp = window.VKManager.getLaunchParams();
-    // в vk-manager.js: { user_id: params.get('vk_user_id'), ... }
-    if (lp?.user_id) return String(lp.user_id);
-    if (lp?.vk_user_id) return String(lp.vk_user_id); // на всякий случай
+  // 0. Прямо из query-параметров — самый надёжный источник
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const vkFromUrl = params.get('vk_user_id');
+    if (vkFromUrl) {
+      return String(vkFromUrl);
+    }
+  } catch (e) {
+    // игнорируем
   }
 
-  // 2. Прямой доступ к VK_LAUNCH_PARAMS (если кто-то его уже положил)
+  // 1. launchParams от VKManager (если он уже успел инициализироваться)
+  if (window.VKManager?.getLaunchParams) {
+    const lp = window.VKManager.getLaunchParams();
+    if (lp?.user_id) return String(lp.user_id);
+    if (lp?.vk_user_id) return String(lp.vk_user_id);
+  }
+
+  // 2. VK_LAUNCH_PARAMS, если вдруг кто-то его кладёт
   if (window.VK_LAUNCH_PARAMS?.vk_user_id) {
     return String(window.VK_LAUNCH_PARAMS.vk_user_id);
   }
 
-  // 3. Fallback на userData
+  // 3. userData
   if (window.VKManager?.getUserData) {
     const user = window.VKManager.getUserData();
     if (user?.id) return String(user.id);
   }
 
-  // 4. Крайний случай — гость (но **тогда прогресс общий для всех гостей**)
+  // 4. Гость (общий прогресс для всех гостей)
   return 'anonymous';
 }
+
 
 
 getUserStorageKey() {
@@ -94,10 +105,14 @@ getUserStorageKey() {
 }
 
 
-  getAchievementsKey() {
-    const userId = this.getUserId();
-    return `findpair_achievements_${userId}`;
-  }
+getAchievementsKey() {
+  const userId =
+    this.currentVkUserId ||
+    this.getCurrentUserId() ||
+    'anonymous';
+
+  return `findpair_achievements_${userId}`;
+}
 
   async init() {
     //251123
