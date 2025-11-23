@@ -58,22 +58,30 @@ class ProgressSyncManager {
   }
 
   //251123
-    getCurrentUserId() {
-    // 1. Через VKManager
-    if (window.VKManager?.getLaunchParams) {
-      const lp = window.VKManager.getLaunchParams();
-      if (lp?.vk_user_id) return String(lp.vk_user_id);
-    }
-
-    // 2. Fallback (если где-то сохранил userData)
-    if (window.VKManager?.getUserData) {
-      const user = window.VKManager.getUserData();
-      if (user?.id) return String(user.id);
-    }
-
-    // 3. Совсем крайний случай
-    return 'anonymous';
+getCurrentUserId() {
+  // 1. Сначала пробуем launchParams от VKManager
+  if (window.VKManager?.getLaunchParams) {
+    const lp = window.VKManager.getLaunchParams();
+    // в vk-manager.js: { user_id: params.get('vk_user_id'), ... }
+    if (lp?.user_id) return String(lp.user_id);
+    if (lp?.vk_user_id) return String(lp.vk_user_id); // на всякий случай
   }
+
+  // 2. Прямой доступ к VK_LAUNCH_PARAMS (если кто-то его уже положил)
+  if (window.VK_LAUNCH_PARAMS?.vk_user_id) {
+    return String(window.VK_LAUNCH_PARAMS.vk_user_id);
+  }
+
+  // 3. Fallback на userData
+  if (window.VKManager?.getUserData) {
+    const user = window.VKManager.getUserData();
+    if (user?.id) return String(user.id);
+  }
+
+  // 4. Крайний случай — гость (но **тогда прогресс общий для всех гостей**)
+  return 'anonymous';
+}
+
 
 getUserStorageKey() {
   // предпочтительно используем уже вычисленный текущий id
@@ -604,37 +612,36 @@ optimizeData(data, maxLevels = 50) {
     }
   }
 
-  safelyMigrateData(data) {
-    // Гарантируем что работаем с объектом
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      console.warn('⚠️ Invalid data for migration');
-      return this.getDefaultProgressData();
-    }
-    
-    // ВСЕГДА создаём новый объект
-    const migrated = {
-      version: this.version,
-      timestamp: data.timestamp || Date.now(),
-      deviceId: data.deviceId || this.getDeviceId(),
-      lastModified: Date.now(),
-      levels: data.levels || {},
-      achievements: data.achievements || {},
-      stats: data.stats || {
-        gamesPlayed: 0,
-        totalTime: 0,
-        totalErrors: 0,
-        bestTime: null,
-        lastPlayed: 0
-      }
-    };
-    
-    // Логирование миграции
-    if (!data.version || data.version !== this.version) {
-      console.log(`🔄 Data migrated from v${data.version || 'unknown'} to v${this.version}`);
-    }
-    
-    return migrated;
+ safelyMigrateData(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    console.warn('⚠️ Invalid data for migration');
+    return this.getDefaultProgressData();
   }
+
+  const migrated = {
+    version: this.version,
+    vkUserId: data.vkUserId || this.currentVkUserId || this.getCurrentUserId(),
+    timestamp: data.timestamp || Date.now(),
+    deviceId: data.deviceId || this.getDeviceId(),
+    lastModified: Date.now(),
+    levels: data.levels || {},
+    achievements: data.achievements || {},
+    stats: data.stats || {
+      gamesPlayed: 0,
+      totalTime: 0,
+      totalErrors: 0,
+      bestTime: null,
+      lastPlayed: 0
+    }
+  };
+
+  if (!data.version || data.version !== this.version) {
+    console.log(`🔄 Data migrated from v${data.version || 'unknown'} to v${this.version}`);
+  }
+
+  return migrated;
+}
+
 
   mergeProgressData(localData, vkData) {
     if (!localData && !vkData) {
