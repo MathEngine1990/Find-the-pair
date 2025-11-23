@@ -321,10 +321,32 @@ uncachedKeys.forEach(key => {
   }
 
 getStorageFallbackKey(key) {
-  const lp = this.getLaunchParams();
-  const userId = lp?.user_id || this.userData?.id || 'anonymous';
+  let userId = 'anonymous';
+
+  // 0. Самый надёжный источник — query-параметр
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('vk_user_id');
+    if (fromUrl) {
+      userId = String(fromUrl);
+    }
+  } catch (e) {
+    // игнорируем
+  }
+
+  // 1. Если вдруг из URL не достали — пробуем launchParams
+  if (userId === 'anonymous') {
+    const lp = this.getLaunchParams && this.getLaunchParams();
+    if (lp?.user_id) {
+      userId = String(lp.user_id);
+    } else if (this.userData?.id) {
+      userId = String(this.userData.id);
+    }
+  }
+
   return `vk_storage_${userId}_${key}`;
 }
+
 
 
   async setStorageData(key, value) {
