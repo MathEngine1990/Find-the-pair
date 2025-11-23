@@ -44,6 +44,9 @@ class ProgressSyncManager {
     console.log('🆕 ProgressSyncManager singleton created');
     // Запускаем инициализацию асинхронно
     //setTimeout(() => this.init().catch(console.error), 0);
+
+    //251123
+    this.currentVkUserId = null;
   }
 
   // ========== USER ID ISOLATION ==========
@@ -54,10 +57,34 @@ class ProgressSyncManager {
            'guest';
   }
 
-  getUserStorageKey() {
-    const userId = this.getUserId();
-    return `findpair_progress_${userId}`;
+  //251123
+    getCurrentUserId() {
+    // 1. Через VKManager
+    if (window.VKManager?.getLaunchParams) {
+      const lp = window.VKManager.getLaunchParams();
+      if (lp?.vk_user_id) return String(lp.vk_user_id);
+    }
+
+    // 2. Fallback (если где-то сохранил userData)
+    if (window.VKManager?.getUserData) {
+      const user = window.VKManager.getUserData();
+      if (user?.id) return String(user.id);
+    }
+
+    // 3. Совсем крайний случай
+    return 'anonymous';
   }
+
+getUserStorageKey() {
+  // предпочтительно используем уже вычисленный текущий id
+  const userId =
+    this.currentVkUserId ||
+    this.getCurrentUserId() ||
+    'anonymous';
+
+  return `findpair_progress_${userId}`;
+}
+
 
   getAchievementsKey() {
     const userId = this.getUserId();
@@ -65,6 +92,9 @@ class ProgressSyncManager {
   }
 
   async init() {
+    //251123
+    this.currentVkUserId = this.getCurrentUserId();
+    
     if (this.isInitialized) {
       console.log('⚠️ ProgressSyncManager already initialized');
       return;
@@ -308,27 +338,40 @@ async safeVKCall(method, params = {}) {
   }
 }
 
-  saveToLocal(data) {
-    try {
-      const compressed = this.compressData(data);
-      localStorage.setItem(this.getUserStorageKey(), compressed);
-      console.log('💾 Saved to localStorage');
-    } catch (error) {
-      console.error('❌ Failed to save to localStorage:', error);
-      
-      // ИСПРАВЛЕНО: Попытка очистить старые данные при переполнении
-      if (error.name === 'QuotaExceededError') {
-        this.cleanupLocalStorage();
-        try {
-          localStorage.setItem(this.getUserStorageKey(), compressed);
-        } catch (retryError) {
-          throw retryError;
-        }
-      } else {
-        throw error;
+saveToLocal(data) {
+  const userKey = this.getUserStorageKey();
+  let compressed;
+
+  try {
+    compressed = this.compressData(data);
+  } catch (e) {
+    console.error('❌ Failed to compress progress data:', e);
+    return; // нет смысла продолжать, если данные не сжались
+  }
+
+  try {
+    localStorage.setItem(userKey, compressed);
+    console.log(`💾 Saved to localStorage → key: ${userKey}`);
+  } catch (error) {
+    console.error(`❌ Failed to save to localStorage key=${userKey}:`, error);
+
+    if (error.name === 'QuotaExceededError') {
+      console.warn('⚠️ QuotaExceededError → cleaning up localStorage');
+      this.cleanupLocalStorage();
+
+      try {
+        localStorage.setItem(userKey, compressed);
+        console.log(`💾 Retried & saved after cleanup → key: ${userKey}`);
+      } catch (retryError) {
+        console.error('❌ Retry after cleanup failed:', retryError);
+        throw retryError;
       }
+    } else {
+      throw error;
     }
   }
+}
+
 
   // НОВЫЙ МЕТОД: Очистка localStorage при переполнении
   cleanupLocalStorage() {
@@ -345,29 +388,69 @@ async safeVKCall(method, params = {}) {
 
 loadFromLocal() {
   try {
-    // Migration from old key (without user ID)
+    const currentUserId = this.currentVkUserId || this.getCurrentUserId();
     const oldKey = 'findpair_progress';
     const newKey = this.getUserStorageKey();
-    
+
+    // 🔄 Миграция со старого общего ключа на пользовательский
     if (newKey !== oldKey) {
       const oldData = localStorage.getItem(oldKey);
-      if (oldData && !localStorage.getItem(newKey)) {
-        console.log('🔄 Migrating old progress to user-specific key');
+      const hasNewData = localStorage.getItem(newKey);
+
+      if (oldData && !hasNewData) {
+        console.log('🔄 Migrating old progress to user-specific key', {
+          from: oldKey,
+          to: newKey,
+        });
         localStorage.setItem(newKey, oldData);
         localStorage.removeItem(oldKey);
       }
     }
-    
+
     const compressed = localStorage.getItem(newKey);
-      if (!compressed) return this.getDefaultProgressData();
-      
-      const data = this.decompressData(compressed);
-      return this.safelyMigrateData(data);
-    } catch (error) {
-      console.error('❌ Failed to load from localStorage:', error);
+    if (!compressed) {
+      // Ничего нет для этого пользователя — даём чистый прогресс
       return this.getDefaultProgressData();
     }
+
+    const rawData = this.decompressData(compressed);
+    let data = this.safelyMigrateData(rawData);
+
+    if (!data || typeof data !== 'object') {
+      console.warn('⚠️ Local progress data is invalid, using default');
+      return this.getDefaultProgressData();
+    }
+
+    // 🧾 Проверка принадлежности данных пользователю
+    if (data.vkUserId && currentUserId && data.vkUserId !== currentUserId) {
+      console.warn('🚫 Local progress belongs to another user, ignoring', {
+        storedUser: data.vkUserId,
+        currentUser: currentUserId,
+      });
+      return this.getDefaultProgressData();
+    }
+
+    // Если vkUserId ещё не прописан, считаем, что это данные текущего пользователя
+    if (!data.vkUserId && currentUserId) {
+      data.vkUserId = currentUserId;
+
+      // Пере-сохраняем с обновлённым vkUserId,
+      // чтобы в следующий раз не приходилось угадывать
+      try {
+        const updatedCompressed = this.compressData(data);
+        localStorage.setItem(newKey, updatedCompressed);
+      } catch (e) {
+        console.warn('⚠️ Failed to resave local progress with vkUserId', e);
+      }
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to load from localStorage:', error);
+    return this.getDefaultProgressData();
   }
+}
+
 
   // === ProgressSyncManager.js:189-230 - ДОБАВИТЬ после saveToLocal ===
 
@@ -694,10 +777,14 @@ getCurrentLevel() {
   }
 
   async saveProgress(progressData, forceSync = false) {
+    //251123
+    const vkUserId = this.currentVkUserId || this.getCurrentUserId();
+    
     const timestamp = Date.now();
     
     const enrichedData = {
       ...progressData,
+      vkUserId,                     // перезапишем на всякий случай
       version: this.version,
       timestamp,
       deviceId: this.getDeviceId(),
@@ -785,8 +872,12 @@ async getProgress() {
   }
 
   getDefaultProgressData() {
+    //251123
+    const vkUserId = this.currentVkUserId || this.getCurrentUserId();
+    
     return {
       version: this.version,
+      vkUserId,          // <-- важное поле 251123
       timestamp: Date.now(),
       deviceId: this.getDeviceId(),
       lastModified: Date.now(),
