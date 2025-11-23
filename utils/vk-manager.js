@@ -305,6 +305,11 @@ class VKManager {
     return result;
   }
 
+  getStorageFallbackKey(key) {
+  const userId = this.getLaunchParams()?.vk_user_id || 'anonymous';
+  return `vk_storage_${userId}_${key}`;
+}
+
   async setStorageData(key, value) {
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
     
@@ -318,12 +323,18 @@ class VKManager {
       });
 
       // Дублируем в localStorage как fallback
-      localStorage.setItem(`vk_storage_${key}`, stringValue);
+      //localStorage.setItem(`vk_storage_${key}`, stringValue);
+      const fallbackKey = this.getStorageFallbackKey(key);
+localStorage.setItem(fallbackKey, stringValue);
+localStorage.getItem(fallbackKey);
       
       return true;
     } catch (error) {
       this.debug('Storage set failed, using localStorage fallback', error);
-      localStorage.setItem(`vk_storage_${key}`, stringValue);
+      //localStorage.setItem(`vk_storage_${key}`, stringValue);
+      const fallbackKey = this.getStorageFallbackKey(key);
+localStorage.setItem(fallbackKey, stringValue);
+localStorage.getItem(fallbackKey);
       return false;
     }
   }
