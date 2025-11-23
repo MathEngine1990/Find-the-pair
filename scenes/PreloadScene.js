@@ -326,6 +326,12 @@ loadGameAssets() {
   }
 
   startNextScene() {
+      // Привязать глобальный ProgressSyncManager к registry Phaser
+  if (window.progressSyncManager) {
+    this.registry.set('progressSyncManager', window.progressSyncManager);
+    console.log('🔗 progressSyncManager registered in scene registry');
+  }
+    
     // Инициализация VK достижений
     if (this.isVKEnvironment) {
       this.initVKAchievements();
@@ -357,8 +363,6 @@ loadGameAssets() {
     // Здесь можно добавить дополнительную логику, если нужно
     this.applyTextureFiltering();
 
-     // ✅ ДОБАВИТЬ: Переход к следующей сцене
-  this.startNextScene();
   }
 
   applyTextureFiltering() {
