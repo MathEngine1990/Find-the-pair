@@ -445,8 +445,10 @@ async initializeSyncManager() {
     this.syncManager = {
       getProgress: async () => {
         try {
-          const userId = window.VK_USER_DATA?.id || 'guest';
-          const key = `findpair_progress_${userId}`;
+          const key =
+  this.syncManager?.getUserStorageKey?.() ||
+  `findpair_progress_guest`;
+
           const saved = localStorage.getItem(key);
           
           if (!saved) return { levels: {} };
@@ -463,8 +465,11 @@ async initializeSyncManager() {
       },
       saveProgress: (data) => {
         try {
-          const userId = window.VK_USER_DATA?.id || 'guest';
-          const key = `findpair_progress_${userId}`;
+          const key =
+  this.syncManager?.getUserStorageKey?.() ||
+  `findpair_progress_guest`;
+
+          
           localStorage.setItem(key, JSON.stringify(data));
         } catch (e) {
           console.error('Fallback saveProgress error:', e);
@@ -1906,8 +1911,10 @@ checkPair() {
   saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy) {
     try {
       // ✅ ИСПРАВЛЕНО: Используем User ID
-      const userId = window.VK_USER_DATA?.id || 'guest';
-      const storageKey = `findpair_progress_${userId}`;
+      const storageKey =
+  this.syncManager?.getUserStorageKey?.() ||
+  `findpair_progress_guest`;
+
       
       let progress;
       try {
