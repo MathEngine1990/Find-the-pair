@@ -32,14 +32,14 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 async create() {
   console.log('MenuScene.create() started');
   
-  // ✅ Создаем TextManager ДО любых операций
+  // Создаем TextManager ДО любых операций
   this.textManager = new TextManager(this);
 
-  // ✅ Блокируем resize до полной инициализации
+  // Флаги
   this._isInitializing = true;
-  this._isDrawing = false;        // флаг для будущей защиты drawMenu (ниже будем использовать)
+  this._isDrawing = false;  // просто инициализация, НЕ ставим true перед drawMenu
 
-  // Базовая структура прогресса, чтобы не было undefined
+  // Базовая структура прогресса
   this.progress = {
     levels: {},
     achievements: {},
@@ -49,7 +49,7 @@ async create() {
   // Фон сразу
   this.ensureGradientBackground();
 
-  // ⏳ 1. СНАЧАЛА ждём полной инициализации syncManager
+  // 1. Инициализируем syncManager
   try {
     await this.initializeSyncManager();
     console.log('✅ SyncManager initialized');
@@ -57,7 +57,7 @@ async create() {
     console.error('❌ Sync init failed:', e);
   }
 
-  // ⏳ 2. Пытаемся один раз получить текущий прогресс
+  // 2. Один раз пытаемся получить прогресс
   if (this.syncManager?.getProgress) {
     try {
       this.progress = await this.syncManager.getProgress();
@@ -72,7 +72,7 @@ async create() {
     }
   }
 
-  // ⏳ 3. Ждём шрифты (но с таймаутом)
+  // 3. Ждём шрифты (с таймаутом)
   try {
     await Promise.race([
       document.fonts.ready,
@@ -83,33 +83,31 @@ async create() {
     console.warn('⚠️ Fonts timeout:', e);
   }
 
-  // ⏳ 4. ТЕПЕРЬ рисуем меню уже с прогрессом
+  // 4. Рисуем меню (ТЕПЕРЬ без внешнего _isDrawing)
   try {
-    this._isDrawing = true;
     await this.drawMenu(this.levelPage);
   } catch (e) {
     console.error('❌ drawMenu error:', e);
-  } finally {
-    this._isDrawing = false;
   }
 
-  // ⏳ 5. Фоновая VK-синхронизация ТОЛЬКО один раз (не блокируем сцену)
+  // 5. Фоновая синхронизация VK один раз
   if (this.syncManager?.isVKAvailable?.() && !this._syncInitiated) {
     console.log('🔄 Triggering initial background sync');
-    this._syncInitiated = true; // флаг, чтобы не повторять
+    this._syncInitiated = true;
 
     this.syncManager.performSync()
       .then((synced) => {
         if (synced) {
           console.log('✅ Background sync completed');
-          // Обновляем UI только если сцена активна
           if (this.scene.isActive()) {
-            this.syncManager.getProgress().then(progress => {
-              this.progress = progress;
-              this.refreshUI();
-            }).catch(err => {
-              console.warn('⚠️ getProgress after sync failed:', err);
-            });
+            this.syncManager.getProgress()
+              .then(progress => {
+                this.progress = progress;
+                this.refreshUI();
+              })
+              .catch(err => {
+                console.warn('⚠️ getProgress after sync failed:', err);
+              });
           }
         }
       })
@@ -118,15 +116,15 @@ async create() {
       });
   }
 
-  // ✅ Разблокируем resize ПОСЛЕ всех операций
+  // Разблокируем resize ПОСЛЕ всех операций
   this._isInitializing = false;
 
-  // ✅ Глобальный debounced-resize event
+  // глобальный debounced-resize
   this.game.events.on('debounced-resize', this.handleResize, this);
 
-  // Чистим обработчики при выходе из сцены
   this.events.once('shutdown', this.cleanup, this);
 }
+
 
 
 // ✅ НОВЫЙ МЕТОД
@@ -629,12 +627,7 @@ const prevBtn = window.makeIconButton(
     if (!prevActive) return;
     if (this._isDrawing || this._isInitializing) return;
 
-    this._isDrawing = true;                // ← Блокируем повторные вызовы
-    await this.drawMenu(this.levelPage - 1)
-      .catch(err => console.error('drawMenu error:', err))
-      .finally(() => {
-        this._isDrawing = false;           // ← Разблокируем
-      });
+    await this.drawMenu(this.levelPage - 1);
   },
   arrowStyle
 );
@@ -643,13 +636,13 @@ this.levelButtons.push(prevBtn);
 
 
     // Текст страницы
-    const pageTxt = this.textManager.createText(
-      W * 0.5, yNav + 20,
-      `${this.levelPage + 1} / ${PAGES}`,
-      'buttonText'
-    );
-    pageTxt.setOrigin(0.5);
-    this.levelButtons.push(pageTxt);
+const pageTxt = this.textManager.createText(
+  W * 0.5, yNav + 20,
+  `${this.levelPage + 1} / ${PAGES}`,
+  'buttonText'
+);
+pageTxt.setOrigin(0.5);
+this.levelButtons.push(pageTxt);
 
     // Кнопка "Вперед"
 const nextBtn = window.makeIconButton(
@@ -662,12 +655,7 @@ const nextBtn = window.makeIconButton(
     if (!nextActive) return;
     if (this._isDrawing || this._isInitializing) return;
 
-    this._isDrawing = true;
-    await this.drawMenu(this.levelPage + 1)
-      .catch(err => console.error('drawMenu error:', err))
-      .finally(() => {
-        this._isDrawing = false;
-      });
+    await this.drawMenu(this.levelPage + 1);
   },
   arrowStyle
 );
@@ -677,25 +665,18 @@ this.levelButtons.push(nextBtn);
 
     // Колесо мыши (для десктопа)
     if (!isMobile) {
-this._wheelHandler = async (_p, _objs, _dx, dy) => {
-  if (this._isDrawing || this._isInitializing) return;
+  this._wheelHandler = async (_p, _objs, _dx, dy) => {
+    if (this._isDrawing || this._isInitializing) return;
 
-  if (dy > 0 && nextActive) {
-    this._isDrawing = true;
-    await this.drawMenu(this.levelPage + 1)
-      .catch(err => console.error('wheel drawMenu error:', err))
-      .finally(() => (this._isDrawing = false));
-  } 
-  else if (dy < 0 && prevActive) {
-    this._isDrawing = true;
-    await this.drawMenu(this.levelPage - 1)
-      .catch(err => console.error('wheel drawMenu error:', err))
-      .finally(() => (this._isDrawing = false));
-  }
-};
-this.input.on('wheel', this._wheelHandler);
-
+    if (dy > 0 && nextActive) {
+      await this.drawMenu(this.levelPage + 1);
+    } else if (dy < 0 && prevActive) {
+      await this.drawMenu(this.levelPage - 1);
     }
+  };
+  this.input.on('wheel', this._wheelHandler);
+}
+
 
     console.log('Menu drawn, total buttons:', this.levelButtons.length);
   } catch (e) {
@@ -774,29 +755,22 @@ updateLevelButtons() {
 }
 
 
-  async updateStatsDisplay() {
-    const statsElement = this.levelButtons.find(btn => 
-      btn.type === 'Text' && btn.text && btn.text.includes('Пройдено:'));
-    
-    if (statsElement) {
-      const stats = await this.getStats();
-      if (stats.completedLevels > 0) {
-        let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
-        
-        // if (stats.gamesPlayed > 0) {
-        //   statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
-        //   if (stats.perfectGames > 0) {
-        //     statsText += ` | Идеальных: ${stats.perfectGames}`;
-        //   }
-        //   if (stats.bestTime) {
-        //     statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
-        //   }
-        // }
-        
-        statsElement.setText(statsText);
-      }
-    }
+ updateStatsDisplay() {
+  const statsElement = this.levelButtons.find(btn =>
+    btn.type === 'Text' && btn.text && btn.text.includes('Пройдено:')
+  );
+
+  if (!statsElement) return;
+
+  const stats = this.getStats();
+  if (stats.completedLevels > 0) {
+    const statsText =
+      `Пройдено: ${stats.completedLevels}/${stats.totalLevels} ` +
+      `| Звезд: ${stats.totalStars}/${stats.maxStars}`;
+    statsElement.setText(statsText);
   }
+}
+
 
 
 
