@@ -32,25 +32,47 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 async create() {
   console.log('MenuScene.create() started');
   
-  // ✅ FIX #4: Создаем TextManager ДО любых операций
+  // ✅ Создаем TextManager ДО любых операций
   this.textManager = new TextManager(this);
-  
-  // ✅ FIX #4: Блокируем resize до полной инициализации
+
+  // ✅ Блокируем resize до полной инициализации
   this._isInitializing = true;
-  
-  this.progress = {};
+  this._isDrawing = false;        // флаг для будущей защиты drawMenu (ниже будем использовать)
+
+  // Базовая структура прогресса, чтобы не было undefined
+  this.progress = {
+    levels: {},
+    achievements: {},
+    stats: {}
+  };
+
+  // Фон сразу
   this.ensureGradientBackground();
-  await this.drawMenu(this.levelPage);
-  
-  // ⏳ КРИТИЧНО: СНАЧАЛА ждём полной инициализации syncManager
+
+  // ⏳ 1. СНАЧАЛА ждём полной инициализации syncManager
   try {
     await this.initializeSyncManager();
     console.log('✅ SyncManager initialized');
   } catch (e) {
     console.error('❌ Sync init failed:', e);
   }
-  
-  // ⏳ ПОТОМ ждём шрифты параллельно
+
+  // ⏳ 2. Пытаемся один раз получить текущий прогресс
+  if (this.syncManager?.getProgress) {
+    try {
+      this.progress = await this.syncManager.getProgress();
+      console.log(
+        '✅ Progress loaded:',
+        Object.keys(this.progress.levels || {}).length,
+        'levels'
+      );
+    } catch (err) {
+      console.warn('⚠️ Initial getProgress failed, using empty progress:', err);
+      this.progress = { levels: {}, achievements: {}, stats: {} };
+    }
+  }
+
+  // ⏳ 3. Ждём шрифты (но с таймаутом)
   try {
     await Promise.race([
       document.fonts.ready,
@@ -60,53 +82,52 @@ async create() {
   } catch (e) {
     console.warn('⚠️ Fonts timeout:', e);
   }
-  
-  // ⏳ ТЕПЕРЬ безопасно загружать прогресс
-  if (this.syncManager) {
-    try {
-      // Сначала загружаем текущий прогресс
-      this.progress = await this.syncManager.getProgress();
-      console.log('✅ Progress loaded:', Object.keys(this.progress.levels || {}).length, 'levels');
-      
-      // Потом пытаемся синхронизировать (если VK доступен)
-      // === MenuScene.js:68-85 ЗАМЕНИТЬ ===
 
-// ✅ FIX: Синхронизируем ТОЛЬКО один раз + неблокирующе
-if (this.syncManager.isVKAvailable?.() && !this._syncInitiated) {
-  console.log('🔄 Triggering initial background sync');
-  this._syncInitiated = true; // ← Флаг для предотвращения повторных вызовов
-  
-  // Запускаем sync в фоне, НЕ ЖДЁМ результата
-  this.syncManager.performSync().then((synced) => {
-    if (synced) {
-      console.log('✅ Background sync completed');
-      // Обновляем UI только если сцена активна
-      if (this.scene.isActive()) {
-        this.syncManager.getProgress().then(progress => {
-          this.progress = progress;
-          this.refreshUI();
-        });
-      }
-    }
-  }).catch(err => {
-    console.warn('⚠️ Background sync failed:', err);
-  });
-}
-      
-      this.refreshUI();
-    } catch (err) {
-      console.warn('⚠️ Initial sync failed:', err);
-    }
+  // ⏳ 4. ТЕПЕРЬ рисуем меню уже с прогрессом
+  try {
+    this._isDrawing = true;
+    await this.drawMenu(this.levelPage);
+  } catch (e) {
+    console.error('❌ drawMenu error:', e);
+  } finally {
+    this._isDrawing = false;
   }
-  
-  // ✅ FIX #4: Разблокируем resize ПОСЛЕ всех операций
+
+  // ⏳ 5. Фоновая VK-синхронизация ТОЛЬКО один раз (не блокируем сцену)
+  if (this.syncManager?.isVKAvailable?.() && !this._syncInitiated) {
+    console.log('🔄 Triggering initial background sync');
+    this._syncInitiated = true; // флаг, чтобы не повторять
+
+    this.syncManager.performSync()
+      .then((synced) => {
+        if (synced) {
+          console.log('✅ Background sync completed');
+          // Обновляем UI только если сцена активна
+          if (this.scene.isActive()) {
+            this.syncManager.getProgress().then(progress => {
+              this.progress = progress;
+              this.refreshUI();
+            }).catch(err => {
+              console.warn('⚠️ getProgress after sync failed:', err);
+            });
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('⚠️ Background sync failed:', err);
+      });
+  }
+
+  // ✅ Разблокируем resize ПОСЛЕ всех операций
   this._isInitializing = false;
-  
+
   // ✅ Глобальный debounced-resize event
   this.game.events.on('debounced-resize', this.handleResize, this);
-  
+
+  // Чистим обработчики при выходе из сцены
   this.events.once('shutdown', this.cleanup, this);
 }
+
 
 // ✅ НОВЫЙ МЕТОД
 // === MenuScene.js:90-103 - ЗАМЕНИТЬ handleResize ===
@@ -292,30 +313,39 @@ async getProgress() {
 
 
 
-  async getStats() {
-    const progressLevels = await this.getProgress();
-    const levels = Object.keys(progressLevels);
-    
-    const stats = {
-      totalLevels: window.LEVELS.length,
-      completedLevels: levels.length,
-      totalStars: levels.reduce((sum, key) => sum + (progressLevels[key].stars || 0), 0),
-      maxStars: window.LEVELS.length * 3,
-      averageStars: levels.length > 0 ? 
-        levels.reduce((sum, key) => sum + (progressLevels[key].stars || 0), 0) / levels.length : 0
-    };
-    
-    if (this.progress && this.progress.stats) {
-      const globalStats = this.progress.stats;
-      stats.gamesPlayed = globalStats.gamesPlayed || 0;
-      stats.totalTime = globalStats.totalTime || 0;
-      stats.bestTime = globalStats.bestTime || null;
-      stats.perfectGames = globalStats.perfectGames || 0;
-      stats.totalErrors = globalStats.totalErrors || 0;
-    }
-    
-    return stats;
-  }
+getStats() {
+  // Прогресс уровней берем из уже загруженного this.progress
+  const progressLevels = (this.progress && this.progress.levels) || {};
+  const levelKeys = Object.keys(progressLevels);
+
+  const totalLevels = window.LEVELS.length;
+  const completedLevels = levelKeys.length;
+  const totalStars = levelKeys.reduce((sum, key) => {
+    const lvl = progressLevels[key] || {};
+    return sum + (lvl.stars || 0);
+  }, 0);
+
+  const stats = {
+    totalLevels,
+    completedLevels,
+    totalStars,
+    maxStars: totalLevels * 3,
+    averageStars: completedLevels > 0
+      ? totalStars / completedLevels
+      : 0
+  };
+
+  // Глобальная статистика — тоже из this.progress
+  const globalStats = (this.progress && this.progress.stats) || {};
+  stats.gamesPlayed  = globalStats.gamesPlayed  || 0;
+  stats.totalTime    = globalStats.totalTime    || 0;
+  stats.bestTime     = globalStats.bestTime     || null;
+  stats.perfectGames = globalStats.perfectGames || 0;
+  stats.totalErrors  = globalStats.totalErrors  || 0;
+
+  return stats;
+}
+
 
   getSceneWH(){
     const s = this.scale, cam = this.cameras?.main;
@@ -424,233 +454,257 @@ getSafeAreaInsets() {
   }
 }
 
-    async drawMenu(page = 0) {
-    console.log('Drawing menu, page:', page);
+async drawMenu(page = 0) {
+  // Защита от параллельных перерисовок
+  if (this._isDrawing) {
+    console.log('⏸️ drawMenu skipped: drawing already in progress');
+    return;
+  }
+
+  this._isDrawing = true;
+  console.log('Drawing menu, page:', page);
+
+  try {
     this.clearMenu();
     const { W, H } = this.getSceneWH();
     console.log('Scene dimensions:', W, H);
 
-      // ✅ ДОБАВИТЬ: Обновляем размеры
-  this.textManager.updateDimensions();
-    
-    // КРИТИЧНО: Определяем мобильное устройство
-    const isMobile = W < 768 || H < 600 || 
-                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const scaleFactor = isMobile ? 1.8 : 1.0; // Увеличиваем все размеры для мобильных
-    
-    this.levelPage = Math.max(0, Math.min(page, Math.ceil(window.LEVELS.length / 9) - 1));
+    // Обновляем размеры текстов
+    if (this.textManager) {
+      this.textManager.updateDimensions();
+    }
+
+    // Определяем мобильное устройство
+    const isMobile = W < 768 || H < 600 ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const scaleFactor = isMobile ? 1.8 : 1.0;
+
+    // Корректный номер страницы
+    const PER_PAGE = 9; // 3×3
+    const maxPage = Math.max(0, Math.ceil(window.LEVELS.length / PER_PAGE) - 1);
+    this.levelPage = Math.max(0, Math.min(page, maxPage));
 
     // Проверяем принятие соглашения
     const acceptedAgreement = localStorage.getItem('acceptedAgreement');
-    const agreementVersion = localStorage.getItem('agreementVersion');
-    const CURRENT_VERSION = '2025-09-13';
-    
-    // ДЛЯ ОТЛАДКИ: Автоматически принимаем соглашение
+    const agreementVersion  = localStorage.getItem('agreementVersion');
+    const CURRENT_VERSION   = '2025-09-13';
+
     if (!acceptedAgreement && window.VK_DEBUG) {
-        console.log('Auto-accepting agreement for debugging');
-        localStorage.setItem('acceptedAgreement', 'true');
-        localStorage.setItem('agreementVersion', CURRENT_VERSION);
+      console.log('Auto-accepting agreement for debugging');
+      localStorage.setItem('acceptedAgreement', 'true');
+      localStorage.setItem('agreementVersion', CURRENT_VERSION);
     }
 
-    if (!acceptedAgreement || agreementVersion !== CURRENT_VERSION) {
-        console.log('Showing user agreement');
-        this.showUserAgreement();
-        return;
+    if (!localStorage.getItem('acceptedAgreement') ||
+        localStorage.getItem('agreementVersion') !== CURRENT_VERSION) {
+      console.log('Showing user agreement');
+      this.showUserAgreement();
+      return;
     }
 
     console.log('Creating menu content...');
 
-    // ИСПРАВЛЕНО: Адаптивная сетка для мобильных
-    const COLS = isMobile ? 3 : 3;
-    const ROWS = isMobile ? 3 : 3;
-    const PER_PAGE = COLS * ROWS;
+    // Адаптивная сетка
+    const COLS = 3;
+    const ROWS = 3;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
-    // ✅ ДОБАВИТЬ после строки 285:
-const safeArea = this.getSafeAreaInsets(); // ← НОВОЕ
-const topSafeZone = safeArea.top + 10; // 10px отступ от notch
-    let currentY = safeArea.top + 10; // Начинаем с safe area
+    const safeArea = this.getSafeAreaInsets();
+    let currentY = safeArea.top + 10;
 
-      // ✅ НОВЫЙ КОД: Персонализация для VK
-  if (this.vkUserData && this.vkUserData.first_name) {
-    const greeting = this.textManager.createText(
-      W/2, currentY,
-      `Привет, ${this.vkUserData.first_name}!`,
-      'titleMedium'
+    // Персонализация для VK
+    if (this.vkUserData && this.vkUserData.first_name) {
+      const greeting = this.textManager.createText(
+        W / 2, currentY,
+        `Привет, ${this.vkUserData.first_name}!`,
+        'titleMedium'
+      );
+      greeting.setOrigin(0.5, 0);
+      greeting.setColor('#243540');
+      this.levelButtons.push(greeting);
+
+      currentY += this.textManager.getSize('statLabel') + 30;
+    }
+
+    // Заголовок
+    const titleText = 'Сколько пар играть?';
+    const title = this.textManager.createText(
+      W / 2,
+      currentY,
+      titleText,
+      isMobile ? 'titleLarge_mobile' : 'titleLarge_desktop'
     );
-    greeting.setOrigin(0.5,0);
-    greeting.setColor('#243540');
-    this.levelButtons.push(greeting);
+    title.setOrigin(0.5);
+    this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('statLabel') + 30;
-  }
+    currentY += this.textManager.getSize('titleLarge') + 10;
 
-  // ✅ НОВЫЙ КОД: Заголовок
-  const titleText = isMobile && W < 400 ? 'Сколько пар играть?' : 'Сколько пар играть?';
-  const title = this.textManager.createText(
-   W/2, currentY, // ← ИЗМЕНИТЬ: было H * 0.08
-    titleText,
-    isMobile ? 'titleLarge_mobile' : 'titleLarge_desktop'
-  );
-  title.setOrigin(0.5);
-  this.levelButtons.push(title);
+    // 🔢 Статистика — синхронно, из this.progress
+    const stats = this.getStats();
+    if (stats.completedLevels > 0) {
+      const statsText =
+        `Пройдено: ${stats.completedLevels}/${stats.totalLevels} ` +
+        `| Звезд: ${stats.totalStars}/${stats.maxStars}`;
 
-    currentY += this.textManager.getSize('titleLarge') + 10; // Сдвиг вниз
-    
+      const statsDisplay = this.textManager.createText(
+        W / 2, currentY,
+        statsText,
+        'statLabel'
+      );
+      statsDisplay.setOrigin(0.5);
+      this.levelButtons.push(statsDisplay);
 
-  // ✅ НОВЫЙ КОД: Статистика
-// ✅ НОВЫЙ КОД: Статистика
-  const stats = await this.getStats();
-  if (stats.completedLevels > 0) {
-    let statsText = `Пройдено: ${stats.completedLevels}/${stats.totalLevels} | Звезд: ${stats.totalStars}/${stats.maxStars}`;
-    
-    // if (stats.gamesPlayed > 0) {
-    //   statsText += `\nИгр сыграно: ${stats.gamesPlayed}`;
-    //   if (stats.perfectGames > 0) {
-    //     statsText += ` | Идеальных: ${stats.perfectGames}`;
-    //   }
-    //   if (stats.bestTime) {
-    //     statsText += ` | Лучшее время: ${this.formatTime(stats.bestTime)}`;
-    //   }
-    // }
-    
-    const statsDisplay = this.textManager.createText(
-      W/2, currentY,
-      statsText,
-      'statLabel'
-    );
-    statsDisplay.setOrigin(0.5);
-    this.levelButtons.push(statsDisplay);
-    currentY += this.textManager.getSize('statLabel') + 18;
-  }
+      currentY += this.textManager.getSize('statLabel') + 18;
+    }
 
-
-    // КРИТИЧНО: Увеличенная область для кнопок на мобильных
-    const topY = H * (isMobile ? 0.20 : 0.16);
+    // Область для кнопок уровней
+    const topY    = H * (isMobile ? 0.20 : 0.16);
     const bottomY = H * (isMobile ? 0.75 : 0.79);
-    const areaH = bottomY - topY;
-    const areaW = Math.min(W * (isMobile ? 0.98 : 0.90), isMobile ? W : 1080);
-    
-    // ИСПРАВЛЕНО: Увеличенные размеры ячеек
-    const cellH = areaH / ROWS;
-    const cellW = areaW / COLS;
-    const gridLeft = (W - areaW) / 2;
-    const gridTop = topY;
+    const areaH   = bottomY - topY;
+    const areaW   = Math.min(
+      W * (isMobile ? 0.98 : 0.90),
+      isMobile ? W : 1080
+    );
 
-    const startIdx = this.levelPage * PER_PAGE;
-    const endIdx = Math.min(startIdx + PER_PAGE, window.LEVELS.length);
-    const pageLevels = window.LEVELS.slice(startIdx, endIdx);
+    const cellH   = areaH / ROWS;
+    const cellW   = areaW / COLS;
+    const gridLeft = (W - areaW) / 2;
+    const gridTop  = topY;
+
+    const startIdx    = this.levelPage * PER_PAGE;
+    const endIdx      = Math.min(startIdx + PER_PAGE, window.LEVELS.length);
+    const pageLevels  = window.LEVELS.slice(startIdx, endIdx);
+    const progressLevels = (this.progress && this.progress.levels) || {};
 
     console.log('Creating level buttons:', pageLevels.length, 'Mobile:', isMobile);
 
-    // КРИТИЧНО: Создание увеличенных кнопок уровней
-// КРИТИЧНО: Создание увеличенных кнопок уровней
-    const progressLevels = await this.getProgress(); // ⬅️ ДОБАВИТЬ ЭТУ СТРОКУ
-    
     pageLevels.forEach((lvl, i) => {
-        const levelIndex = startIdx + i;
-        const r = Math.floor(i / COLS);
-        const c = i % COLS;
-        const x = gridLeft + c * cellW + cellW/2;
-        const y = gridTop + r * cellH + cellH/2;
-        
-        // ИСПРАВЛЕНО: Увеличенные размеры кнопок для мобильных
-        const btnW = Math.min(
-            isMobile ? cellW * 0.92 : 320, 
-            cellW * 0.9
-        );
-        const btnH = Math.min(
-            isMobile ? cellH * 0.88 : 200, 
-            cellH * 0.86
-        );
+      const levelIndex = startIdx + i;
+      const r = Math.floor(i / COLS);
+      const c = i % COLS;
 
-        this.createLevelButton(x, y, btnW, btnH, lvl, levelIndex, scaleFactor);
+      const x = gridLeft + c * cellW + cellW / 2;
+      const y = gridTop  + r * cellH + cellH / 2;
+
+      const btnW = Math.min(
+        isMobile ? cellW * 0.92 : 320,
+        cellW * 0.9
+      );
+      const btnH = Math.min(
+        isMobile ? cellH * 0.88 : 200,
+        cellH * 0.86
+      );
+
+      this.createLevelButton(x, y, btnW, btnH, lvl, levelIndex, scaleFactor, progressLevels);
     });
 
-  // ✅ ИСПРАВИТЬ: Навигация (страницы)
-  const yNav = H * (isMobile ? 0.88 : 0.86);
-  const navSize = Math.max(
-    isMobile ? 60 : 52, 
-    Math.round(H * 0.07 * scaleFactor)
-  );
-    
+    // Навигация по страницам
+    const yNav = H * (isMobile ? 0.88 : 0.86);
+    const navSize = Math.max(
+      isMobile ? 60 : 52,
+      Math.round(H * 0.07 * scaleFactor)
+    );
+
     const prevActive = this.levelPage > 0;
     const nextActive = this.levelPage < PAGES - 1;
 
-    // Например, оранжевый цвет:
-const arrowColors = {
-  color: '#FFFFFF',
-  hoverColor: '#E67E22',
-  bgColor: 0x3E2723,
-  borderColor: 0xE67E22,
-  bgAlpha: 0.8,
-  borderAlpha: 1.0,
-  borderWidth: 3
-};
+    const arrowStyle = {
+      color: '#FFCC00',
+      hoverColor: '#FFF700',
+      bgColor: 0x1A3A5C,
+      bgAlpha: 0.8,
+      borderColor: 0x4A90E2,
+      borderAlpha: 1.0,
+      borderWidth: 3
+    };
 
     // Кнопка "Назад"
-    const prevBtn = window.makeIconButton(this, W * 0.25, yNav+20, navSize, '‹', async () => {  // ← добавить async
-    if (prevActive) await this.drawMenu(this.levelPage - 1);
-          () => this.drawMenu(page - 1),
-  {
-    color: '#FFCC00',        // Цвет текста стрелки (← →)
-    hoverColor: '#FFF700',   // Цвет при наведении
-    bgColor: 0x1A3A5C,       // Цвет фона (hex number, БЕЗ '#')
-    bgAlpha: 0.8,            // Прозрачность фона (0-1)
-    borderColor: 0x4A90E2,   // Цвет границы (hex number)
-    borderAlpha: 1.0,        // Прозрачность границы (0-1)
-    borderWidth: 3           // Толщина границы (px)
-  }
-    });
-    prevBtn.setAlpha(prevActive ? 1 : 0.45);
-    this.levelButtons.push(prevBtn);
+const prevBtn = window.makeIconButton(
+  this,
+  W * 0.25,
+  yNav + 20,
+  navSize,
+  '‹',
+  async () => {
+    if (!prevActive) return;
+    if (this._isDrawing || this._isInitializing) return;
 
-    // Текст страницы с увеличенным шрифтом
-    const pageTextSize = Math.max(
-        isMobile ? 20 : 16,
-        Math.round(navSize * 0.35)
+    this._isDrawing = true;                // ← Блокируем повторные вызовы
+    await this.drawMenu(this.levelPage - 1)
+      .catch(err => console.error('drawMenu error:', err))
+      .finally(() => {
+        this._isDrawing = false;           // ← Разблокируем
+      });
+  },
+  arrowStyle
+);
+prevBtn.setAlpha(prevActive ? 1 : 0.45);
+this.levelButtons.push(prevBtn);
+
+
+    // Текст страницы
+    const pageTxt = this.textManager.createText(
+      W * 0.5, yNav + 20,
+      `${this.levelPage + 1} / ${PAGES}`,
+      'buttonText'
     );
-    
-  const pageTxt = this.textManager.createText(
-    W * 0.5, yNav+20,
-    `${this.levelPage + 1} / ${PAGES}`,
-    'buttonText'
-  );
-  pageTxt.setOrigin(0.5);
-  this.levelButtons.push(pageTxt);
+    pageTxt.setOrigin(0.5);
+    this.levelButtons.push(pageTxt);
 
     // Кнопка "Вперед"
-    const nextBtn = window.makeIconButton(this, 
-    W * 0.75, 
-    yNav+20, 
-    navSize, 
-    '›', 
-    async () => {  // ← добавить async
-        if (nextActive) await this.drawMenu(this.levelPage + 1),
-        {
-    color: '#FFCC00',        // Цвет текста стрелки (← →)
-    hoverColor: '#FFF700',   // Цвет при наведении
-    bgColor: 0x1A3A5C,       // Цвет фона (hex number, БЕЗ '#')
-    bgAlpha: 0.8,            // Прозрачность фона (0-1)
-    borderColor: 0x4A90E2,   // Цвет границы (hex number)
-    borderAlpha: 1.0,        // Прозрачность границы (0-1)
-    borderWidth: 3           // Толщина границы (px)
-  }
-    });
-    nextBtn.setAlpha(nextActive ? 1 : 0.45);
-    this.levelButtons.push(nextBtn);
+const nextBtn = window.makeIconButton(
+  this,
+  W * 0.75,
+  yNav + 20,
+  navSize,
+  '›',
+  async () => {
+    if (!nextActive) return;
+    if (this._isDrawing || this._isInitializing) return;
+
+    this._isDrawing = true;
+    await this.drawMenu(this.levelPage + 1)
+      .catch(err => console.error('drawMenu error:', err))
+      .finally(() => {
+        this._isDrawing = false;
+      });
+  },
+  arrowStyle
+);
+nextBtn.setAlpha(nextActive ? 1 : 0.45);
+this.levelButtons.push(nextBtn);
+
 
     // Колесо мыши (для десктопа)
     if (!isMobile) {
-        this._wheelHandler = async (_p, _objs, _dx, dy) => {  // ← добавить async
-    if (dy > 0 && nextActive) await this.drawMenu(this.levelPage + 1);
-    else if (dy < 0 && prevActive) await this.drawMenu(this.levelPage - 1);
+this._wheelHandler = async (_p, _objs, _dx, dy) => {
+  if (this._isDrawing || this._isInitializing) return;
+
+  if (dy > 0 && nextActive) {
+    this._isDrawing = true;
+    await this.drawMenu(this.levelPage + 1)
+      .catch(err => console.error('wheel drawMenu error:', err))
+      .finally(() => (this._isDrawing = false));
+  } 
+  else if (dy < 0 && prevActive) {
+    this._isDrawing = true;
+    await this.drawMenu(this.levelPage - 1)
+      .catch(err => console.error('wheel drawMenu error:', err))
+      .finally(() => (this._isDrawing = false));
+  }
 };
-        this.input.on('wheel', this._wheelHandler);
+this.input.on('wheel', this._wheelHandler);
+
     }
-    
+
     console.log('Menu drawn, total buttons:', this.levelButtons.length);
+  } catch (e) {
+    console.error('❌ drawMenu fatal error:', e);
+  } finally {
+    this._isDrawing = false;
+  }
 }
+
 
 
 
@@ -700,24 +754,25 @@ const arrowColors = {
 }
   
   refreshUI() {
-    if (!this.scene.isActive()) return;
-    if (!this.levelButtons || this.levelButtons.length === 0) return;
+  if (!this.scene.isActive()) return;
+  if (this._isDrawing) return; // чтобы не ковырять UI во время полной перерисовки
+  if (!this.levelButtons || this.levelButtons.length === 0) return;
     
     console.log('🔄 Refreshing MenuScene UI');
     this.updateLevelButtons();
     this.updateStatsDisplay();
   }
 
-async updateLevelButtons() {
-    const progressLevels = await this.getProgress();
-    
-    // Обновляем кнопки уровней на экране
-    this.levelButtons.forEach(btn => {
-      if (btn.levelIndex !== undefined) {
-        this.updateSingleLevelButton(btn, btn.levelIndex, progressLevels);
-      }
-    });
-  }
+updateLevelButtons() {
+  const progressLevels = (this.progress && this.progress.levels) || {};
+
+  this.levelButtons.forEach(btn => {
+    if (btn.levelIndex !== undefined) {
+      this.updateSingleLevelButton(btn, btn.levelIndex, progressLevels);
+    }
+  });
+}
+
 
   async updateStatsDisplay() {
     const statsElement = this.levelButtons.find(btn => 
@@ -977,75 +1032,87 @@ showExitConfirmation(previousDialogElements) {
 
   // === MenuScene.js:444-472 - ЗАМЕНИТЬ createLevelButton ===
 
-async createLevelButton(x, y, w, h, lvl, levelIndex, scaleFactor = 1.0) {
-    const isMobile = w > 150;
-    
-    const btn = window.makeImageButton(this, x, y, w, h, '', () => {
-        if (this.syncManager) this.syncManager.setCurrentLevel(levelIndex);
-        this.scene.start('GameScene', { level: levelIndex });
-    });
-    
-  // 🔥 НОВОЕ: Номер уровня с правильным пресетом
+createLevelButton(
+  x,
+  y,
+  w,
+  h,
+  lvl,
+  levelIndex,
+  scaleFactor = 1.0,
+  progressLevels = null
+) {
+  const isMobile = w > 150;
+
+  const btn = window.makeImageButton(this, x, y, w, h, '', () => {
+    if (this.syncManager?.setCurrentLevel) {
+      this.syncManager.setCurrentLevel(levelIndex);
+    }
+    this.scene.start('GameScene', { level: levelIndex });
+  });
+
+  // Номер уровня
   const levelText = this.textManager.createText(
-    0, h*0.03,  // ⬆️ Чуть выше, чтобы не перекрывались звёзды
+    0,
+    h * 0.03,
     lvl.label,
-    'levelNumber'  // ⬅️ ИЗМЕНЕНО: используем новый пресет
+    'levelNumber'
   );
   levelText.setOrigin(0.5);
-    
-    btn.add(levelText);
-    btn.levelIndex = levelIndex;
-    
-  // 🔥 ИСПРАВЛЕНО: Звёзды с правильным размером
-  const starSize = this.textManager.getSize('stars');
-  const progressLevels = await this.getProgress();
-  const levelProgress = progressLevels[levelIndex];
-    
-    // ✅ Создаём контейнеры ОДИН РАЗ при создании кнопки
-    btn.starsContainer = this.add.container(x, y + h * 0.52);
-    btn.starsContainer.setDepth(btn.depth + 1);
-    
-    const starSpacing = starSize + 4;
-    const stars = levelProgress ? levelProgress.stars : 0;
-    
-    for (let star = 1; star <= 3; star++) {
-        const starX = (star - 2) * starSpacing;
-        const filled = star <= stars;
-        const starText = this.add.text(starX, 0, filled ? '♣' : '♧', {
-            fontSize: starSize + 'px',
-            color: filled ? '#243540' : '#F2DC9B',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+  btn.add(levelText);
+  btn.levelIndex = levelIndex;
 
-         // 🔥 НОВОЕ: Тень для звёзд
+  // Прогресс уровня (передан сверху, без async)
+  const levelsData = progressLevels || (this.progress && this.progress.levels) || {};
+  const levelProgress = levelsData[levelIndex];
+
+  // Звёзды
+  const starSize = this.textManager.getSize('stars');
+  btn.starsContainer = this.add.container(x, y + h * 0.52);
+  btn.starsContainer.setDepth(btn.depth + 1);
+
+  const starSpacing = starSize + 4;
+  const stars = levelProgress ? (levelProgress.stars || 0) : 0;
+
+  for (let star = 1; star <= 3; star++) {
+    const starX = (star - 2) * starSpacing;
+    const filled = star <= stars;
+    const starText = this.add.text(starX, 0, filled ? '♣' : '♧', {
+      fontSize: starSize + 'px',
+      color: filled ? '#243540' : '#F2DC9B',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
     if (filled) {
       starText.setShadow(0, 2, 'rgba(255, 215, 0, 0.6)', 4, false, true);
     }
-        
-        btn.starsContainer.add(starText);
-    }
-    
-    // ✅ Статистика под звёздами
-    btn.statsContainer = this.add.container(x, y + h * 0.65);
-    btn.statsContainer.setDepth(btn.depth + 1);
-    
-    if (levelProgress && levelProgress.bestTime) {
+
+    btn.starsContainer.add(starText);
+  }
+
+  // Статистика под звёздами
+  btn.statsContainer = this.add.container(x, y + h * 0.65);
+  btn.statsContainer.setDepth(btn.depth + 1);
+
+  if (levelProgress && levelProgress.bestTime) {
     const accuracy = levelProgress.accuracy || 100;
     const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-    
+
     const statsDisplay = this.textManager.createText(
-      0, 0,
+      0,
+      0,
       statsText,
       'statValue'
     );
     statsDisplay.setOrigin(0.5);
-    
+
     btn.statsContainer.add(statsDisplay);
   }
 
   this.levelButtons.push(btn);
   return btn;
 }
+
 
 
 
