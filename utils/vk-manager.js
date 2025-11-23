@@ -293,22 +293,39 @@ class VKManager {
         this.debug('Storage get failed, trying fallback', error);
         
         // Fallback на localStorage
-        uncachedKeys.forEach(key => {
-          const localValue = localStorage.getItem(`vk_storage_${key}`);
-          if (localValue) {
-            result.keys.push({ key, value: localValue });
-          }
-        });
+        // Fallback на localStorage (user-specific + backward compatibility)
+        
+uncachedKeys.forEach(key => {
+  try {
+    // Новый формат: vk_storage_<userId>_<key>
+    const fallbackKey = this.getStorageFallbackKey(key);
+    let localValue = localStorage.getItem(fallbackKey);
+
+    // Backward compatibility: старый общий ключ (если надо)
+    if (!localValue) {
+      localValue = localStorage.getItem(`vk_storage_${key}`);
+    }
+
+    if (localValue) {
+      result.keys.push({ key, value: localValue });
+    }
+  } catch (e) {
+    this.debug('LocalStorage fallback error', e);
+  }
+});
+
       }
     }
 
     return result;
   }
 
-  getStorageFallbackKey(key) {
-  const userId = this.getLaunchParams()?.vk_user_id || 'anonymous';
+getStorageFallbackKey(key) {
+  const lp = this.getLaunchParams();
+  const userId = lp?.user_id || this.userData?.id || 'anonymous';
   return `vk_storage_${userId}_${key}`;
 }
+
 
   async setStorageData(key, value) {
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
@@ -326,7 +343,6 @@ class VKManager {
       //localStorage.setItem(`vk_storage_${key}`, stringValue);
       const fallbackKey = this.getStorageFallbackKey(key);
 localStorage.setItem(fallbackKey, stringValue);
-localStorage.getItem(fallbackKey);
       
       return true;
     } catch (error) {
@@ -334,7 +350,6 @@ localStorage.getItem(fallbackKey);
       //localStorage.setItem(`vk_storage_${key}`, stringValue);
       const fallbackKey = this.getStorageFallbackKey(key);
 localStorage.setItem(fallbackKey, stringValue);
-localStorage.getItem(fallbackKey);
       return false;
     }
   }
