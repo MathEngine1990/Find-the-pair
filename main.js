@@ -1049,9 +1049,25 @@ function startPhaserGame() {
       window.game.registry.set('cachedDPR', window._cachedDPR);
       window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
 
-      // ❌ НИЧЕГО тут больше не стартуем руками
-      // PreloadScene уже работает как первая сцена
+      // Стартуем PreloadScene (дополнительно к автозапуску)
+      setTimeout(() => {
+        try {
+          window.game.scene.start('PreloadScene');
+          console.log('✅ PreloadScene start command sent');
+        } catch (error) {
+          console.error('❌ Failed to start PreloadScene:', error);
+          try {
+            console.log('🔄 Trying to start MenuScene directly...');
+            window.game.scene.start('MenuScene', { page: 0 });
+          } catch (menuError) {
+            console.error('❌ Failed to start MenuScene:', menuError);
+            showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
+          }
+        }
+      }, 200);
     });
+
+    // (🚫 resize / orientation тут можно НЕ дублировать — у тебя уже есть postBoot + обработчики ниже)
 
   } catch (e) {
     console.error('❌ Failed to create Phaser game:', e);
@@ -1060,10 +1076,28 @@ function startPhaserGame() {
 }
 
 
-
    const MAX_FONT_WAIT = 4000;
 
-startPhaserGame();
+if (document.fonts && document.fonts.ready) {
+  console.log('⏳ Waiting for fonts before starting Phaser...');
+
+  Promise.race([
+    document.fonts.ready,
+    new Promise(resolve => setTimeout(resolve, MAX_FONT_WAIT))
+  ])
+    .then(() => {
+      console.log('✅ Fonts ready (or timeout), starting game');
+      startPhaserGame();
+    })
+    .catch(err => {
+      console.warn('⚠️ Font wait error:', err);
+      startPhaserGame();
+    });
+
+} else {
+  console.log('ℹ️ document.fonts not supported – starting game immediately');
+  startPhaserGame();
+}
 
     
 
