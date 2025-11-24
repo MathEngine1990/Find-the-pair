@@ -16,26 +16,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     });
   }
 
-  preload() {
-    const { width, height } = this.scale;
-    
-    // Создаем красивый загрузочный экран
-    this.createLoadingScreen(width, height);
-    
-    // Настраиваем обработчики загрузки
-    this.setupLoadingHandlers();
-    
-    // Единый базовый путь для ассетов
-    this.load.setPath('assets/');
 
-    // Основные ассеты игры
-    this.loadGameAssets();
-    
-    // VK специфичные ассеты (если нужно)
-    if (this.isVKEnvironment) {
-      this.loadVKAssets();
-    }
-  }
 
   createLoadingScreen(width, height) {
     // Фон
@@ -159,32 +140,21 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     });
   }
 
-  // PreloadScene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
+  // Scene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
 
   // ПЕРЕД loadGameAssets()
-preload() {
+async preload() {
   const { width, height } = this.scale;
-  
-  // ✅ ФИХ КРИТИЧНО: Загрузить BoldPixels ПЕРВЫМ ДЕЛОМ
-  //await this.loadCustomFont();
-  
-  // Создаем загрузочный экран (теперь с правильным шрифтом)
-  this.createLoadingScreen(width, height);
-  
-  // Настраиваем обработчики загрузки
-  this.setupLoadingHandlers();
-  
-  // Единый базовый путь для ассетов
-  this.load.setPath('assets/');
 
-  // Основные ассеты игры
+  await this.loadCustomFont(); // ← РАСКОММЕНТИТЬ и добавить await
+
+  this.createLoadingScreen(width, height);
+  this.setupLoadingHandlers();
+  this.load.setPath('assets/');
   this.loadGameAssets();
-  
-  // VK специфичные ассеты (если нужно)
-  if (this.isVKEnvironment) {
-    this.loadVKAssets();
-  }
+  if (this.isVKEnvironment) this.loadVKAssets();
 }
+
 
 // ✅ НОВЫЙ МЕТОД: Загрузка кастомного шрифта
 async loadCustomFont() {
