@@ -138,34 +138,24 @@ this.load.on('complete', () => {
     });
   }
 
-  // ================================
-  // ⭐ ВАЖНО: preload делаем async
-  // ================================
 // ================================
-//  ✅ ВАЖНО: preload СИНХРОННЫЙ
+// ⭐ ВАЖНО: preload делаем async
 // ================================
-preload() {
+async preload() {
   const { width, height } = this.scale;
 
-  // 1️⃣ Стартуем загрузку шрифта, но НЕ блокируем Phaser
-  this.loadCustomFont()
-    .then((ok) => {
-      console.log('🔤 BoldPixels load result:', ok);
-      if (!ok) {
-        this.showFontErrorNotification();
-      }
-    })
-    .catch((e) => {
-      console.warn('⚠️ loadCustomFont error in preload:', e);
-    });
+  // 1️⃣ Сначала загружаем ВСЕ кастомные шрифты (BoldPixels + Loreley + Permian)
+  try {
+    await this.loadAllCustomFonts();
+  } catch (e) {
+    console.warn('⚠️ loadAllCustomFonts error in preload:', e);
+  }
 
-  // 2️⃣ Сразу рисуем экран загрузки
+  // 2️⃣ Создаём экран загрузки уже с готовыми шрифтами
   this.createLoadingScreen(width, height);
 
-  // 3️⃣ Настраиваем обработчики загрузчика
+  // 3️⃣ Обычная загрузка ассетов
   this.setupLoadingHandlers();
-
-  // 4️⃣ Кладём ассеты в очередь загрузки
   this.load.setPath('assets/');
   this.loadGameAssets();
 
@@ -176,57 +166,65 @@ preload() {
 
 
 
+
   // ===============================================
   // ✅ УЛУЧШЕННАЯ ЗАГРУЗКА BoldPixels БЕЗ МИГАНИЯ
   // ===============================================
 // ===============================================
 // ✅ УЛУЧШЕННАЯ ЗАГРУЗКА BoldPixels БЕЗ БЛОКИРОВКИ PHASER
 // ===============================================
-loadCustomFont() {
-  console.log('🔤 Loading BoldPixels font...');
+// ===============================================
+// ✅ ЗАГРУЗКА ВСЕХ КАСТОМНЫХ ШРИФТОВ
+// ===============================================
+async loadAllCustomFonts() {
+  console.log('🔤 Loading custom fonts bundle...');
 
-  const fontName = 'BoldPixels';
-  const fontPath = 'assets/fonts/BoldPixels.ttf';
-
-  // Если Font API нет — просто выходим, игра работает дальше
   if (!document.fonts || !window.FontFace) {
-    console.warn('⚠️ Font API not supported, using fallback fonts');
-    return Promise.resolve(false);
+    console.warn('⚠️ Font API not supported, relying on CSS only');
+    return;
   }
 
-  // Уже загружен?
-  if (document.fonts.check(`12px "${fontName}"`)) {
-    console.log('✅ BoldPixels already loaded');
-    return Promise.resolve(true);
+  const fontsToLoad = [
+    { name: 'BoldPixels',            path: 'assets/fonts/BoldPixels.ttf' },
+    { name: 'Loreley Antiqua',       path: 'assets/fonts/LoreleyAntiqua.ttf' },
+    { name: 'PermianSerifTypeface',  path: 'assets/fonts/PermianSerifTypeface.ttf' }
+  ];
+
+  for (const font of fontsToLoad) {
+    const { name, path } = font;
+
+    // Уже загружен? пропускаем
+    if (document.fonts.check(`16px "${name}"`)) {
+      console.log(`✅ ${name} already loaded`);
+      continue;
+    }
+
+    try {
+      console.log(`📥 Loading font: ${name} from ${path}`);
+      const face = new FontFace(name, `url(${path})`);
+
+      const loadedFace = await Promise.race([
+        face.load(),
+        new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
+      ]);
+
+      document.fonts.add(loadedFace);
+
+      // финальная проверка (не фейлим сцену, только логируем)
+      const ok = document.fonts.check(`16px "${name}"`);
+      if (!ok) {
+        console.warn(`⚠️ ${name} not reported as ready by document.fonts, but it was loaded`);
+      } else {
+        console.log(`🎉 ${name} fully loaded & ready`);
+      }
+
+    } catch (err) {
+      console.warn(`❌ Failed to load font ${name}:`, err);
+      // тут НЕ бросаем исключение, чтобы игра не падала
+    }
   }
-
-  // Асинхронная загрузка, НЕ блокирующая Phaser
-  const fontFace = new FontFace(fontName, `url(${fontPath})`);
-
-  return Promise.race([
-    fontFace.load(),
-    new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
-  ])
-    .then((loadedFace) => {
-      // Если не timeout, добавляем шрифт
-      if (loadedFace && loadedFace instanceof FontFace) {
-        document.fonts.add(loadedFace);
-      }
-
-      // Финальная проверка
-      if (!document.fonts.check(`12px "${fontName}"`)) {
-        console.warn('⚠️ BoldPixels not reported as ready by document.fonts, но будем всё равно использовать');
-        return false;
-      }
-
-      console.log('🎉 BoldPixels fully loaded');
-      return true;
-    })
-    .catch((err) => {
-      console.warn('⚠️ Failed to load BoldPixels:', err);
-      return false;
-    });
 }
+
 
 
 
