@@ -8,6 +8,10 @@
   font-display: block; /* ✅ Блокирует рендер до загрузки */
 }
 
+body {
+  font-family: 'BoldPixels', system-ui, sans-serif;
+}
+
 @font-face {
   font-family: 'Loreley Antiqua';
   src: url('../assets/fonts/Loreley Antiqua.ttf') format('truetype');
