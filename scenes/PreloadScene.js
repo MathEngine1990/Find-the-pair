@@ -165,56 +165,55 @@ async preload() {
 
 
 
-// ✅ НОВЫЙ МЕТОД: Загрузка кастомного шрифта
+// ===============================================
+// ✅ УЛУЧШЕННАЯ ЗАГРУЗКА BoldPixels БЕЗ МИГАНИЯ
+// ===============================================
 async loadCustomFont() {
   console.log('🔤 Loading BoldPixels font...');
-  
-  const fontName = 'BoldPixels';
-  const fontPath = 'assets/fonts/BoldPixels.ttf'; // Относительно index.html
-  
-  try {
 
-        // Если уже загружен (CSS + preload), просто выходим
-    if (document.fonts && document.fonts.check(`16px "${fontName}"`)) {
-      console.log('✅ BoldPixels already loaded (document.fonts.check)');
-      return;
+  const fontName = 'BoldPixels';
+  const fontPath = 'assets/fonts/BoldPixels.ttf';
+
+  try {
+    // 1️⃣ Если шрифт уже есть — просто выходим
+    if (document.fonts && document.fonts.check(`12px "${fontName}"`)) {
+      console.log('✅ BoldPixels already loaded (CSS)');
+      return true;
     }
 
     console.log('📥 Loading BoldPixels programmatically...');
-    
+
     const fontFace = new FontFace(fontName, `url(${fontPath})`);
-    
-    // Загружаем с таймаутом 5 секунд
+
+    // 2️⃣ Пробуем загрузить шрифт с безопасным таймаутом
     const loadedFont = await Promise.race([
       fontFace.load(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Font load timeout')), 5000)
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Font load timeout (5s)')), 5000)
       )
     ]);
-    
-    // Добавляем в document
+
+    // 3️⃣ Добавляем в документ
     document.fonts.add(loadedFont);
-    
     console.log('✅ BoldPixels loaded programmatically');
-    
 
-
-    document.fonts.add(loadedFont);
-    console.log('✅ BoldPixels ready for use');
-
-        // Доп. проверка
-    if (document.fonts && !document.fonts.check(`16px "${fontName}"`)) {
-      throw new Error('Font check failed after load');
+    // 4️⃣ Финальная проверка — только она гарантирует отсутствие мигания
+    const fontOK = document.fonts.check(`12px "${fontName}"`);
+    if (!fontOK) {
+      throw new Error('❌ BoldPixels failed final check');
     }
-    
-  } catch (error) {
-    console.error('❌ Failed to load BoldPixels:', error);
-    console.warn('⚠️ Falling back to system font');
-    
-    // Показать предупреждение пользователю
-    this.showFontErrorNotification();
+
+    console.log('🎉 BoldPixels fully ready BEFORE UI');
+    return true;
+
+  } catch (err) {
+    console.error('❌ Failed to load BoldPixels:', err);
+    console.warn('⚠️ Fallback: system font will be used');
+    this.showFontErrorNotification?.();
+    return false;
   }
 }
+
 
 // ✅ НОВЫЙ МЕТОД: Уведомление об ошибке шрифта
 showFontErrorNotification() {
