@@ -776,29 +776,44 @@ updateLevelButtons() {
 
   // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
 updateSingleLevelButton(button, levelIndex, progressLevels) {
-    const levelProgress = progressLevels[levelIndex];
-    const stars = levelProgress ? levelProgress.stars : 0;
-    
-    // Обновляем существующие звёзды
-    if (button.starsContainer && button.starsContainer.list) {
-        button.starsContainer.list.forEach((starText, index) => {
-            const filled = (index + 1) <= stars;
-            starText.setText(filled ? '♣' : '♧');
-            starText.setColor(filled ? '#5B818F' : '#F2C791');
-        });
+  const levelProgress = progressLevels[levelIndex];
+  const stars = levelProgress ? (levelProgress.stars || 0) : 0;
+
+  // Обновляем существующие звёзды
+  if (button.starsContainer && button.starsContainer.list) {
+    button.starsContainer.list.forEach((starText, index) => {
+      const filled = (index + 1) <= stars;
+
+      // те же символы
+      starText.setText(filled ? '♣' : '♧');
+
+      // ТЕ ЖЕ цвета, что и в createLevelButton:
+      //   filled  → '#243540'
+      //   empty   → '#F2DC9B'
+      starText.setColor(filled ? '#243540' : '#F2DC9B');
+
+      // и та же логика тени
+      if (filled) {
+        starText.setShadow(0, 2, 'rgba(255, 215, 0, 0.6)', 4, false, true);
+      } else {
+        // убираем тень у пустых
+        starText.setShadow(0, 0, '#000000', 0);
+      }
+    });
+  }
+
+  // Обновляем существующую статистику
+  if (button.statsContainer && button.statsContainer.list[0]) {
+    if (levelProgress && levelProgress.bestTime) {
+      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
+      button.statsContainer.list[0].setText(statsText);
+      button.statsContainer.setVisible(true);
+    } else {
+      button.statsContainer.setVisible(false);
     }
-    
-    // Обновляем существующую статистику
-    if (button.statsContainer && button.statsContainer.list[0]) {
-        if (levelProgress && levelProgress.bestTime) {
-            const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
-            button.statsContainer.list[0].setText(statsText);
-            button.statsContainer.setVisible(true);
-        } else {
-            button.statsContainer.setVisible(false);
-        }
-    }
+  }
 }
+
 
   showToast(message, color = '#3498DB', duration = 2000) {
     const { W, H } = this.getSceneWH();
