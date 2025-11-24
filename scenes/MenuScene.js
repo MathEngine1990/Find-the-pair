@@ -607,11 +607,11 @@ async drawMenu(page = 0) {
     const nextActive = this.levelPage < PAGES - 1;
 
     const arrowStyle = {
-      color: '#FFCC00',
-      hoverColor: '#FFF700',
-      bgColor: 0x1A3A5C,
+      color: '#F2DC9B',
+      hoverColor: '#C4451A',
+      bgColor: '#012615',
       bgAlpha: 0.8,
-      borderColor: 0x4A90E2,
+      borderColor: '#FFEBB4',
       borderAlpha: 1.0,
       borderWidth: 3
     };
@@ -643,6 +643,7 @@ const pageTxt = this.textManager.createText(
 );
 pageTxt.setOrigin(0.5);
 this.levelButtons.push(pageTxt);
+
 
     // Кнопка "Вперед"
 const nextBtn = window.makeIconButton(
