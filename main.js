@@ -1076,7 +1076,7 @@ function startPhaserGame() {
 }
 
 
-   const MAX_FONT_WAIT = 1500;
+   const MAX_FONT_WAIT = 4000;
 
 if (document.fonts && document.fonts.ready) {
   console.log('⏳ Waiting for fonts before starting Phaser...');
