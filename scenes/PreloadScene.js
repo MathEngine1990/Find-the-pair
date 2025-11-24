@@ -146,10 +146,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
 preload() {
   const { width, height } = this.scale;
 
-  // ❗ Запускаем загрузку шрифта "в фоне", без await
-  this.loadCustomFont().catch(err => {
-    console.warn('Font load error in preload:', err);
-  });
+
 
   // Дальше — обычный phaser-preload
   this.createLoadingScreen(width, height);
