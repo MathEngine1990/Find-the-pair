@@ -146,12 +146,10 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
 async preload() {
   const { width, height } = this.scale;
 
-  // 1️⃣ Ждём BoldPixels с таймаутом из loadCustomFont()
+  // 1️⃣ ЖДЁМ загрузку шрифта — без этого мигание не убрать
   try {
     await this.loadCustomFont();
-  } catch (err) {
-    console.warn('Font load error in preload:', err);
-  }
+  } catch (_) {}
 
   // 2️⃣ Теперь создаём UI — BoldPixels уже в document.fonts
   this.createLoadingScreen(width, height);
