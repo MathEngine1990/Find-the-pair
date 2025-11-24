@@ -1039,7 +1039,7 @@ createLevelButton(
     this.scene.start('GameScene', { level: levelIndex });
   });
 
-  // ===== Номер уровня =====
+  // --- Номер уровня ---
   const levelText = this.textManager.createText(
     0,
     h * 0.03,
@@ -1047,15 +1047,14 @@ createLevelButton(
     'levelNumber'
   );
   levelText.setOrigin(0.5);
-
   btn.add(levelText);
   btn.levelIndex = levelIndex;
 
-  // ===== Данные прогресса =====
-  const levelsData = progressLevels || (this.progress && this.progress.levels) || {};
+  // --- Прогресс уровня ---
+  const levelsData = progressLevels || (this.progress?.levels || {});
   const levelProgress = levelsData[levelIndex];
 
-  // ===== Звёзды =====
+  // --- ЗВЁЗДЫ ---
   const starSize = this.textManager.getSize('stars');
   btn.starsContainer = this.add.container(x, y + h * 0.52).setDepth(btn.depth + 1);
 
@@ -1065,77 +1064,79 @@ createLevelButton(
   for (let star = 1; star <= 3; star++) {
     const starX = (star - 2) * starSpacing;
     const filled = star <= stars;
+
     const starText = this.add.text(starX, 0, filled ? '♣' : '♧', {
-      fontSize: starSize + 'px',
+      fontSize: `${starSize}px`,
       color: filled ? '#243540' : '#F2DC9B',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     if (filled) {
-      starText.setShadow(0, 2, 'rgba(255, 215, 0, 0.6)', 4, false, true);
+      starText.setShadow(0, 2, 'rgba(255,215,0,0.6)', 4, false, true);
     }
 
     btn.starsContainer.add(starText);
   }
 
-  // ===== Статистика =====
+  // --- Статистика ---
   btn.statsContainer = this.add.container(x, y + h * 0.65).setDepth(btn.depth + 1);
 
   if (levelProgress?.bestTime) {
     const accuracy = levelProgress.accuracy || 100;
+    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+
     const statsDisplay = this.textManager.createText(
       0,
       0,
-      `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`,
+      statsText,
       'statValue'
-    );
-    statsDisplay.setOrigin(0.5);
+    ).setOrigin(0.5);
+
     btn.statsContainer.add(statsDisplay);
   }
 
-  // ===== ХОВЕР-АНИМАЦИЯ КАК У КНОПОК НАВИГАЦИИ =====
-  btn.setInteractive({ useHandCursor: true });
+  // --- ХОВЕР-МАСШТАБ (как у стрелок!) ---
+  const baseScaleX = btn.scaleX;
+  const baseScaleY = btn.scaleY;
 
-  const baseScaleX = btn.scaleX || 1;
-  const baseScaleY = btn.scaleY || 1;
-
-  btn.on('pointerover', () => {
+  btn.zone.on('pointerover', () => {
     if (btn._hoverTween) btn._hoverTween.stop();
     btn._hoverTween = this.tweens.add({
       targets: btn,
       scaleX: baseScaleX * 1.05,
       scaleY: baseScaleY * 1.05,
-      duration: 120,
+      duration: 110,
       ease: 'Sine.easeOut'
     });
   });
 
-  btn.on('pointerout', () => {
+  btn.zone.on('pointerout', () => {
     if (btn._hoverTween) btn._hoverTween.stop();
     btn._hoverTween = this.tweens.add({
       targets: btn,
       scaleX: baseScaleX,
       scaleY: baseScaleY,
-      duration: 120,
+      duration: 110,
       ease: 'Sine.easeIn'
     });
   });
 
-  // ===== МАЛЕНЬКИЙ КЛИК-ЭФФЕКТ =====
-  btn.on('pointerdown', () => {
-    if (btn._clickTween) btn._clickTween.stop();
-    btn._clickTween = this.tweens.add({
+  // --- Click-эффект (опционально красиво) ---
+  btn.zone.on('pointerdown', () => {
+    this.tweens.add({
       targets: btn,
-      scaleX: baseScaleX * 0.98,
-      scaleY: baseScaleY * 0.98,
+      scaleX: baseScaleX * 0.97,
+      scaleY: baseScaleY * 0.97,
+      yoyo: true,
       duration: 60,
-      yoyo: true
+      ease: 'Quad.easeOut'
     });
   });
 
   this.levelButtons.push(btn);
   return btn;
 }
+
 
 
 
