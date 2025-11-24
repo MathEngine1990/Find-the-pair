@@ -1009,144 +1009,40 @@ gameConfig.callbacks = {
 };
 
 
+function startPhaserGame() {
+  try {
+    console.log('Creating Phaser game...');
+    window.game = new Phaser.Game(gameConfig);
+  } catch (e) {
+    console.error('❌ Failed to create Phaser game:', e);
+  }
+}
+
+   const MAX_FONT_WAIT = 1500;
+
+if (document.fonts && document.fonts.ready) {
+  console.log('⏳ Waiting for fonts before starting Phaser...');
+
+  Promise.race([
+    document.fonts.ready,
+    new Promise(resolve => setTimeout(resolve, MAX_FONT_WAIT))
+  ])
+    .then(() => {
+      console.log('✅ Fonts ready (or timeout), starting game');
+      startPhaserGame();
+    })
+    .catch(err => {
+      console.warn('⚠️ Font wait error:', err);
+      startPhaserGame();
+    });
+
+} else {
+  console.log('ℹ️ document.fonts not supported – starting game immediately');
+  startPhaserGame();
+}
 
     
-try {
-  console.log('Creating Phaser game...');
-  console.log('Game config:', {
-    type: 'AUTO',
-    parent: 'gameContainer element',
-    mobile: isMobile,
-    gameSize: `${gameWidth}x${gameHeight}`
-  });
-  
-  window.game = new Phaser.Game(gameConfig);  // ← Используем gameConfig
 
-
-  
-  if (!window.game) {
-    throw new Error('Game creation failed');
-  }
-  
-  console.log('✅ Game created successfully');
-  debugLog('Game created successfully');
-
-  // Строка 893 - ДОБАВИТЬ обработку resize
-window.game.scale.on('resize', (gameSize, baseSize, displaySize, previousWidth, previousHeight) => {
-  console.log('Game resized to:', gameSize.width, 'x', gameSize.height);
-  
-  // Форсируем canvas на полный экран
-  if (window.game.canvas) {
-    window.game.canvas.style.width = '100%';
-    window.game.canvas.style.height = '100%';
-    window.game.canvas.style.position = 'absolute';
-    window.game.canvas.style.top = '0';
-    window.game.canvas.style.left = '0';
-  }
-});
-      
-      window.game.events.once('ready', function() {
-        console.log('🎮 Game ready event triggered');
-        console.log('📱 Mobile device:', isMobile);
-        console.log('🎭 Available scenes:', window.game.scene.scenes.map(s => s.scene.key));
-        
-        const preloader = document.getElementById('preloader');
-        if (preloader) {
-          if (isMobile) {
-            preloader.style.transition = 'opacity 0.5s ease-out';
-            preloader.style.opacity = '0';
-            setTimeout(() => {
-              preloader.style.display = 'none';
-              document.body.classList.add('game-loaded');
-              console.log('✅ Preloader hidden (mobile), game ready');
-            }, 500);
-          } else {
-            preloader.style.display = 'none';
-            document.body.classList.add('game-loaded');
-            console.log('✅ Preloader hidden (desktop), game ready');
-          }
-        }
-        
-        window.game.registry.set('vkUserData', window.VK_USER_DATA);
-        window.game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
-        window.game.registry.set('isVKEnvironment', isVKEnvironment);
-        window.game.registry.set('vkBridgeAvailable', window.VKSafe?.isAvailable() || false);
-        window.game.registry.set('isMobile', isMobile);
-        window.game.registry.set('isIOS', isIOS);
-        window.game.registry.set('isAndroid', isAndroid);
-        window.game.registry.set('deviceClass', deviceClass);
-window.game.registry.set('cachedDPR', window._cachedDPR);
-window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
-        
-        setTimeout(() => {
-          try {
-            window.game.scene.start('PreloadScene');
-            console.log('✅ PreloadScene start command sent');
-          } catch (error) {
-            console.error('❌ Failed to start PreloadScene:', error);
-            try {
-              console.log('🔄 Trying to start MenuScene directly...');
-              window.game.scene.start('MenuScene', { page: 0 });
-            } catch (menuError) {
-              console.error('❌ Failed to start MenuScene:', menuError);
-              showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
-            }
-          }
-        }, 200);
-      });
-      
-      if (isMobile) {
-        window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    if (window.game && window.game.scale) {
-      // Форсируем обновление размеров
-      window.game.scale.resize(window.innerWidth, window.innerHeight);
-              console.log('📱 Orientation changed, scale refreshed');
-            }
-          }, 500);
-        });
-        
-        setTimeout(() => {
-          if (window.game && window.game.canvas) {
-            window.game.canvas.addEventListener('contextmenu', (e) => {
-              e.preventDefault();
-              return false;
-            });
-            
-            window.game.canvas.addEventListener('touchstart', (e) => {
-              if (e.touches.length > 1) {
-                e.preventDefault();
-              }
-            }, { passive: false });
-            
-            window.game.canvas.addEventListener('gesturestart', (e) => {
-              e.preventDefault();
-            });
-            
-            console.log('📱 Mobile touch handlers added to canvas');
-          }
-        }, 1000);
-      }
-      
-      if (window.VK_DEBUG) {
-        setTimeout(() => {
-          showDebugInfo({
-            isVK: isVKEnvironment,
-            isMobile: isMobile,
-            userId: window.VK_LAUNCH_PARAMS?.user_id,
-            platform: window.VK_LAUNCH_PARAMS?.platform,
-            bridgeAvailable: window.VKSafe?.isAvailable() || false,
-            userDataLoaded: !!window.VK_USER_DATA,
-            gameCreated: !!window.game,
-            touchSupport: 'ontouchstart' in window
-          });
-        }, 1500);
-      }
-      
-    } catch (error) {
-      console.error('Failed to create Phaser game:', error);
-      showErrorFallback('Не удалось создать игру', error.message);
-    }
   }
 
   // ========================================
