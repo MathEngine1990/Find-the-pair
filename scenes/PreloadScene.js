@@ -143,17 +143,24 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
   // Scene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
 
   // ПЕРЕД loadGameAssets()
-async preload() {
+preload() {
   const { width, height } = this.scale;
 
-  await this.loadCustomFont(); // ← РАСКОММЕНТИТЬ и добавить await
+  // ❗ Запускаем загрузку шрифта "в фоне", без await
+  this.loadCustomFont().catch(err => {
+    console.warn('Font load error in preload:', err);
+  });
 
+  // Дальше — обычный phaser-preload
   this.createLoadingScreen(width, height);
   this.setupLoadingHandlers();
   this.load.setPath('assets/');
   this.loadGameAssets();
-  if (this.isVKEnvironment) this.loadVKAssets();
+  if (this.isVKEnvironment) {
+    this.loadVKAssets();
+  }
 }
+
 
 
 // ✅ НОВЫЙ МЕТОД: Загрузка кастомного шрифта
