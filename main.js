@@ -1049,31 +1049,16 @@ function startPhaserGame() {
       window.game.registry.set('cachedDPR', window._cachedDPR);
       window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
 
-      // Стартуем PreloadScene (дополнительно к автозапуску)
-      setTimeout(() => {
-        try {
-          window.game.scene.start('PreloadScene');
-          console.log('✅ PreloadScene start command sent');
-        } catch (error) {
-          console.error('❌ Failed to start PreloadScene:', error);
-          try {
-            console.log('🔄 Trying to start MenuScene directly...');
-            window.game.scene.start('MenuScene', { page: 0 });
-          } catch (menuError) {
-            console.error('❌ Failed to start MenuScene:', menuError);
-            showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
-          }
-        }
-      }, 200);
+      // ❌ НИЧЕГО тут больше не стартуем руками
+      // PreloadScene уже работает как первая сцена
     });
-
-    // (🚫 resize / orientation тут можно НЕ дублировать — у тебя уже есть postBoot + обработчики ниже)
 
   } catch (e) {
     console.error('❌ Failed to create Phaser game:', e);
     showErrorFallback('Не удалось создать игру', e.message);
   }
 }
+
 
 
    const MAX_FONT_WAIT = 4000;
