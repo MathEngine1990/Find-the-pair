@@ -354,15 +354,6 @@ create() {
 
   // флаг для старта сцены
   this._sceneStarted = false;
-
-  // 🔄 fallback: даже если по какой-то причине complete не сработает,
-  // всё равно попробуем стартануть меню через 500 мс
-  this.time.delayedCall(500, () => {
-    if (!this._sceneStarted) {
-      console.log('[PreloadScene] Fallback startNextScene from create()');
-      this.startNextScene();
-    }
-  });
 }
 
   applyTextureFiltering() {
