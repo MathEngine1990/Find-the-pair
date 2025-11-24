@@ -1013,10 +1013,68 @@ function startPhaserGame() {
   try {
     console.log('Creating Phaser game...');
     window.game = new Phaser.Game(gameConfig);
+
+    // ✅ Когда Phaser полностью поднялся
+    window.game.events.once('ready', function () {
+      console.log('🎮 Game ready event triggered');
+      console.log('🎭 Available scenes:', window.game.scene.scenes.map(s => s.scene.key));
+
+      // Прячем HTML-прелоадер
+      const preloader = document.getElementById('preloader');
+      if (preloader) {
+        if (isMobile) {
+          preloader.style.transition = 'opacity 0.5s ease-out';
+          preloader.style.opacity = '0';
+          setTimeout(() => {
+            preloader.style.display = 'none';
+            document.body.classList.add('game-loaded');
+            console.log('✅ Preloader hidden (mobile), game ready');
+          }, 500);
+        } else {
+          preloader.style.display = 'none';
+          document.body.classList.add('game-loaded');
+          console.log('✅ Preloader hidden (desktop), game ready');
+        }
+      }
+
+      // Прокидываем VK/девайс данные в registry
+      window.game.registry.set('vkUserData', window.VK_USER_DATA);
+      window.game.registry.set('vkLaunchParams', window.VK_LAUNCH_PARAMS);
+      window.game.registry.set('isVKEnvironment', isVKEnvironment);
+      window.game.registry.set('vkBridgeAvailable', window.VKSafe?.isAvailable() || false);
+      window.game.registry.set('isMobile', isMobile);
+      window.game.registry.set('isIOS', isIOS);
+      window.game.registry.set('isAndroid', isAndroid);
+      window.game.registry.set('deviceClass', deviceClass);
+      window.game.registry.set('cachedDPR', window._cachedDPR);
+      window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
+
+      // Стартуем PreloadScene (дополнительно к автозапуску)
+      setTimeout(() => {
+        try {
+          window.game.scene.start('PreloadScene');
+          console.log('✅ PreloadScene start command sent');
+        } catch (error) {
+          console.error('❌ Failed to start PreloadScene:', error);
+          try {
+            console.log('🔄 Trying to start MenuScene directly...');
+            window.game.scene.start('MenuScene', { page: 0 });
+          } catch (menuError) {
+            console.error('❌ Failed to start MenuScene:', menuError);
+            showErrorFallback('Ошибка запуска игры', 'Не удалось загрузить игровые сцены');
+          }
+        }
+      }, 200);
+    });
+
+    // (🚫 resize / orientation тут можно НЕ дублировать — у тебя уже есть postBoot + обработчики ниже)
+
   } catch (e) {
     console.error('❌ Failed to create Phaser game:', e);
+    showErrorFallback('Не удалось создать игру', e.message);
   }
 }
+
 
    const MAX_FONT_WAIT = 1500;
 
