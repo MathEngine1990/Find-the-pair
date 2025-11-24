@@ -141,80 +141,74 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
   // ================================
   // ⭐ ВАЖНО: preload делаем async
   // ================================
-  async preload() {
-    const { width, height } = this.scale;
+async preload() {
+  const { width, height } = this.scale;
 
-    // 1️⃣ СНАЧАЛА пытаемся загрузить шрифт
-    try {
-      await this.loadCustomFont();
-    } catch (e) {
-      console.warn('⚠️ loadCustomFont error in preload:', e);
-    }
-
-    // 2️⃣ Потом — обычный Phaser-preload
-    this.createLoadingScreen(width, height);
-    this.setupLoadingHandlers();
-    this.load.setPath('assets/');
-    this.loadGameAssets();
-    if (this.isVKEnvironment) {
-      this.loadVKAssets();
-    }
+  // 1️⃣ Сначала загружаем кастомный шрифт — БЛОКИРУЮЩЕ
+  try {
+    await this.loadCustomFont();
+  } catch (e) {
+    console.warn('⚠️ loadCustomFont error in preload:', e);
   }
+
+  // 2️⃣ Создаём экран загрузки ТОЛЬКО после шрифта
+  this.createLoadingScreen(width, height);
+
+  // 3️⃣ Обычная загрузка ассетов
+  this.setupLoadingHandlers();
+  this.load.setPath('assets/');
+  this.loadGameAssets();
+
+  if (this.isVKEnvironment) {
+    this.loadVKAssets();
+  }
+}
+
 
   // ===============================================
   // ✅ УЛУЧШЕННАЯ ЗАГРУЗКА BoldPixels БЕЗ МИГАНИЯ
   // ===============================================
-  async loadCustomFont() {
-    console.log('🔤 Loading BoldPixels font...');
+async loadCustomFont() {
+  console.log('🔤 Loading BoldPixels font...');
 
-    const fontName = 'BoldPixels';
-    const fontPath = 'assets/fonts/BoldPixels.ttf'; // Относительно index.html
+  const fontName = 'BoldPixels';
+  const fontPath = 'assets/fonts/BoldPixels.ttf';
 
-    // Если API шрифтов недоступно — ничего не делаем, пусть работает через CSS
-    if (!document.fonts || !window.FontFace) {
-      console.warn('⚠️ Font API not supported, relying on CSS only');
-      return false;
-    }
-
-    try {
-      // 1️⃣ Если шрифт уже есть — выходим
-      if (document.fonts.check(`12px "${fontName}"`)) {
-        console.log('✅ BoldPixels already loaded (document.fonts.check)');
-        return true;
-      }
-
-      console.log('📥 Loading BoldPixels programmatically...');
-
-      const fontFace = new FontFace(fontName, `url(${fontPath})`);
-
-      // 2️⃣ Пробуем загрузить шрифт с безопасным таймаутом
-      const loadedFont = await Promise.race([
-        fontFace.load(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Font load timeout (5s)')), 5000)
-        )
-      ]);
-
-      // 3️⃣ Добавляем в документ
-      document.fonts.add(loadedFont);
-      console.log('✅ BoldPixels loaded programmatically');
-
-      // 4️⃣ Финальная проверка — без лишнего document.fonts.ready
-      const fontOK = document.fonts.check(`12px "${fontName}"`);
-      if (!fontOK) {
-        throw new Error('❌ BoldPixels failed final check');
-      }
-
-      console.log('🎉 BoldPixels fully ready BEFORE UI');
-      return true;
-
-    } catch (error) {
-      console.error('❌ Failed to load BoldPixels:', error);
-      console.warn('⚠️ Falling back to system font');
-      this.showFontErrorNotification();
-      return false;
-    }
+  if (!document.fonts || !window.FontFace) {
+    console.warn('⚠️ Font API not supported');
+    return true;
   }
+
+  // Уже загружен?
+  if (document.fonts.check(`12px "${fontName}"`)) {
+    console.log('✅ BoldPixels already loaded');
+    return true;
+  }
+
+  try {
+    const fontFace = new FontFace(fontName, `url(${fontPath})`);
+
+    // 5-секундный таймаут
+    const loadedFace = await Promise.race([
+      fontFace.load(),
+      new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
+    ]);
+
+    document.fonts.add(loadedFace);
+
+    if (!document.fonts.check(`12px "${fontName}"`)) {
+      throw new Error('Font check failed');
+    }
+
+    console.log('🎉 BoldPixels fully loaded');
+    return true;
+
+  } catch (err) {
+    console.warn('⚠️ Failed to load BoldPixels:', err);
+    return false;
+  }
+}
+
 
   // ✅ НОВЫЙ МЕТОД: Уведомление об ошибке шрифта
   showFontErrorNotification() {
