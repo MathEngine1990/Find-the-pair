@@ -609,9 +609,9 @@ async drawMenu(page = 0) {
     const arrowStyle = {
       color: '#F2DC9B',
       hoverColor: '#C4451A',
-      bgColor: '#012615',
+      bgColor: '#243540',
       bgAlpha: 0.8,
-      borderColor: '#FFEBB4',
+      borderColor: '#243540',
       borderAlpha: 1.0,
       borderWidth: 3
     };
@@ -1032,8 +1032,6 @@ createLevelButton(
   scaleFactor = 1.0,
   progressLevels = null
 ) {
-  const isMobile = w > 150;
-
   const btn = window.makeImageButton(this, x, y, w, h, '', () => {
     if (this.syncManager?.setCurrentLevel) {
       this.syncManager.setCurrentLevel(levelIndex);
@@ -1041,7 +1039,7 @@ createLevelButton(
     this.scene.start('GameScene', { level: levelIndex });
   });
 
-  // Номер уровня
+  // ===== Номер уровня =====
   const levelText = this.textManager.createText(
     0,
     h * 0.03,
@@ -1049,17 +1047,17 @@ createLevelButton(
     'levelNumber'
   );
   levelText.setOrigin(0.5);
+
   btn.add(levelText);
   btn.levelIndex = levelIndex;
 
-  // Прогресс уровня (передан сверху, без async)
+  // ===== Данные прогресса =====
   const levelsData = progressLevels || (this.progress && this.progress.levels) || {};
   const levelProgress = levelsData[levelIndex];
 
-  // Звёзды
+  // ===== Звёзды =====
   const starSize = this.textManager.getSize('stars');
-  btn.starsContainer = this.add.container(x, y + h * 0.52);
-  btn.starsContainer.setDepth(btn.depth + 1);
+  btn.starsContainer = this.add.container(x, y + h * 0.52).setDepth(btn.depth + 1);
 
   const starSpacing = starSize + 4;
   const stars = levelProgress ? (levelProgress.stars || 0) : 0;
@@ -1080,28 +1078,65 @@ createLevelButton(
     btn.starsContainer.add(starText);
   }
 
-  // Статистика под звёздами
-  btn.statsContainer = this.add.container(x, y + h * 0.65);
-  btn.statsContainer.setDepth(btn.depth + 1);
+  // ===== Статистика =====
+  btn.statsContainer = this.add.container(x, y + h * 0.65).setDepth(btn.depth + 1);
 
-  if (levelProgress && levelProgress.bestTime) {
+  if (levelProgress?.bestTime) {
     const accuracy = levelProgress.accuracy || 100;
-    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-
     const statsDisplay = this.textManager.createText(
       0,
       0,
-      statsText,
+      `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`,
       'statValue'
     );
     statsDisplay.setOrigin(0.5);
-
     btn.statsContainer.add(statsDisplay);
   }
+
+  // ===== ХОВЕР-АНИМАЦИЯ КАК У КНОПОК НАВИГАЦИИ =====
+  btn.setInteractive({ useHandCursor: true });
+
+  const baseScaleX = btn.scaleX || 1;
+  const baseScaleY = btn.scaleY || 1;
+
+  btn.on('pointerover', () => {
+    if (btn._hoverTween) btn._hoverTween.stop();
+    btn._hoverTween = this.tweens.add({
+      targets: btn,
+      scaleX: baseScaleX * 1.05,
+      scaleY: baseScaleY * 1.05,
+      duration: 120,
+      ease: 'Sine.easeOut'
+    });
+  });
+
+  btn.on('pointerout', () => {
+    if (btn._hoverTween) btn._hoverTween.stop();
+    btn._hoverTween = this.tweens.add({
+      targets: btn,
+      scaleX: baseScaleX,
+      scaleY: baseScaleY,
+      duration: 120,
+      ease: 'Sine.easeIn'
+    });
+  });
+
+  // ===== МАЛЕНЬКИЙ КЛИК-ЭФФЕКТ =====
+  btn.on('pointerdown', () => {
+    if (btn._clickTween) btn._clickTween.stop();
+    btn._clickTween = this.tweens.add({
+      targets: btn,
+      scaleX: baseScaleX * 0.98,
+      scaleY: baseScaleY * 0.98,
+      duration: 60,
+      yoyo: true
+    });
+  });
 
   this.levelButtons.push(btn);
   return btn;
 }
+
 
 
 
