@@ -1,7 +1,7 @@
 //---scenes/PreloadScene.js - УЛУЧШЕННАЯ версия с VK интеграцией
 
 window.PreloadScene = class PreloadScene extends Phaser.Scene {
-  constructor(){ super('PreloadScene'); }
+  constructor() { super('PreloadScene'); }
 
   init() {
     // Инициализация VK данных
@@ -16,8 +16,6 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     });
   }
 
-
-
   createLoadingScreen(width, height) {
     // Фон
     const bg = this.add.graphics();
@@ -25,16 +23,16 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     bg.fillRect(0, 0, width, height);
 
     // Логотип/заголовок
-  // ✅ ФИХ: Теперь используем BoldPixels везде
-  this.titleText = this.add.text(width/2, height/2 - 100, 'Find the Pair', {
-    fontFamily: 'BoldPixels, "Courier New", monospace', // ✅ ИЗМЕНЕНО
-    fontSize: '48px',
-    color: '#4ECDC4',
-    fontStyle: 'bold'
-  }).setOrigin(0.5);
+    // ✅ Везде используем BoldPixels
+    this.titleText = this.add.text(width / 2, height / 2 - 100, 'Find the Pair', {
+      fontFamily: 'BoldPixels, "Courier New", monospace',
+      fontSize: '48px',
+      color: '#4ECDC4',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
 
     // Описание
-    this.subtitleText = this.add.text(width/2, height/2 - 50, 'Тренируйте память с красивыми карточками', {
+    this.subtitleText = this.add.text(width / 2, height / 2 - 50, 'Тренируйте память с красивыми карточками', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '18px',
       color: '#E8E1C9'
@@ -43,7 +41,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     // VK приветствие (если есть данные пользователя)
     if (this.vkUserData) {
       const userName = this.vkUserData.first_name || 'Игрок';
-      this.welcomeText = this.add.text(width/2, height/2 - 20, `Привет, ${userName}! 👋`, {
+      this.welcomeText = this.add.text(width / 2, height / 2 - 20, `Привет, ${userName}! 👋`, {
         fontFamily: 'Arial, sans-serif',
         fontSize: '16px',
         color: '#F39C12'
@@ -53,8 +51,8 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     // Контейнер прогресс-бара
     const progressBoxWidth = 320;
     const progressBoxHeight = 50;
-    const progressBoxX = width/2 - progressBoxWidth/2;
-    const progressBoxY = height/2 + 50;
+    const progressBoxX = width / 2 - progressBoxWidth / 2;
+    const progressBoxY = height / 2 + 50;
 
     // Фон прогресс-бара
     this.progressBox = this.add.graphics();
@@ -69,7 +67,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     this.progressBar = this.add.graphics();
 
     // Текст прогресса
-    this.progressText = this.add.text(width/2, progressBoxY + progressBoxHeight/2, '0%', {
+    this.progressText = this.add.text(width / 2, progressBoxY + progressBoxHeight / 2, '0%', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '16px',
       color: '#FFFFFF',
@@ -77,7 +75,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Текст загружаемого файла
-    this.loadingText = this.add.text(width/2, progressBoxY + progressBoxHeight + 30, 'Инициализация...', {
+    this.loadingText = this.add.text(width / 2, progressBoxY + progressBoxHeight + 30, 'Инициализация...', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '14px',
       color: '#95A5A6'
@@ -98,18 +96,18 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
   setupLoadingHandlers() {
     const { width, height } = this.scale;
     const progressBoxWidth = 300;
-    const progressBoxX = width/2 - 160;
-    const progressBoxY = height/2 + 50;
+    const progressBoxX = width / 2 - 160;
+    const progressBoxY = height / 2 + 50;
 
     // Обновление прогресса
     this.load.on('progress', (value) => {
       this.progressBar.clear();
       this.progressBar.fillStyle(0x4ECDC4);
       this.progressBar.fillRoundedRect(
-        progressBoxX + 10, 
-        progressBoxY + 10, 
-        progressBoxWidth * value, 
-        30, 
+        progressBoxX + 10,
+        progressBoxY + 10,
+        progressBoxWidth * value,
+        30,
         5
       );
       
@@ -140,177 +138,174 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     });
   }
 
-  // Scene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
+  // ================================
+  // ⭐ ВАЖНО: preload делаем async
+  // ================================
+  async preload() {
+    const { width, height } = this.scale;
 
-  // ПЕРЕД loadGameAssets()
-async preload() {
-  const { width, height } = this.scale;
+    // 1️⃣ СНАЧАЛА пытаемся загрузить шрифт
+    try {
+      await this.loadCustomFont();
+    } catch (e) {
+      console.warn('⚠️ loadCustomFont error in preload:', e);
+    }
 
-  // 1️⃣ ЖДЁМ загрузку шрифта — без этого мигание не убрать
-  try {
-    await this.loadCustomFont();
-  } catch (_) {}
-
-  // 2️⃣ Теперь создаём UI — BoldPixels уже в document.fonts
-  this.createLoadingScreen(width, height);
-  this.setupLoadingHandlers();
-  this.load.setPath('assets/');
-  this.loadGameAssets();
-  if (this.isVKEnvironment) {
-    this.loadVKAssets();
+    // 2️⃣ Потом — обычный Phaser-preload
+    this.createLoadingScreen(width, height);
+    this.setupLoadingHandlers();
+    this.load.setPath('assets/');
+    this.loadGameAssets();
+    if (this.isVKEnvironment) {
+      this.loadVKAssets();
+    }
   }
-}
 
+  // ===============================================
+  // ✅ УЛУЧШЕННАЯ ЗАГРУЗКА BoldPixels БЕЗ МИГАНИЯ
+  // ===============================================
+  async loadCustomFont() {
+    console.log('🔤 Loading BoldPixels font...');
 
+    const fontName = 'BoldPixels';
+    const fontPath = 'assets/fonts/BoldPixels.ttf'; // Относительно index.html
 
-// ===============================================
-// ✅ УЛУЧШЕННАЯ ЗАГРУЗКА BoldPixels БЕЗ МИГАНИЯ
-// ===============================================
-async loadCustomFont() {
-  console.log('🔤 Loading BoldPixels font...');
+    // Если API шрифтов недоступно — ничего не делаем, пусть работает через CSS
+    if (!document.fonts || !window.FontFace) {
+      console.warn('⚠️ Font API not supported, relying on CSS only');
+      return false;
+    }
 
-  const fontName = 'BoldPixels';
-  const fontPath = 'assets/fonts/BoldPixels.ttf';
+    try {
+      // 1️⃣ Если шрифт уже есть — выходим
+      if (document.fonts.check(`12px "${fontName}"`)) {
+        console.log('✅ BoldPixels already loaded (document.fonts.check)');
+        return true;
+      }
 
-  try {
-    // 1️⃣ Если шрифт уже есть — просто выходим
-    if (document.fonts && document.fonts.check(`12px "${fontName}"`)) {
-      console.log('✅ BoldPixels already loaded (CSS)');
+      console.log('📥 Loading BoldPixels programmatically...');
+
+      const fontFace = new FontFace(fontName, `url(${fontPath})`);
+
+      // 2️⃣ Пробуем загрузить шрифт с безопасным таймаутом
+      const loadedFont = await Promise.race([
+        fontFace.load(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Font load timeout (5s)')), 5000)
+        )
+      ]);
+
+      // 3️⃣ Добавляем в документ
+      document.fonts.add(loadedFont);
+      console.log('✅ BoldPixels loaded programmatically');
+
+      // 4️⃣ Финальная проверка — без лишнего document.fonts.ready
+      const fontOK = document.fonts.check(`12px "${fontName}"`);
+      if (!fontOK) {
+        throw new Error('❌ BoldPixels failed final check');
+      }
+
+      console.log('🎉 BoldPixels fully ready BEFORE UI');
       return true;
+
+    } catch (error) {
+      console.error('❌ Failed to load BoldPixels:', error);
+      console.warn('⚠️ Falling back to system font');
+      this.showFontErrorNotification();
+      return false;
     }
-
-    console.log('📥 Loading BoldPixels programmatically...');
-
-    const fontFace = new FontFace(fontName, `url(${fontPath})`);
-
-    // 2️⃣ Пробуем загрузить шрифт с безопасным таймаутом
-    const loadedFont = await Promise.race([
-      fontFace.load(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Font load timeout (5s)')), 5000)
-      )
-    ]);
-
-    // 3️⃣ Добавляем в документ
-    document.fonts.add(loadedFont);
-    console.log('✅ BoldPixels loaded programmatically');
-
-    // 4️⃣ Финальная проверка — только она гарантирует отсутствие мигания
-    const fontOK = document.fonts.check(`12px "${fontName}"`);
-    if (!fontOK) {
-      throw new Error('❌ BoldPixels failed final check');
-    }
-
-    console.log('🎉 BoldPixels fully ready BEFORE UI');
-    return true;
-
-  } catch (err) {
-    console.error('❌ Failed to load BoldPixels:', err);
-    console.warn('⚠️ Fallback: system font will be used');
-    this.showFontErrorNotification?.();
-    return false;
   }
-}
 
-
-// ✅ НОВЫЙ МЕТОД: Уведомление об ошибке шрифта
-showFontErrorNotification() {
-  // Показать временное уведомление
-  const { width, height } = this.scale;
-  
-  const warningText = this.add.text(
-    width / 2, 
-    height - 50, 
-    '⚠️ Кастомный шрифт не загружен',
-    {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
-      color: '#F39C12',
-      backgroundColor: '#2C3E50',
-      padding: { x: 10, y: 5 }
-    }
-  ).setOrigin(0.5);
-  
-  // Удалить через 3 секунды
-  this.time.delayedCall(3000, () => {
-    warningText.destroy();
-  });
-}
-
-loadGameAssets() {
-  // ✅ FIX: Определяем нужно ли загружать HD версии
-  const DPR = window.devicePixelRatio || 1;
-  const useHD = DPR >= 1.5; // Retina/HD экраны
-  
-  console.log(`📦 Loading assets (HD: ${useHD}, DPR: ${DPR})`);
-  
-  // ✅ FIX: Загружаем карты с @2x суффиксом для HD
-  window.ALL_CARD_KEYS.forEach(key => {
-    const path = useHD 
-      ? `cards/${key}@2x.png`  // 400×600px для HD
-      : `cards/${key}.png`;     // 200×300px для обычных
+  // ✅ НОВЫЙ МЕТОД: Уведомление об ошибке шрифта
+  showFontErrorNotification() {
+    const { width, height } = this.scale;
     
-    this.load.image(key, path);
-  });
-
-  // ✅ FIX: Задняя сторона карты тоже в HD
-  const backPath = useHD ? 'back_card02@2x.png' : 'back_card02.png';
-  this.load.image('back', backPath);
-
-  // ✅ FIX: UI элементы в HD
-  const button01Path = useHD ? 'button01@2x.png' : 'button01.png';
-  this.load.image('button01', button01Path);
-
-  // Фоны (если используются)
-  if (useHD) {
-    this.load.image('bg_menu', 'bg_menu@2x.png');
-    this.load.image('bg_game', 'bg_game@2x.png');
-  } else {
-    this.load.image('bg_menu', 'bg_menu.png');
-    this.load.image('bg_game', 'bg_game.png');
+    const warningText = this.add.text(
+      width / 2,
+      height - 50,
+      '⚠️ Кастомный шрифт не загружен',
+      {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '14px',
+        color: '#F39C12',
+        backgroundColor: '#2C3E50',
+        padding: { x: 10, y: 5 }
+      }
+    ).setOrigin(0.5);
+    
+    this.time.delayedCall(3000, () => {
+      warningText.destroy();
+    });
   }
 
-  // Дополнительные ассеты
-  const starPath = useHD ? 'star@2x.png' : 'star.png';
-  const trophyPath = useHD ? 'trophy@2x.png' : 'trophy.png';
-  this.load.image('star', starPath);
-  this.load.image('trophy', trophyPath);
+  loadGameAssets() {
+    // ✅ FIX: Определяем нужно ли загружать HD версии
+    const DPR = window.devicePixelRatio || 1;
+    const useHD = DPR >= 1.5; // Retina/HD экраны
+    
+    console.log(`📦 Loading assets (HD: ${useHD}, DPR: ${DPR})`);
+    
+    // ✅ FIX: Загружаем карты с @2x суффиксом для HD
+    window.ALL_CARD_KEYS.forEach(key => {
+      const path = useHD
+        ? `cards/${key}@2x.png`
+        : `cards/${key}.png`;
+      
+      this.load.image(key, path);
+    });
 
-  // Звуки (без изменений)
-  if (this.load.audioDecodeByList) {
-    this.load.audio('card_flip', ['sounds/card_flip.mp3', 'sounds/card_flip.wav']);
-    this.load.audio('match_sound', ['sounds/match.mp3', 'sounds/match.wav']);
-    this.load.audio('win_sound', ['sounds/win.mp3', 'sounds/win.wav']);
+    // ✅ FIX: Задняя сторона карты тоже в HD
+    const backPath = useHD ? 'back_card02@2x.png' : 'back_card02.png';
+    this.load.image('back', backPath);
+
+    // ✅ FIX: UI элементы в HD
+    const button01Path = useHD ? 'button01@2x.png' : 'button01.png';
+    this.load.image('button01', button01Path);
+
+    // Фоны
+    if (useHD) {
+      this.load.image('bg_menu', 'bg_menu@2x.png');
+      this.load.image('bg_game', 'bg_game@2x.png');
+    } else {
+      this.load.image('bg_menu', 'bg_menu.png');
+      this.load.image('bg_game', 'bg_game.png');
+    }
+
+    // Дополнительные ассеты
+    const starPath = useHD ? 'star@2x.png' : 'star.png';
+    const trophyPath = useHD ? 'trophy@2x.png' : 'trophy.png';
+    this.load.image('star', starPath);
+    this.load.image('trophy', trophyPath);
+
+    // Звуки
+    if (this.load.audioDecodeByList) {
+      this.load.audio('card_flip', ['sounds/card_flip.mp3', 'sounds/card_flip.wav']);
+      this.load.audio('match_sound', ['sounds/match.mp3', 'sounds/match.wav']);
+      this.load.audio('win_sound', ['sounds/win.mp3', 'sounds/win.wav']);
+    }
+    
+    this.registry.set('useHDTextures', useHD);
+    this.registry.set('textureDPR', DPR);
   }
-  
-  // ✅ FIX: Сохраняем флаг для использования в других сценах
-  this.registry.set('useHDTextures', useHD);
-  this.registry.set('textureDPR', DPR);
-}
 
   loadVKAssets() {
     console.log('📦 Loading VK-specific assets...');
     
-    // VK специфичные ассеты (иконки, темы и т.д.)
-    // Можно добавить загрузку аватара пользователя, если нужно
     if (this.vkUserData && this.vkUserData.photo_100) {
       this.load.image('user_avatar', this.vkUserData.photo_100);
     }
   }
 
   startNextScene() {
-      // Привязать глобальный ProgressSyncManager к registry Phaser
-  if (window.progressSyncManager) {
-    this.registry.set('progressSyncManager', window.progressSyncManager);
-    console.log('🔗 progressSyncManager registered in scene registry');
-  }
+    if (window.progressSyncManager) {
+      this.registry.set('progressSyncManager', window.progressSyncManager);
+      console.log('🔗 progressSyncManager registered in scene registry');
+    }
     
-    // Инициализация VK достижений
     if (this.isVKEnvironment) {
       this.initVKAchievements();
     }
 
-    // Переходим к меню
     this.scene.start('MenuScene', { 
       page: 0,
       userData: this.vkUserData,
@@ -320,8 +315,6 @@ loadGameAssets() {
 
   initVKAchievements() {
     try {
-      // Создаем менеджер VK достижений
-      // ProgressSyncManager уже инициализирован глобально в main.js
       if (!window.VKAchievementManager) {
         window.VKAchievementManager = new VKAchievementManager(this.vkUserData);
       }
@@ -332,72 +325,52 @@ loadGameAssets() {
   }
 
   create() {
-    // Этот метод вызывается после preload
-    // Здесь можно добавить дополнительную логику, если нужно
     this.applyTextureFiltering();
-
   }
 
   applyTextureFiltering() {
-  console.log('🎨 Applying texture filtering...');
-  
-  const textures = this.textures;
-  const useHD = this.registry.get('useHDTextures') || false;
-  
-  // ✅ ВАРИАНТ A: Для стилизованной/векторной графики (плавные края)
-  // Используем LINEAR фильтр + antialias
-  const applySmooth = (key) => {
-    if (textures.exists(key)) {
-      const texture = textures.get(key);
-      // LINEAR = 1 (smooth scaling)
-      texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
-    }
-  };
-  
-  // ✅ ВАРИАНТ B: Для пиксель-арт графики (четкие края)
-  // Используем NEAREST фильтр
-  const applySharp = (key) => {
-    if (textures.exists(key)) {
-      const texture = textures.get(key);
-      // NEAREST = 0 (pixel-perfect)
-      texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
-    }
-  };
-  
-  // ✅ ВЫБЕРИТЕ ОДИН ИЗ ВАРИАНТОВ:
-  
-  // Если у вас ВЕКТОРНАЯ/ФОТОГРАФИЧЕСКАЯ графика:
-  console.log('Using SMOOTH filtering (LINEAR + antialias)');
-  window.ALL_CARD_KEYS.forEach(key => applySmooth(key));
-  applySmooth('back');
-  applySmooth('button01');
-  applySmooth('star');
-  applySmooth('trophy');
-  
-  /* ИЛИ если у вас ПИКСЕЛЬНАЯ графика:
-  console.log('Using SHARP filtering (NEAREST)');
-  window.ALL_CARD_KEYS.forEach(key => applySharp(key));
-  applySharp('back');
-  applySharp('button01');
-  applySharp('star');
-  applySharp('trophy');
-  */
-  
-  console.log('✅ Texture filtering applied');
-}
+    console.log('🎨 Applying texture filtering...');
+    
+    const textures = this.textures;
+    const useHD = this.registry.get('useHDTextures') || false;
+    
+    const applySmooth = (key) => {
+      if (textures.exists(key)) {
+        const texture = textures.get(key);
+        texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
+    };
+    
+    const applySharp = (key) => {
+      if (textures.exists(key)) {
+        const texture = textures.get(key);
+        texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+      }
+    };
+    
+    // Сейчас используем сглаженный вариант
+    console.log('Using SMOOTH filtering (LINEAR + antialias)');
+    window.ALL_CARD_KEYS.forEach(key => applySmooth(key));
+    applySmooth('back');
+    applySmooth('button01');
+    applySmooth('star');
+    applySmooth('trophy');
+    
+    console.log('✅ Texture filtering applied');
+  }
 };
 
-// VK Achievement Manager - система достижений для VK
+// ============================================
+// VK Achievement Manager - система достижений
+// ============================================
 class VKAchievementManager {
   constructor(userData) {
     this.userData = userData;
     this.achievements = this.loadAchievements();
     this.isVKEnvironment = !!window.VK_LAUNCH_PARAMS;
 
-    // ДОБАВЛЕНО: Интеграция с ProgressSyncManager
-      this.initSyncManager();
+    this.initSyncManager();
     
-    // Определения достижений VK
     this.vkAchievements = {
       first_win: {
         title: 'Первая победа',
@@ -433,7 +406,6 @@ class VKAchievementManager {
   }
 
   loadAchievements() {
-    // Сначала пытаемся загрузить из VK Storage, потом из localStorage
     if (this.isVKEnvironment && window.vkBridge) {
       return this.loadFromVKStorage();
     }
@@ -469,10 +441,8 @@ class VKAchievementManager {
     };
   }
 
-
-   async initSyncManager() {
+  async initSyncManager() {
     try {
-            // ИСПОЛЬЗУЕМ ГЛОБАЛЬНЫЙ МЕНЕДЖЕР
       this.syncManager = window.progressSyncManager || new ProgressSyncManager();
       
       if (!window.progressSyncManager) {
@@ -480,7 +450,6 @@ class VKAchievementManager {
         await this.syncManager.init();
       }
       
-      // Загружаем существующие достижения
       const progressData = await this.syncManager.loadProgress();
       if (progressData && progressData.achievements) {
         this.achievements = { ...progressData.achievements };
@@ -490,22 +459,17 @@ class VKAchievementManager {
       
     } catch (error) {
       console.error('❌ Failed to init sync manager:', error);
-      // Fallback на старую логику
       this.achievements = this.loadAchievements();
     }
   }
 
-  
-
   async saveAchievements() {
     try {
       if (this.syncManager) {
-        // Используем новый синхронизатор
         const currentProgress = await this.syncManager.loadProgress();
         currentProgress.achievements = { ...this.achievements };
         await this.syncManager.saveProgress(currentProgress, true);
       } else {
-        // Fallback на старую логику
         if (this.isVKEnvironment && window.vkBridge) {
           await window.vkBridge.send('VKWebAppStorageSet', {
             key: 'achievements',
@@ -525,13 +489,12 @@ class VKAchievementManager {
 
   async unlockAchievement(achievementId) {
     if (this.achievements[achievementId]) {
-      return false; // Уже разблокировано
+      return false;
     }
 
     this.achievements[achievementId] = true;
     await this.saveAchievements();
 
-    // Отправляем событие во VK (если поддерживается)
     if (this.isVKEnvironment && window.vkBridge) {
       try {
         await this.sendVKAchievement(achievementId);
@@ -547,17 +510,13 @@ class VKAchievementManager {
     const achievement = this.vkAchievements[achievementId];
     if (!achievement) return;
 
-    // Отправляем статистику во VK
     try {
       await window.vkBridge.send('VKWebAppAddToCommunity');
-      
-      // Можно также отправить пост на стену (если разрешено)
       await window.vkBridge.send('VKWebAppShowWallPostBox', {
         message: `🏆 Получено достижение "${achievement.title}"!\n${achievement.description}\n\n#FindThePair #ИграПамять`,
         attachments: window.location.href
       });
     } catch (error) {
-      // Пользователь отменил или нет разрешений
       console.log('VK sharing cancelled or not permitted');
     }
   }
