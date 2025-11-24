@@ -1,8 +1,8 @@
 window.THEME = {
   // === ШРИФТЫ ===
-  font: 'BoldPixels',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontTitle: 'BoldPixels',//, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-  fontButton: 'BoldPixels',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  font: 'Arial',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontTitle: 'Arial',//, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  fontButton: 'Arial',//,system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
 
   fontNot: 'Loreley Antiqua',
 
