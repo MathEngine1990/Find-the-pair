@@ -3,7 +3,7 @@
 @font-face {
   font-family: 'BoldPixels';
   src: url('../assets/fonts/BoldPixels.ttf') format('truetype');
-  font-weight: 400;
+  font-weight: normal;
   font-style: normal;
   font-display: block; /* ✅ Блокирует рендер до загрузки */
 }
