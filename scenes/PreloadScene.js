@@ -143,12 +143,17 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
   // Scene.js:152 - ЗАМЕНИТЬ ВЕСЬ МЕТОД loadGameAssets
 
   // ПЕРЕД loadGameAssets()
-preload() {
+async preload() {
   const { width, height } = this.scale;
 
+  // 1️⃣ Ждём BoldPixels с таймаутом из loadCustomFont()
+  try {
+    await this.loadCustomFont();
+  } catch (err) {
+    console.warn('Font load error in preload:', err);
+  }
 
-
-  // Дальше — обычный phaser-preload
+  // 2️⃣ Теперь создаём UI — BoldPixels уже в document.fonts
   this.createLoadingScreen(width, height);
   this.setupLoadingHandlers();
   this.load.setPath('assets/');
@@ -168,15 +173,13 @@ async loadCustomFont() {
   const fontPath = 'assets/fonts/BoldPixels.ttf'; // Относительно index.html
   
   try {
-    // Проверяем, загружен ли уже через CSS
-    const isFontInDocument = document.fonts.check(`16px "${fontName}"`);
-    
-    if (isFontInDocument) {
-      console.log('✅ BoldPixels already loaded via CSS');
+
+        // Если уже загружен (CSS + preload), просто выходим
+    if (document.fonts && document.fonts.check(`16px "${fontName}"`)) {
+      console.log('✅ BoldPixels already loaded (document.fonts.check)');
       return;
     }
-    
-    // Если нет — загружаем программно
+
     console.log('📥 Loading BoldPixels programmatically...');
     
     const fontFace = new FontFace(fontName, `url(${fontPath})`);
@@ -194,16 +197,15 @@ async loadCustomFont() {
     
     console.log('✅ BoldPixels loaded programmatically');
     
-    // Ждём готовности всех шрифтов
-    await document.fonts.ready;
-    
-    // Финальная проверка
-    const isReady = document.fonts.check(`16px "${fontName}"`);
-    if (!isReady) {
+
+
+    document.fonts.add(loadedFont);
+    console.log('✅ BoldPixels ready for use');
+
+        // Доп. проверка
+    if (document.fonts && !document.fonts.check(`16px "${fontName}"`)) {
       throw new Error('Font check failed after load');
     }
-    
-    console.log('✅ BoldPixels ready for use');
     
   } catch (error) {
     console.error('❌ Failed to load BoldPixels:', error);
