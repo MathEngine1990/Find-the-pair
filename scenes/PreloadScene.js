@@ -121,14 +121,14 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
     });
 
     // Завершение загрузки
-    this.load.on('complete', () => {
-      this.loadingText.setText('Загрузка завершена!');
-      
-      // Небольшая задержка перед переходом
-      this.time.delayedCall(500, () => {
-        this.startNextScene();
-      });
-    });
+this.load.on('complete', () => {
+  console.log('[PreloadScene] Loader complete event');
+  this.loadingText.setText('Загрузка завершена!');
+  
+  this.time.delayedCall(500, () => {
+    this.startNextScene();
+  });
+});
 
     // Ошибка загрузки
     this.load.on('fileerror', (file) => {
@@ -194,19 +194,24 @@ async loadCustomFont() {
       new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
     ]);
 
-    document.fonts.add(loadedFace);
+document.fonts.add(loadedFace);
 
-    if (!document.fonts.check(`12px "${fontName}"`)) {
-      throw new Error('Font check failed');
-    }
+if (!document.fonts.check(`12px "${fontName}"`)) {
+  console.warn('⚠️ BoldPixels not reported as ready by document.fonts, но будем всё равно использовать');
+} else {
+  console.log('🎉 BoldPixels fully loaded');
+}
 
-    console.log('🎉 BoldPixels fully loaded');
-    return true;
+return true;
 
-  } catch (err) {
-    console.warn('⚠️ Failed to load BoldPixels:', err);
-    return false;
+} catch (err) {
+  console.warn('⚠️ Failed to load BoldPixels:', err);
+  // покажем предупреждение в сцене, если уже есть scale
+  if (this.scale) {
+    this.showFontErrorNotification();
   }
+  return false;
+}
 }
 
 
@@ -290,22 +295,32 @@ async loadCustomFont() {
     }
   }
 
-  startNextScene() {
-    if (window.progressSyncManager) {
-      this.registry.set('progressSyncManager', window.progressSyncManager);
-      console.log('🔗 progressSyncManager registered in scene registry');
-    }
-    
-    if (this.isVKEnvironment) {
-      this.initVKAchievements();
-    }
+startNextScene() {
+  // 🔐 защита от двойного запуска
+  if (this._sceneStarted) return;
+  this._sceneStarted = true;
 
-    this.scene.start('MenuScene', { 
-      page: 0,
-      userData: this.vkUserData,
-      isVK: this.isVKEnvironment
-    });
+  console.log('[PreloadScene] startNextScene called');
+
+  if (window.progressSyncManager) {
+    this.registry.set('progressSyncManager', window.progressSyncManager);
+    console.log('🔗 progressSyncManager registered in scene registry');
   }
+  
+  if (this.isVKEnvironment) {
+    try {
+      this.initVKAchievements();
+    } catch (e) {
+      console.warn('⚠️ VK Achievement init error:', e);
+    }
+  }
+
+  this.scene.start('MenuScene', { 
+    page: 0,
+    userData: this.vkUserData,
+    isVK: this.isVKEnvironment
+  });
+}
 
   initVKAchievements() {
     try {
@@ -318,9 +333,22 @@ async loadCustomFont() {
     }
   }
 
-  create() {
-    this.applyTextureFiltering();
-  }
+create() {
+  // фильтры текстур
+  this.applyTextureFiltering();
+
+  // флаг для старта сцены
+  this._sceneStarted = false;
+
+  // 🔄 fallback: даже если по какой-то причине complete не сработает,
+  // всё равно попробуем стартануть меню через 500 мс
+  this.time.delayedCall(500, () => {
+    if (!this._sceneStarted) {
+      console.log('[PreloadScene] Fallback startNextScene from create()');
+      this.startNextScene();
+    }
+  });
+}
 
   applyTextureFiltering() {
     console.log('🎨 Applying texture filtering...');
