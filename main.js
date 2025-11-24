@@ -1078,26 +1078,7 @@ function startPhaserGame() {
 
    const MAX_FONT_WAIT = 4000;
 
-if (document.fonts && document.fonts.ready) {
-  console.log('⏳ Waiting for fonts before starting Phaser...');
-
-  Promise.race([
-    document.fonts.ready,
-    new Promise(resolve => setTimeout(resolve, MAX_FONT_WAIT))
-  ])
-    .then(() => {
-      console.log('✅ Fonts ready (or timeout), starting game');
-      startPhaserGame();
-    })
-    .catch(err => {
-      console.warn('⚠️ Font wait error:', err);
-      startPhaserGame();
-    });
-
-} else {
-  console.log('ℹ️ document.fonts not supported – starting game immediately');
-  startPhaserGame();
-}
+startPhaserGame();
 
     
 
