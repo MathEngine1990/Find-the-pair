@@ -1791,121 +1791,102 @@ checkPair() {
 }
 
   // НОВЫЙ МЕТОД: Сохранение прогресса через ProgressSyncManager
-  async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accuracy) {
-    // Расчёт звёздочек (1-3 звезды)
-    let stars = 1; // минимум 1 звезда за прохождение
-    
-    const errorRate = attempts > 0 ? errors / attempts : 0;
-    
-    if (errorRate === 0 && gameTime <= 60) stars = 3;      // отлично
-    else if (errorRate <= 0.2 && gameTime <= 90) stars = 2; // хорошо
-    
-    const result = {
-      stars,
-      improved: false,
-      synced: false,
-      syncError: false,
-      currentBest: null
+async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accuracy) {
+
+  let stars = 1;
+  const errorRate = attempts > 0 ? errors / attempts : 0;
+
+  if (errorRate === 0 && gameTime <= 60) stars = 3;
+  else if (errorRate <= 0.2 && gameTime <= 90) stars = 2;
+
+  const result = {
+    stars,
+    improved: false,
+    synced: false,
+    syncError: false,
+    currentBest: null
+  };
+
+  try {
+    const currentProgress = await this.syncManager.loadProgress();
+    if (!currentProgress.levels) currentProgress.levels = {};
+
+    const existing = currentProgress.levels[levelIndex];
+
+    // ✔ ВСЕГДА обновляем последние показатели
+    const updated = {
+      ...(existing || {}),
+      attempts,
+      errors,
+      lastAccuracy: accuracy, // ← ключевой параметр!
+      timestamp: Date.now(),
+      completedAt: new Date().toISOString()
     };
 
-    try {
-      if (this.syncManager) {
-        // Используем ProgressSyncManager
-        const currentProgress = await this.syncManager.loadProgress();
-        
-        if (!currentProgress.levels) {
-          currentProgress.levels = {};
-        }
-        
-        const existingLevel = currentProgress.levels[levelIndex];
-        const newLevel = {
-          stars,
-          bestTime: gameTime,
-          bestAccuracy: accuracy,
-          attempts,
-          errors,
-          accuracy,
-          timestamp: Date.now(),
-          completedAt: new Date().toISOString()
-        };
-        
-        // Проверяем, лучше ли новый результат
-        result.improved = !existingLevel || 
-          stars > existingLevel.stars || 
-          (stars === existingLevel.stars && gameTime < existingLevel.bestTime);
-        
-        if (result.improved) {
-          currentProgress.levels[levelIndex] = newLevel;
-          
-          // Обновляем общую статистику
-          if (!currentProgress.stats) {
-            currentProgress.stats = {
-              gamesPlayed: 0,
-              totalTime: 0,
-              totalErrors: 0,
-              bestTime: null,
-              lastPlayed: 0,
-              perfectGames: 0,
-              totalStars: 0
-            };
-          }
-          
-          const stats = currentProgress.stats;
-          stats.gamesPlayed++;
-          stats.totalTime += gameTime;
-          stats.totalErrors += errors;
-          stats.lastPlayed = Date.now();
-          
-          if (errors === 0) {
-            stats.perfectGames++;
-          }
-          
-          if (!stats.bestTime || gameTime < stats.bestTime) {
-            stats.bestTime = gameTime;
-          }
-          
-          // Пересчитываем общее количество звезд
-          stats.totalStars = Object.values(currentProgress.levels)
-            .reduce((total, level) => total + (level.stars || 0), 0);
-          
-          // Сохраняем через синхронизатор (принудительная синхронизация)
-          await this.syncManager.saveProgress(currentProgress, true);
-          
-          result.synced = true;
-          result.currentBest = newLevel;
-          
-          console.log('💾 Progress saved and synced via ProgressSyncManager:', {
-            level: levelIndex,
-            stars,
-            time: gameTime,
-            improved: result.improved
-          });
-        } else {
-          result.currentBest = existingLevel;
-        }
-        
-      } else {
-        // Fallback к старой системе
-        console.warn('ProgressSyncManager not available, using fallback');
-        result = this.saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy);
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to save progress via sync manager:', error);
-      result.syncError = true;
-      
-      // Пытаемся fallback сохранение
-      try {
-        const fallbackResult = this.saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy);
-        result.improved = fallbackResult.improved;
-        result.currentBest = fallbackResult.currentBest;
-      } catch (fallbackError) {
-        console.error('❌ Fallback save also failed:', fallbackError);
-      }
+    // ✔ проверяем улучшился ли рекорд
+    const prevStars = existing?.stars ?? 0;
+    const prevBestTime = existing?.bestTime ?? Infinity;
+
+    const improved =
+      !existing ||
+      stars > prevStars ||
+      (stars === prevStars && gameTime < prevBestTime);
+
+    result.improved = improved;
+
+    if (improved) {
+      // ✔ обновляем рекордные показатели
+      updated.stars = stars;
+      updated.bestTime = gameTime;
+      updated.bestAccuracy = accuracy;
+      updated.accuracy = accuracy;
     }
 
-    return result;
+    // ✔ записываем уровень
+    currentProgress.levels[levelIndex] = updated;
+    result.currentBest = updated;
+
+    // ✔ обновляем общую статистику
+    if (!currentProgress.stats) {
+      currentProgress.stats = {
+        gamesPlayed: 0,
+        totalTime: 0,
+        totalErrors: 0,
+        bestTime: null,
+        lastPlayed: 0,
+        perfectGames: 0,
+        totalStars: 0
+      };
+    }
+
+    const stats = currentProgress.stats;
+
+    stats.gamesPlayed++;
+    stats.totalTime += gameTime;
+    stats.totalErrors += errors;
+    stats.lastPlayed = Date.now();
+
+    if (errors === 0) stats.perfectGames++;
+
+    if (!stats.bestTime || gameTime < stats.bestTime) {
+      stats.bestTime = gameTime;
+    }
+
+    stats.totalStars = Object.values(currentProgress.levels)
+      .reduce((sum, lvl) => sum + (lvl.stars || 0), 0);
+
+    // ✔ сохраняем в VK
+    await this.syncManager.saveProgress(currentProgress, true);
+    result.synced = true;
+
+  } catch (e) {
+    console.error('saveProgressViaSyncManager error:', e);
+    result.syncError = true;
   }
+
+  return result;
+}
+
 
   // ОБНОВЛЕННЫЙ МЕТОД: Fallback сохранение прогресса
   saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy) {
