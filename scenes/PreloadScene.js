@@ -151,30 +151,40 @@ this.load.on('complete', () => {
 // ================================
 //  ✅ ВАЖНО: preload СИНХРОННЫЙ
 // ================================
-preload() {
+// ⚠️ Обрати внимание: здесь async!
+async preload() {
   const { width, height } = this.scale;
 
-  await this.loadLoreleyFont();
+  // 1️⃣ Ждём BoldPixels (логотип/кнопки и т.п.)
+  try {
+    const ok = await this.loadCustomFont();
+    console.log('🔤 BoldPixels load result:', ok);
+    if (!ok) {
+      this.showFontErrorNotification();
+    }
+  } catch (e) {
+    console.warn('⚠️ loadCustomFont error in preload:', e);
+    this.showFontErrorNotification();
+  }
 
-  // 1️⃣ Стартуем загрузку шрифта, но НЕ блокируем Phaser
-  this.loadCustomFont()
-    .then((ok) => {
-      console.log('🔤 BoldPixels load result:', ok);
-      if (!ok) {
-        this.showFontErrorNotification();
-      }
-    })
-    .catch((e) => {
-      console.warn('⚠️ loadCustomFont error in preload:', e);
-    });
+  // 2️⃣ Ждём Loreley Antiqua (цифры уровней, "Сколько будем пар играть")
+  try {
+    if (this.loadLoreleyFont) {
+      await this.loadLoreleyFont();
+    } else {
+      console.warn('⚠️ loadLoreleyFont() не найден в PreloadScene');
+    }
+  } catch (e) {
+    console.warn('⚠️ loadLoreleyFont error in preload:', e);
+  }
 
-  // 2️⃣ Сразу рисуем экран загрузки
+  // 3️⃣ Теперь создаём экран загрузки — шрифты уже подтянуты
   this.createLoadingScreen(width, height);
 
-  // 3️⃣ Настраиваем обработчики загрузчика
+  // 4️⃣ Настраиваем обработчики загрузчика
   this.setupLoadingHandlers();
 
-  // 4️⃣ Кладём ассеты в очередь загрузки
+  // 5️⃣ Кладём ассеты в очередь загрузки
   this.load.setPath('assets/');
   this.loadGameAssets();
 
@@ -182,6 +192,7 @@ preload() {
     this.loadVKAssets();
   }
 }
+
 
 
 
