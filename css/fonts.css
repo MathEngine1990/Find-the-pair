@@ -14,7 +14,7 @@ body {
 
 @font-face {
   font-family: 'Loreley Antiqua';
-  src: url('../assets/fonts/Loreley Antiqua.ttf') format('truetype');
+  src: url('../assets/fonts/LoreleyAntiqua.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: block; /* ✅ Блокирует рендер до загрузки */
