@@ -804,15 +804,22 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
   }
 
   // Обновляем существующую статистику
-  if (button.statsContainer && button.statsContainer.list[0]) {
-    if (levelProgress && levelProgress.bestTime) {
-      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${levelProgress.accuracy || 100}%`;
-      button.statsContainer.list[0].setText(statsText);
-      button.statsContainer.setVisible(true);
-    } else {
-      button.statsContainer.setVisible(false);
-    }
+if (button.statsContainer && button.statsContainer.list[0]) {
+  if (levelProgress && levelProgress.bestTime) {
+    const accuracy =
+      levelProgress.lastAccuracy ??
+      levelProgress.bestAccuracy ??
+      levelProgress.accuracy ??
+      100;
+
+    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+    button.statsContainer.list[0].setText(statsText);
+    button.statsContainer.setVisible(true);
+  } else {
+    button.statsContainer.setVisible(false);
   }
+}
+
 }
 
 
@@ -1081,19 +1088,25 @@ createLevelButton(
   // --- Статистика ---
   btn.statsContainer = this.add.container(x, y + h * 0.65).setDepth(btn.depth + 1);
 
-  if (levelProgress?.bestTime) {
-    const accuracy = levelProgress.accuracy || 100;
-    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+if (levelProgress?.bestTime) {
+  const accuracy =
+    levelProgress.lastAccuracy ??
+    levelProgress.bestAccuracy ??
+    levelProgress.accuracy ??
+    100;
 
-    const statsDisplay = this.textManager.createText(
-      0,
-      0,
-      statsText,
-      'statValue'
-    ).setOrigin(0.5);
+  const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
 
-    btn.statsContainer.add(statsDisplay);
-  }
+  const statsDisplay = this.textManager.createText(
+    0,
+    0,
+    statsText,
+    'statValue'
+  ).setOrigin(0.5);
+
+  btn.statsContainer.add(statsDisplay);
+}
+
 
   // --- ХОВЕР-МАСШТАБ (как у стрелок!) ---
   const baseScaleX = btn.scaleX;
