@@ -120,7 +120,16 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
       this.loadingText.setText(`Загрузка: ${file.key}`);
     });
 
-    // Завершение загрузки
+
+
+    // Ошибка загрузки
+    this.load.on('fileerror', (file) => {
+      console.error('❌ File load error:', file.key);
+      this.loadingText.setText(`Ошибка загрузки: ${file.key}`);
+      this.loadingText.setColor('#E74C3C');
+    });
+
+        // Завершение загрузки
 this.load.on('complete', () => {
   console.log('[PreloadScene] Loader complete event');
   this.loadingText.setText('Загрузка завершена!');
@@ -129,13 +138,7 @@ this.load.on('complete', () => {
     this.startNextScene();
   });
 });
-
-    // Ошибка загрузки
-    this.load.on('fileerror', (file) => {
-      console.error('❌ File load error:', file.key);
-      this.loadingText.setText(`Ошибка загрузки: ${file.key}`);
-      this.loadingText.setColor('#E74C3C');
-    });
+    
   }
 
 
@@ -152,39 +155,37 @@ this.load.on('complete', () => {
 //  ✅ ВАЖНО: preload СИНХРОННЫЙ
 // ================================
 // ⚠️ Обрати внимание: здесь async!
-async preload() {
+preload() {
   const { width, height } = this.scale;
 
-  // 1️⃣ Ждём BoldPixels (логотип/кнопки и т.п.)
-  try {
-    const ok = await this.loadCustomFont();
-    console.log('🔤 BoldPixels load result:', ok);
-    if (!ok) {
-      this.showFontErrorNotification();
-    }
-  } catch (e) {
-    console.warn('⚠️ loadCustomFont error in preload:', e);
-    this.showFontErrorNotification();
-  }
+  // 1️⃣ Стартуем загрузку кастомных шрифтов — НИЧЕГО не ждём, не блокируем Phaser
+  this.loadCustomFont()
+    .then((ok) => {
+      console.log('🔤 BoldPixels load result:', ok);
+      if (!ok) {
+        this.showFontErrorNotification();
+      }
+    })
+    .catch((e) => {
+      console.warn('⚠️ loadCustomFont error in preload:', e);
+    });
 
-  // 2️⃣ Ждём Loreley Antiqua (цифры уровней, "Сколько будем пар играть")
-  try {
-    if (this.loadLoreleyFont) {
-      await this.loadLoreleyFont();
-    } else {
-      console.warn('⚠️ loadLoreleyFont() не найден в PreloadScene');
-    }
-  } catch (e) {
-    console.warn('⚠️ loadLoreleyFont error in preload:', e);
-  }
+  // 2️⃣ Loreley Antiqua — тоже фаер-энд-форгет
+  this.loadLoreleyFont()
+    .then((ok) => {
+      console.log('🔤 Loreley load result:', ok);
+    })
+    .catch((e) => {
+      console.warn('⚠️ loadLoreleyFont error in preload:', e);
+    });
 
-  // 3️⃣ Теперь создаём экран загрузки — шрифты уже подтянуты
+  // 3️⃣ Рисуем экран загрузки
   this.createLoadingScreen(width, height);
 
-  // 4️⃣ Настраиваем обработчики загрузчика
+  // 4️⃣ Вешаем обработчики загрузчика
   this.setupLoadingHandlers();
 
-  // 5️⃣ Кладём ассеты в очередь загрузки
+  // 5️⃣ Кладём ассеты в очередь
   this.load.setPath('assets/');
   this.loadGameAssets();
 
@@ -192,6 +193,7 @@ async preload() {
     this.loadVKAssets();
   }
 }
+
 
 
 
@@ -393,12 +395,24 @@ startNextScene() {
   }
 
 create() {
+  console.log('[PreloadScene] create()');
+
   // фильтры текстур
   this.applyTextureFiltering();
 
-  // флаг для старта сцены
+  // флаг: сцена уже стартанула?
   this._sceneStarted = false;
+
+  // 🔄 Fallback: если по какой-то причине COMPLETE не сработает,
+  // всё равно попробуем стартануть меню через 800 мс
+  this.time.delayedCall(800, () => {
+    if (!this._sceneStarted) {
+      console.warn('[PreloadScene] Fallback startNextScene from create()');
+      this.startNextScene();
+    }
+  });
 }
+
 
   applyTextureFiltering() {
     console.log('🎨 Applying texture filtering...');
