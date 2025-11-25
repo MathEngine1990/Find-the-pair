@@ -141,28 +141,6 @@ this.load.on('complete', () => {
 
 
 
-  async loadLoreleyFont() {
-  const fontName = 'Loreley Antiqua';
-  const fontPath = 'assets/fonts/LoreleyAntiqua.ttf'; // проверь название файла
-
-  if (document.fonts.check(`12px "${fontName}"`)) {
-    console.log('✔ Loreley already loaded');
-    return;
-  }
-
-  try {
-    const face = new FontFace(fontName, `url(${fontPath})`);
-    const loaded = await face.load();
-    document.fonts.add(loaded);
-
-    // гарантирует, что браузер применит шрифт
-    await document.fonts.ready;
-
-    console.log('✔ Loreley fully loaded');
-  } catch (err) {
-    console.warn('⚠ Loreley failed to load:', err);
-  }
-}
 
 
   
@@ -257,6 +235,30 @@ loadCustomFont() {
       console.warn('⚠️ Failed to load BoldPixels:', err);
       return false;
     });
+}
+
+  
+  async loadLoreleyFont() {
+  const fontName = 'Loreley Antiqua';
+  const fontPath = 'assets/fonts/LoreleyAntiqua.ttf'; // проверь название файла
+
+  if (document.fonts.check(`12px "${fontName}"`)) {
+    console.log('✔ Loreley already loaded');
+    return;
+  }
+
+  try {
+    const face = new FontFace(fontName, `url(${fontPath})`);
+    const loaded = await face.load();
+    document.fonts.add(loaded);
+
+    // гарантирует, что браузер применит шрифт
+    await document.fonts.ready;
+
+    console.log('✔ Loreley fully loaded');
+  } catch (err) {
+    console.warn('⚠ Loreley failed to load:', err);
+  }
 }
 
 
