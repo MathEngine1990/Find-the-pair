@@ -2088,7 +2088,7 @@ checkPair() {
         this.showNewAchievements(newAchievements);
         
         // Отправляем во VK (если доступно)
-        await this.shareAchievementsToVK(newAchievements);
+        //await this.shareAchievementsToVK(newAchievements);
       }
       
     } catch (error) {
