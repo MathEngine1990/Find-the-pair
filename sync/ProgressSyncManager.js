@@ -749,35 +749,46 @@ getCurrentLevel() {
   }
 }
 
-  mergeLevelData(local, vk) {
-    if (!local && !vk) return null;
-    if (!vk) return local;
-    if (!local) return vk;
-    
-    // ИСПРАВЛЕНО: Более детальное слияние данных уровня
-    const merged = {
-      stars: Math.max(local.stars || 0, vk.stars || 0),
-      bestTime: Math.min(
-        local.bestTime || Infinity,
-        vk.bestTime || Infinity
-      ) === Infinity ? null : Math.min(
-        local.bestTime || Infinity,
-        vk.bestTime || Infinity
-      ),
-      errors: Math.min(
-        local.errors || Infinity,
-        vk.errors || Infinity
-      ) === Infinity ? null : Math.min(
-        local.errors || Infinity,
-        vk.errors || Infinity
-      ),
-      attempts: Math.max(local.attempts || 0, vk.attempts || 0),
-      completed: local.completed || vk.completed || false,
-      lastPlayed: Math.max(local.lastPlayed || 0, vk.lastPlayed || 0)
-    };
-    
-    return merged;
-  }
+mergeLevelData(local, vk) {
+  if (!local && !vk) return null;
+  if (!vk) return local;
+  if (!local) return vk;
+
+  // 1️⃣ База — просто объединяем все поля
+  //    vk имеет приоритет над local по "неизвестным" полям
+  const base = { ...local, ...vk };
+
+  // 2️⃣ А вот ключевые поля пересчитываем аккуратно
+  const bestTime =
+    Math.min(local.bestTime || Infinity, vk.bestTime || Infinity);
+  const errors =
+    Math.min(local.errors || Infinity, vk.errors || Infinity);
+
+  const merged = {
+    ...base,
+
+    // звёзды — максимум
+    stars: Math.max(local.stars || 0, vk.stars || 0),
+
+    // время — минимум (если оба Infinity → null)
+    bestTime: bestTime === Infinity ? null : bestTime,
+
+    // ошибки — минимум (если оба Infinity → null)
+    errors: errors === Infinity ? null : errors,
+
+    // попытки — максимум
+    attempts: Math.max(local.attempts || 0, vk.attempts || 0),
+
+    // completed, если где-то true — оставляем true
+    completed: !!(local.completed || vk.completed),
+
+    // lastPlayed — что свежее
+    lastPlayed: Math.max(local.lastPlayed || 0, vk.lastPlayed || 0),
+  };
+
+  return merged;
+}
+
 
   mergeStats(localStats = {}, vkStats = {}) {
     return {
