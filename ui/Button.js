@@ -28,21 +28,25 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     .setScrollFactor(0);
   
   const children = [img, txt, zone];
-  const cont = scene.add.container(Math.round(x), Math.round(y), children);
-  
-  cont.setSize(w, h);
-  
-  zone.on('pointerdown', () => onClick && onClick());
-  
-  zone.on('pointerout',  () => { 
-    txt.setColor(color);      
-    scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); 
-  });
-  
-  cont.label = txt; 
-  cont.bg = img; 
-  cont.zone = zone;
-  return cont;
+const cont = scene.add.container(Math.round(x), Math.round(y), children);
+
+cont.setSize(w, h);
+
+// ⚡ Сохраняем колбэк на самом контейнере, чтобы его можно было менять позже
+cont.onClick = onClick;
+
+zone.on('pointerdown', () => cont.onClick && cont.onClick());
+
+zone.on('pointerout',  () => { 
+  txt.setColor(color);      
+  scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); 
+});
+
+cont.label = txt; 
+cont.bg = img; 
+cont.zone = zone;
+return cont;
+
 };
 
 // 🔥 НОВОЕ: Поддержка кастомных цветов фона и границы
