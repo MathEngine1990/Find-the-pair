@@ -1158,7 +1158,7 @@ createLevelButton(
   const starSize = this.textManager.getSize('stars');
 
   // чуть-чуть под кнопкой
-  const starsOffsetY = isMobile ? h * 0.50 : h * 0.52;
+  const starsOffsetY = isMobile ? h * 0.60 : h * 0.52;
   btn.starsContainer = this.add.container(x, y + starsOffsetY).setDepth(btn.depth + 1);
 
   const starSpacing = starSize + 4;
