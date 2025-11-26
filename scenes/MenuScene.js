@@ -576,7 +576,46 @@ async drawMenu(page = 0) {
 
     console.log('Creating level buttons:', pageLevels.length, 'Mobile:', isMobile);
 
-pageLevels.forEach
+pageLevels.forEach((lvl, i) => {
+  const levelIndex = startIdx + i;
+  const r = Math.floor(i / COLS);
+  const c = i % COLS;
+
+  const x = gridLeft + c * cellW + cellW / 2;
+  let   y = gridTop  + r * cellH + cellH / 2;
+
+  const btnW = Math.min(
+    isMobile ? cellW * 0.92 : 320,
+    cellW * 0.9
+  );
+
+  // исходная высота (как была раньше)
+  const desktopBtnH = Math.min(200, cellH * 0.86);
+  const mobileOldH  = cellH * 0.86;    // старая мобильная высота
+  const mobileNewH  = cellH * 0.65;    // НОВАЯ, пониже
+
+  let btnH;
+
+  if (isMobile) {
+    btnH = mobileNewH;
+
+    // сдвигаем центр вверх на половину разницы,
+    // чтобы верхняя граница осталась на прежнем месте
+    const diff = mobileOldH - mobileNewH;
+    y -= diff / 2;
+  } else {
+    btnH = desktopBtnH; // десктоп вообще не трогаем
+  }
+
+  this.createLevelButton(
+    x, y,
+    btnW, btnH,
+    lvl, levelIndex,
+    scaleFactor,
+    progressLevels
+  );
+});
+
 
     // Навигация по страницам
     const yNav = H * (isMobile ? 0.88 : 0.86);
