@@ -1142,7 +1142,7 @@ createLevelButton(
   // --- Номер уровня ---
   const levelBaseSize = this.textManager.getSize('levelNumber');
   const levelOverrides = isMobile
-    ? { fontSize: Math.round(levelBaseSize * 0.9) + 'px' } // чуть меньше на мобиле
+    ? { fontSize: Math.round(levelBaseSize * 0.8) + 'px' } // чуть меньше на мобиле
     : {};
 
   const levelText = this.textManager.createText(
@@ -1200,7 +1200,7 @@ createLevelButton(
 
     const statBaseSize = this.textManager.getSize('statValue');
     const statOverrides = isMobile
-      ? { fontSize: Math.round(statBaseSize * 0.9) + 'px' } // тоже чуть меньше
+      ? { fontSize: Math.round(statBaseSize * 0.8) + 'px' } // тоже чуть меньше
       : {};
 
     const statsDisplay = this.textManager.createText(
