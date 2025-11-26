@@ -310,12 +310,13 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
       container.add(titleText);
 
       // описание
-      const descText = this.textManager.createText(
-        panelX + itemHeight * 0.9,
-        centerY + itemHeight * 0.16,
-        ach.description,
-        'achievementDesc'
-      );
+const descText = this.textManager.createText(
+  panelX + itemHeight * 0.9,
+  centerY + itemHeight * 0.16,
+  ach.description,
+  'achievementDescArial'
+);
+
       descText.setOrigin(0, 0.5);
       container.add(descText);
 

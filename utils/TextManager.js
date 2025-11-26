@@ -119,6 +119,8 @@ window.TextManager = class TextManager {
     };
   }
 
+
+
   /**
    * Создать адаптивный текст
    */
@@ -199,6 +201,8 @@ window.TextManager = class TextManager {
 // ПРЕСЕТЫ ТЕКСТА - ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ
 // ============================================
 window.TEXT_PRESETS = {
+
+  
   // === ЗАГОЛОВКИ ===
   titleLarge: {
     method: 'height',
@@ -416,13 +420,23 @@ window.TEXT_PRESETS = {
     style: 'bold'
   },
 
-  achievementDesc: {
+    achievementDesc: {
     method: 'height',
-    scale: 0.017,        // ⬇️ Уменьшено с 0.018
+    scale: 0.017,
     min: 11,
     max: 15,
     mobileScale: 1.15,
-    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
+    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },
+    color: window.THEME?.colors?.notificationDesc || '#E8E8E8'
+  },
+
+  achievementDescArial: {
+    method: 'height',
+    scale: 0.017,
+    min: 11,
+    max: 15,
+    mobileScale: 1.15,
+    font: 'Arial, sans-serif',
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8'
   },
 
