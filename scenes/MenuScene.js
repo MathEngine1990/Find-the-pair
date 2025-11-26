@@ -668,7 +668,7 @@ const achBtn = window.makeImageButton(
     this,
     W / 2,
     H * 0.95,
-    80, 40,
+    90, 42,
     'Достижения',
     () => this.scene.start('AchievementsScene', { fromPage: this.levelPage })
 );

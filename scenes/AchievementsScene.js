@@ -242,55 +242,56 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
     backBtn.setDepth(10);
     this.items.push(backBtn);
 
-    // Общая статистика
-    const stats = this.progress.stats || {};
-    const games = stats.gamesPlayed || 0;
-    const stars = stats.totalStars || 0;
-    const totalLevels = window.LEVELS.length;
-    const maxStars = totalLevels * 3;
-    const perfectGames = stats.perfectGames || 0;
 
-    const statsText = `Игр сыграно: ${games} · Звёзд: ${stars}/${maxStars} · Идеальных игр: ${perfectGames}`;
-    const statsLabel = this.textManager.createText(
-      W / 2,
-      H * 0.13,
-      statsText,
-      'statLabel'
-    );
-    statsLabel.setOrigin(0.5);
-    statsLabel.setColor('#E8E1C9');
-    this.items.push(statsLabel);
 
     // Список достижений
-    const startY = H * 0.22;
-    const itemHeight = Math.min(110, H * 0.14);
-    const gap = Math.min(14, H * 0.02);
+    const achievements = this.achievementsConfig || [];
+    const count = achievements.length;
+    if (!count) return;
+
+    const topMargin    = H * 0.16;   // чуть ниже заголовка
+    const bottomMargin = H * 0.06;   // отступ снизу
+    const gap          = H * 0.015;  // расстояние между карточками
+
+    const availableH = H - topMargin - bottomMargin - gap * (count - 1);
+
+    // динамическая высота карточки с ограничениями
+    let itemHeight = availableH / count;
+    itemHeight = Phaser.Math.Clamp(itemHeight, 70, 110);
+
+    // первая карточка (центр по Y)
+    const startY = topMargin + itemHeight / 2;
+
     const listWidth = Math.min(W * 0.9, 700);
     const left = (W - listWidth) / 2;
 
-    this.achievementsConfig.forEach((ach, i) => {
+    achievements.forEach((ach, i) => { 
       const unlocked = !!this.progress.achievements[ach.id];
-      const y = startY + i * (itemHeight + gap);
+
+      // центр карточки по Y
+      const centerY = startY + i * (itemHeight + gap);
+      const panelX  = left;
+      const panelY  = centerY - itemHeight / 2;
 
       const container = this.add.container(0, 0);
       container.setDepth(5);
 
       // фон карточки
       const bg = this.add.graphics();
-      const bgColor = unlocked ? 0x243540 : 0x151A24;
+      const bgColor     = unlocked ? 0x243540 : 0x151A24;
       const borderColor = unlocked ? 0xF2DC9B : 0x3A475A;
 
       bg.fillStyle(bgColor, 0.95);
       bg.lineStyle(2, borderColor, 0.9);
-      bg.fillRoundedRect(left, y, listWidth, itemHeight, 16);
-      bg.strokeRoundedRect(left, y, listWidth, itemHeight, 16);
+      bg.fillRoundedRect(panelX, panelY, listWidth, itemHeight, 16);
+      bg.strokeRoundedRect(panelX, panelY, listWidth, itemHeight, 16);
 
       container.add(bg);
 
-      // иконка
+      // иконка слева (по центру по вертикали)
       const icon = this.add.text(
-        left + itemHeight * 0.4,
-        y + itemHeight / 2,
+        panelX + itemHeight * 0.4,
+        centerY,
         ach.icon,
         {
           fontSize: Math.round(itemHeight * 0.45) + 'px'
@@ -298,18 +299,20 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
       ).setOrigin(0.5);
       container.add(icon);
 
+      // заголовок
       const titleText = this.textManager.createText(
-        left + itemHeight * 0.9,
-        y + itemHeight * 0.3,
+        panelX + itemHeight * 0.9,
+        centerY - itemHeight * 0.22,
         ach.title,
         'achievementTitle'
       );
       titleText.setOrigin(0, 0.5);
       container.add(titleText);
 
+      // описание
       const descText = this.textManager.createText(
-        left + itemHeight * 0.9,
-        y + itemHeight * 0.70,
+        panelX + itemHeight * 0.9,
+        centerY + itemHeight * 0.16,
         ach.description,
         'achievementDesc'
       );
@@ -318,8 +321,8 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
 
       // статус справа
       const status = this.add.text(
-        left + listWidth - 16,
-        y + itemHeight / 2,
+        panelX + listWidth - 16,
+        centerY,
         unlocked ? 'Получено' : 'Не получено',
         {
           fontFamily: 'Arial, sans-serif',
@@ -337,6 +340,8 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
 
       this.items.push(container);
     });
+
+
   }
 
   async handleResize() {
