@@ -1127,12 +1127,8 @@ createLevelButton(
   scaleFactor = 1.0,
   progressLevels = null
 ) {
-  const btn = window.makeImageButton(this, x, y, w, h, '', () => {
-    if (this.syncManager?.setCurrentLevel) {
-      this.syncManager.setCurrentLevel(levelIndex);
-    }
-    this.scene.start('GameScene', { level: levelIndex });
-  });
+  // Создаём кнопку без onClick — повесим его ниже, уже на btn.onClick
+  const btn = window.makeImageButton(this, x, y, w, h, '', null);
 
   // --- определяем, мобильный ли девайс (используем дальше и для текстов) ---
   const { W, H } = this.getSceneWH();
@@ -1154,7 +1150,19 @@ createLevelButton(
   );
   levelText.setOrigin(0.5);
   btn.add(levelText);
+
+    // индекс уровня и ссылка на текст-лейбл
   btn.levelIndex = levelIndex;
+  btn.levelLabel = levelText;
+
+    // Универсальный обработчик нажатия, завязанный на btn.levelIndex
+  btn.onClick = () => {
+    const index = btn.levelIndex ?? levelIndex;
+    if (this.syncManager?.setCurrentLevel) {
+      this.syncManager.setCurrentLevel(index);
+    }
+    this.scene.start('GameScene', { level: index });
+  };
 
   // --- Прогресс уровня ---
   const levelsData = progressLevels || (this.progress?.levels || {});
