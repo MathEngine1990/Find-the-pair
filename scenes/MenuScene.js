@@ -556,13 +556,13 @@ async drawMenu(page = 0) {
     }
 
     // Область для кнопок уровней
-const topY    = H * (isMobile ? 0.18 : 0.16);  // было 0.20
-const bottomY = H * (isMobile ? 0.72 : 0.79);  // было 0.75
-const areaH   = bottomY - topY;
-const areaW   = Math.min(
-  W * (isMobile ? 0.98 : 0.90),
-  isMobile ? W : 1080
-);
+    const topY    = H * (isMobile ? 0.20 : 0.16);
+    const bottomY = H * (isMobile ? 0.75 : 0.79);
+    const areaH   = bottomY - topY;
+    const areaW   = Math.min(
+      W * (isMobile ? 0.98 : 0.90),
+      isMobile ? W : 1080
+    );
 
     const cellH   = areaH / ROWS;
     const cellW   = areaW / COLS;
@@ -576,34 +576,17 @@ const areaW   = Math.min(
 
     console.log('Creating level buttons:', pageLevels.length, 'Mobile:', isMobile);
 
-    pageLevels.forEach((lvl, i) => {
-      const levelIndex = startIdx + i;
-      const r = Math.floor(i / COLS);
-      const c = i % COLS;
-
-      const x = gridLeft + c * cellW + cellW / 2;
-      const y = gridTop  + r * cellH + cellH / 2;
-
-      const btnW = Math.min(
-        isMobile ? cellW * 0.92 : 320,
-        cellW * 0.9
-      );
-      const btnH = Math.min(
-        isMobile ? cellH * 0.88 : 200,
-        cellH * 0.86
-      );
-
-      this.createLevelButton(x, y, btnW, btnH, lvl, levelIndex, scaleFactor, progressLevels);
-    });
+pageLevels.forEach
 
     // Навигация по страницам
-const yNav = H * (isMobile ? 0.80 : 0.86);   // было 0.88
-const navSize = Math.round(
-  H * (isMobile ? 0.09 : 0.07)               // раньше умножалось на scaleFactor
-);
+    const yNav = H * (isMobile ? 0.88 : 0.86);
+    const navSize = Math.max(
+      isMobile ? 60 : 52,
+      Math.round(H * 0.07 * scaleFactor)
+    );
 
-const prevActive = this.levelPage > 0;
-const nextActive = this.levelPage < PAGES - 1;
+    const prevActive = this.levelPage > 0;
+    const nextActive = this.levelPage < PAGES - 1;
 
     const arrowStyle = {
       color: '#F2DC9B',
@@ -619,7 +602,7 @@ const nextActive = this.levelPage < PAGES - 1;
 const prevBtn = window.makeIconButton(
   this,
   W * 0.25,
-  yNav,
+  yNav + 20,
   navSize,
   '‹',
   async () => {
@@ -636,7 +619,7 @@ this.levelButtons.push(prevBtn);
 
     // Текст страницы
 const pageTxt = this.textManager.createText(
-  W * 0.5, yNav,
+  W * 0.5, yNav + 20,
   `${this.levelPage + 1} / ${PAGES}`,
   'buttonText'
 );
@@ -648,7 +631,7 @@ this.levelButtons.push(pageTxt);
 const nextBtn = window.makeIconButton(
   this,
   W * 0.75,
-  yNav,
+  yNav + 20,
   navSize,
   '›',
   async () => {
@@ -662,12 +645,12 @@ const nextBtn = window.makeIconButton(
 nextBtn.setAlpha(nextActive ? 1 : 0.45);
 this.levelButtons.push(nextBtn);
 
-
+// Кнопка "Достижения"
 // Кнопка "Достижения"
 const achBtn = window.makeImageButton(
   this,
   W / 2,
-  H * (isMobile ? 0.90 : 0.95),
+  H * 0.95,
   90, 42,
   'Достижения',
   () => this.scene.start('AchievementsScene', { fromPage: this.levelPage }),
