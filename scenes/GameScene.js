@@ -1797,7 +1797,7 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
   const errorRate = attempts > 0 ? errors / attempts : 0;
 
   if (errorRate === 0 && gameTime <= 60) stars = 3;
-  else if (errorRate <= 0.2 && gameTime <= 90) stars = 2;
+  else if (errorRate <= 0.4 && gameTime <= 90) stars = 2;
 
   const result = {
     stars,
@@ -1909,7 +1909,7 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
       const errorRate = attempts > 0 ? errors / attempts : 0;
       
       if (errorRate === 0 && gameTime <= 60) stars = 3;
-      else if (errorRate <= 0.2 && gameTime <= 90) stars = 2;
+      else if (errorRate <= 0.4 && gameTime <= 90) stars = 2;
       
       const existingLevel = progress.levels[levelIndex];
       const newLevel = {
