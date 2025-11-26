@@ -590,7 +590,7 @@ const areaW   = Math.min(
       );
       const btnH = Math.min(
         isMobile ? cellH * 0.88 : 200,
-        cellH * 0.65
+        cellH * 0.86
       );
 
       this.createLevelButton(x, y, btnW, btnH, lvl, levelIndex, scaleFactor, progressLevels);
