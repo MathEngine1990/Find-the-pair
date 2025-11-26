@@ -1134,12 +1134,23 @@ createLevelButton(
     this.scene.start('GameScene', { level: levelIndex });
   });
 
+  // --- определяем, мобильный ли девайс (используем дальше и для текстов) ---
+  const { W, H } = this.getSceneWH();
+  const isMobile = W < 768 || H < 600 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   // --- Номер уровня ---
+  const levelBaseSize = this.textManager.getSize('levelNumber');
+  const levelOverrides = isMobile
+    ? { fontSize: Math.round(levelBaseSize * 0.9) + 'px' } // чуть меньше на мобиле
+    : {};
+
   const levelText = this.textManager.createText(
     0,
     h * 0.03,
     lvl.label,
-    'levelNumber'
+    'levelNumber',
+    levelOverrides
   );
   levelText.setOrigin(0.5);
   btn.add(levelText);
@@ -1149,15 +1160,8 @@ createLevelButton(
   const levelsData = progressLevels || (this.progress?.levels || {});
   const levelProgress = levelsData[levelIndex];
 
-  // Определяем, мобильный ли девайс
-  const { W, H } = this.getSceneWH();
-  const isMobile = W < 768 || H < 600 ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
   // --- ЗВЁЗДЫ ---
   const starSize = this.textManager.getSize('stars');
-
-  // чуть-чуть под кнопкой
   const starsOffsetY = isMobile ? h * 0.70 : h * 0.52;
   btn.starsContainer = this.add.container(x, y + starsOffsetY).setDepth(btn.depth + 1);
 
@@ -1182,7 +1186,6 @@ createLevelButton(
   }
 
   // --- Статистика ---
-  // для мобилки опускаем заметно ниже кнопки
   const statsOffsetY = isMobile ? h * 0.88 : h * 0.65;
   btn.statsContainer = this.add.container(x, y + statsOffsetY).setDepth(btn.depth + 1);
 
@@ -1195,17 +1198,21 @@ createLevelButton(
 
     const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
 
+    const statBaseSize = this.textManager.getSize('statValue');
+    const statOverrides = isMobile
+      ? { fontSize: Math.round(statBaseSize * 0.9) + 'px' } // тоже чуть меньше
+      : {};
+
     const statsDisplay = this.textManager.createText(
       0,
       0,
       statsText,
-      'statValue'
+      'statValue',
+      statOverrides
     ).setOrigin(0.5);
 
     btn.statsContainer.add(statsDisplay);
   }
-
-
 
   // --- ХОВЕР-МАСШТАБ (как у стрелок!) ---
   const baseScaleX = btn.scaleX;
@@ -1233,7 +1240,6 @@ createLevelButton(
     });
   });
 
-  // --- Click-эффект (опционально красиво) ---
   btn.zone.on('pointerdown', () => {
     this.tweens.add({
       targets: btn,
@@ -1248,6 +1254,7 @@ createLevelButton(
   this.levelButtons.push(btn);
   return btn;
 }
+
 
 
 
