@@ -223,7 +223,7 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
     const backSize = Math.round(H * 0.07);
     const backBtn = window.makeIconButton(
       this,
-      backSize * 0.9,
+      backSize * 0.9 - 5 ,
       H * 0.07,
       backSize,
       '‹',
