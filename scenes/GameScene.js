@@ -2050,7 +2050,7 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
       }
       
       // Марафонец (много времени в игре)
-      if (stats && stats.totalTime >= 3600 && !achievements.marathoner) { // 1 час
+      if (stats && stats.totalTime >= 10 && !achievements.marathoner) { // 1 час
         achievements.marathoner = true;
         newAchievements.push({
           id: 'marathoner',

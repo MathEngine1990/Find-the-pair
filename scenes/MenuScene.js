@@ -663,7 +663,7 @@ const nextBtn = window.makeIconButton(
 nextBtn.setAlpha(nextActive ? 1 : 0.45);
 this.levelButtons.push(nextBtn);
 
-  // Кнопка "Достижения"
+// Кнопка "Достижения"
 // Кнопка "Достижения"
 const achBtn = window.makeImageButton(
   this,
@@ -671,9 +671,17 @@ const achBtn = window.makeImageButton(
   H * 0.95,
   90, 42,
   'Достижения',
-  () => this.scene.start('AchievementsScene', { fromPage: this.levelPage })
+  () => this.scene.start('AchievementsScene', { fromPage: this.levelPage }),
+  {
+    color: '#F2DC9B'      // базовый цвет текста
+    // hoverColor здесь не используется в makeImageButton, так что можно не указывать
+  }
 );
 achBtn.setDepth(200);
+this.levelButtons.push(achBtn);
+
+
+
 
 // 🔥 Ховер- и клик-анимация как у уровней
 const achBaseScaleX = achBtn.scaleX;
