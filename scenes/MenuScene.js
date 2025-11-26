@@ -1149,9 +1149,17 @@ createLevelButton(
   const levelsData = progressLevels || (this.progress?.levels || {});
   const levelProgress = levelsData[levelIndex];
 
+  // Определяем, мобильный ли девайс
+  const { W, H } = this.getSceneWH();
+  const isMobile = W < 768 || H < 600 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   // --- ЗВЁЗДЫ ---
   const starSize = this.textManager.getSize('stars');
-  btn.starsContainer = this.add.container(x, y + h * 0.52).setDepth(btn.depth + 1);
+
+  // чуть-чуть под кнопкой
+  const starsOffsetY = isMobile ? h * 0.50 : h * 0.52;
+  btn.starsContainer = this.add.container(x, y + starsOffsetY).setDepth(btn.depth + 1);
 
   const starSpacing = starSize + 4;
   const stars = levelProgress ? (levelProgress.stars || 0) : 0;
@@ -1174,26 +1182,29 @@ createLevelButton(
   }
 
   // --- Статистика ---
-  btn.statsContainer = this.add.container(x, y + h * 0.65).setDepth(btn.depth + 1);
+  // для мобилки опускаем заметно ниже кнопки
+  const statsOffsetY = isMobile ? h * 0.78 : h * 0.65;
+  btn.statsContainer = this.add.container(x, y + statsOffsetY).setDepth(btn.depth + 1);
 
-if (levelProgress?.bestTime) {
-  const accuracy =
-    levelProgress.lastAccuracy ??
-    levelProgress.bestAccuracy ??
-    levelProgress.accuracy ??
-    100;
+  if (levelProgress?.bestTime) {
+    const accuracy =
+      levelProgress.lastAccuracy ??
+      levelProgress.bestAccuracy ??
+      levelProgress.accuracy ??
+      100;
 
-  const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
 
-  const statsDisplay = this.textManager.createText(
-    0,
-    0,
-    statsText,
-    'statValue'
-  ).setOrigin(0.5);
+    const statsDisplay = this.textManager.createText(
+      0,
+      0,
+      statsText,
+      'statValue'
+    ).setOrigin(0.5);
 
-  btn.statsContainer.add(statsDisplay);
-}
+    btn.statsContainer.add(statsDisplay);
+  }
+
 
 
   // --- ХОВЕР-МАСШТАБ (как у стрелок!) ---
