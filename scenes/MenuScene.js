@@ -664,16 +664,59 @@ nextBtn.setAlpha(nextActive ? 1 : 0.45);
 this.levelButtons.push(nextBtn);
 
   // Кнопка "Достижения"
+// Кнопка "Достижения"
 const achBtn = window.makeImageButton(
-    this,
-    W / 2,
-    H * 0.95,
-    90, 42,
-    'Достижения',
-    () => this.scene.start('AchievementsScene', { fromPage: this.levelPage })
+  this,
+  W / 2,
+  H * 0.95,
+  90, 42,
+  'Достижения',
+  () => this.scene.start('AchievementsScene', { fromPage: this.levelPage })
 );
 achBtn.setDepth(200);
+
+// 🔥 Ховер- и клик-анимация как у уровней
+const achBaseScaleX = achBtn.scaleX;
+const achBaseScaleY = achBtn.scaleY;
+
+// Если makeImageButton создаёт интерактивную зону (как у кнопок уровней)
+if (achBtn.zone) {
+  achBtn.zone.on('pointerover', () => {
+    if (achBtn._hoverTween) achBtn._hoverTween.stop();
+    achBtn._hoverTween = this.tweens.add({
+      targets: achBtn,
+      scaleX: achBaseScaleX * 1.05,
+      scaleY: achBaseScaleY * 1.05,
+      duration: 110,
+      ease: 'Sine.easeOut'
+    });
+  });
+
+  achBtn.zone.on('pointerout', () => {
+    if (achBtn._hoverTween) achBtn._hoverTween.stop();
+    achBtn._hoverTween = this.tweens.add({
+      targets: achBtn,
+      scaleX: achBaseScaleX,
+      scaleY: achBaseScaleY,
+      duration: 110,
+      ease: 'Sine.easeIn'
+    });
+  });
+
+  achBtn.zone.on('pointerdown', () => {
+    this.tweens.add({
+      targets: achBtn,
+      scaleX: achBaseScaleX * 0.97,
+      scaleY: achBaseScaleY * 0.97,
+      yoyo: true,
+      duration: 60,
+      ease: 'Quad.easeOut'
+    });
+  });
+}
+
 this.levelButtons.push(achBtn);
+
 
 
     // Колесо мыши (для десктопа)
