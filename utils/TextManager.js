@@ -6,18 +6,27 @@ window.TextManager = class TextManager {
     this.updateDimensions();
   }
 
-  updateDimensions() {
-    const scale = this.scene.scale;
-    this.W = scale.width;
-    this.H = scale.height;
-    this.DPR = Math.min(window.devicePixelRatio || 1, 2);
-    this.isMobile = this.W < 768 || this.H < 600;
-    this.isPortrait = this.H > this.W;
-    this.baseSize = Math.min(this.W, this.H);
-    
-    // Очищаем кэш при изменении размеров
-    this.cache.clear();
+updateDimensions() {
+  const scale = this.scene.scale;
+  const newW = scale.width;
+  const newH = scale.height;
+
+  // ⚡ Если размеры не поменялись — ничего не пересчитываем и не чистим кэш
+  if (this.W === newW && this.H === newH && this.baseSize) {
+    return;
   }
+
+  this.W = newW;
+  this.H = newH;
+  this.DPR = Math.min(window.devicePixelRatio || 1, 2);
+  this.isMobile = this.W < 768 || this.H < 600;
+  this.isPortrait = this.H > this.W;
+  this.baseSize = Math.min(this.W, this.H);
+
+  // Очистка кэша только когда реально изменился размер
+  this.cache.clear();
+}
+
 
   /**
    * Универсальный расчет размера шрифта
