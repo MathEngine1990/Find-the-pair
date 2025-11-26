@@ -663,6 +663,18 @@ const nextBtn = window.makeIconButton(
 nextBtn.setAlpha(nextActive ? 1 : 0.45);
 this.levelButtons.push(nextBtn);
 
+  // Кнопка "Достижения"
+const achBtn = window.makeImageButton(
+    this,
+    W / 2,
+    H * 0.95,
+    80, 40,
+    'Достижения',
+    () => this.scene.start('AchievementsScene', { fromPage: this.levelPage })
+);
+achBtn.setDepth(200);
+this.levelButtons.push(achBtn);
+
 
     // Колесо мыши (для десктопа)
     if (!isMobile) {
@@ -685,6 +697,10 @@ this.levelButtons.push(nextBtn);
   } finally {
     this._isDrawing = false;
   }
+
+
+
+
 }
 
 

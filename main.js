@@ -144,7 +144,7 @@ const isVKEnvironment = /vk_(app_id|user_id|platform)/i.test(window.location.sea
   DPR: ${window.devicePixelRatio || 1}
   Phaser: ${!!window.Phaser}
   Game Data: ${!!(window.ALL_CARD_KEYS && window.LEVELS)}
-  Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene)}
+  Scenes: ${!!(window.PreloadScene && window.MenuScene && window.GameScene && window.AchievementsScene)}
   VK Environment: ${!!isVKEnvironment}
   User Agent: ${navigator.userAgent}
             </pre>
@@ -794,7 +794,7 @@ window.addEventListener('beforeunload', () => {
       touchSupport: 'ontouchstart' in window,
       hasPhaserLib: !!window.Phaser,
       hasGameData: !!(window.ALL_CARD_KEYS && window.LEVELS),
-      hasScenes: !!(window.PreloadScene && window.MenuScene && window.GameScene),
+      hasScenes: !!(window.PreloadScene && window.MenuScene && window.GameScene && window.AchievementsScene),
       screen: `${screen.width}x${screen.height}`,
       viewport: `${window.innerWidth}x${window.innerHeight}`,
       dpr: window.devicePixelRatio || 1
@@ -967,8 +967,14 @@ responsiveManager.deviceClass = deviceClass;
 responsiveManager.cachedDPR = window._cachedDPR;
 
 const gameConfig = responsiveManager.getOptimalGameConfig();
-   
-gameConfig.scene = [window.PreloadScene, window.MenuScene, window.GameScene];
+
+gameConfig.scene = [
+  window.PreloadScene,
+  window.MenuScene,
+  window.GameScene,
+  window.AchievementsScene   // 👈 новая сцена
+];
+
 
 // Добавить callbacks
 // === main.js:874-895 - ЗАМЕНИТЬ preBoot ЦЕЛИКОМ ===
