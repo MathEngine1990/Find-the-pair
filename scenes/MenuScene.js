@@ -1162,7 +1162,7 @@ createLevelButton(
 
   // --- ЗВЁЗДЫ ---
   const starSize = this.textManager.getSize('stars');
-  const starsOffsetY = isMobile ? h * 0.70 : h * 0.52;
+  const starsOffsetY = isMobile ? h * 0.60 : h * 0.52;
   btn.starsContainer = this.add.container(x, y + starsOffsetY).setDepth(btn.depth + 1);
 
   const starSpacing = starSize + 4;
@@ -1186,7 +1186,7 @@ createLevelButton(
   }
 
   // --- Статистика ---
-  const statsOffsetY = isMobile ? h * 0.88 : h * 0.65;
+  const statsOffsetY = isMobile ? h * 0.78 : h * 0.65;
   btn.statsContainer = this.add.container(x, y + statsOffsetY).setDepth(btn.depth + 1);
 
   if (levelProgress?.bestTime) {
