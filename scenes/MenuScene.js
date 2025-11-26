@@ -576,25 +576,46 @@ async drawMenu(page = 0) {
 
     console.log('Creating level buttons:', pageLevels.length, 'Mobile:', isMobile);
 
-    pageLevels.forEach((lvl, i) => {
-      const levelIndex = startIdx + i;
-      const r = Math.floor(i / COLS);
-      const c = i % COLS;
+pageLevels.forEach((lvl, i) => {
+  const levelIndex = startIdx + i;
+  const r = Math.floor(i / COLS);
+  const c = i % COLS;
 
-      const x = gridLeft + c * cellW + cellW / 2;
-      const y = gridTop  + r * cellH + cellH / 2;
+  const x = gridLeft + c * cellW + cellW / 2;
+  let   y = gridTop  + r * cellH + cellH / 2;
 
-      const btnW = Math.min(
-        isMobile ? cellW * 0.92 : 320,
-        cellW * 0.9
-      );
-      const btnH = Math.min(
-        isMobile ? cellH * 0.88 : 200,
-        cellH * 0.86
-      );
+  const btnW = Math.min(
+    isMobile ? cellW * 0.92 : 320,
+    cellW * 0.9
+  );
 
-      this.createLevelButton(x, y, btnW, btnH, lvl, levelIndex, scaleFactor, progressLevels);
-    });
+  // исходная высота, как была раньше
+  let btnH = Math.min(
+    isMobile ? cellH * 0.88 : 200,
+    cellH * 0.86
+  );
+
+  // 🔽 только для мобилы уменьшаем высоту и поднимаем низ
+  if (isMobile) {
+    const oldH = btnH;
+    const newH = cellH * 0.70; // поэкспериментируй: 0.65 / 0.60 если ещё тесно
+
+    btnH = newH;
+
+    // поднимаем центр на половину разницы, чтобы верхняя граница осталась на месте
+    const diff = oldH - newH;
+    y -= diff / 2;
+  }
+
+  this.createLevelButton(
+    x, y,
+    btnW, btnH,
+    lvl, levelIndex,
+    scaleFactor,
+    progressLevels
+  );
+});
+
 
     // Навигация по страницам
     const yNav = H * (isMobile ? 0.88 : 0.86);
