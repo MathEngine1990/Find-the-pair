@@ -612,6 +612,9 @@ window.addEventListener('beforeunload', () => {
 
   function handleAppHide() {
     debugLog('App hidden - pausing game');
+
+    // 🔊 Останавливаем звук
+    pauseGameAudio();
     
     if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
       try {
@@ -650,6 +653,9 @@ window.addEventListener('beforeunload', () => {
             
             activeScene.canClick = true;
             debugLog('Game resumed');
+
+            // 🔊 Возобновляем звук (если не в mute)
+            resumeGameAudio();
           }, resumeDelay);
         }
       } catch (error) {
@@ -659,6 +665,45 @@ window.addEventListener('beforeunload', () => {
       debugLog('Game not ready for app restore handling');
     }
   }
+
+
+  function pauseGameAudio() {
+  try {
+    if (!window.game || !window.game.sound) return;
+
+    const sound = window.game.sound;
+
+    // Если хотим именно паузу, а не глобальный mute:
+    sound.pauseAll();
+
+    console.log('[Audio] All sounds paused');
+  } catch (e) {
+    console.warn('[Audio] pauseGameAudio error:', e);
+  }
+}
+
+function resumeGameAudio() {
+  try {
+    if (!window.game || !window.game.sound) return;
+
+    const sound = window.game.sound;
+    const registry = window.game.registry;
+
+    // Учитываем пользовательский mute из MenuScene.initMusic()
+    const musicMuted = registry ? !!registry.get('musicMuted') : false;
+
+    if (!musicMuted) {
+      sound.resumeAll();
+      console.log('[Audio] All sounds resumed');
+    } else {
+      console.log('[Audio] Not resuming, musicMuted = true');
+    }
+  } catch (e) {
+    console.warn('[Audio] resumeGameAudio error:', e);
+  }
+}
+
+
 
   function handleConfigUpdate(config) {
     debugLog('VK Config updated', config);
@@ -1385,6 +1430,9 @@ startPhaserGame();
             activeScene.canClick = false;
             debugLog('Game input disabled due to page visibility change');
           }
+
+        // 🔊 Глушим все звуки
+        pauseGameAudio();
           
           if (isMobile && window.game.loop) {
             window.game.loop.sleep();
@@ -1407,6 +1455,9 @@ startPhaserGame();
               }
             }, resumeDelay);
           }
+
+        // 🔊 Возобновляем звук
+        resumeGameAudio();
           
           if (isMobile && window.game.loop) {
             window.game.loop.wake();
