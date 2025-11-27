@@ -689,24 +689,63 @@ function resumeGameAudio() {
     const sound = window.game.sound;
     const registry = window.game.registry;
 
-    // тот же флаг, что использует MenuScene.initMusic()
+    // читаем флаг, который ты ставишь в MenuScene.initMusic / toggleMusic
     let musicMuted = false;
     if (registry) {
-      const regVal = registry.get('musicMuted');
-      musicMuted = !!regVal;
+      const val = registry.get('musicMuted');
+      musicMuted = !!val;
     }
 
-    // если пользователь не включал mute — возвращаем звук
-    sound.mute = !!musicMuted;
+    const ctx = sound.context || sound.audioContext || sound.ctx;
 
-    console.log(
-      '[Audio] Global mute restored (resumeGameAudio). musicMuted =',
-      musicMuted
-    );
+    // Пытаемся разбудить WebAudio-контекст
+    if (ctx && ctx.state === 'suspended') {
+      console.log('[Audio] Context is suspended, trying to resume...');
+
+      ctx.resume().then(() => {
+        console.log('[Audio] AudioContext resumed (promise resolved)');
+        // после пробуждения ещё раз применяем mute-логку
+        sound.mute = !!musicMuted;
+
+        // Подстрахуемся: если фоновой музыки нет или она не играет — запускаем
+        tryResumeBackgroundMusic(sound, registry, musicMuted);
+      }).catch((err) => {
+        console.warn('[Audio] AudioContext resume failed:', err);
+        // даже если не получилось, всё равно выставим mute-флаг
+        sound.mute = !!musicMuted;
+      });
+
+      return; // ждём промис
+    }
+
+    // Контекст уже running — просто синхронизируем mute и музыку
+    sound.mute = !!musicMuted;
+    tryResumeBackgroundMusic(sound, registry, musicMuted);
+
+    console.log('[Audio] Global mute restored (resumeGameAudio). musicMuted =', musicMuted);
   } catch (e) {
     console.warn('[Audio] resumeGameAudio error:', e);
   }
 }
+
+// вспомогательный хелпер рядом с resumeGameAudio
+function tryResumeBackgroundMusic(sound, registry, musicMuted) {
+  try {
+    if (!registry) return;
+
+    const bgMusic = registry.get('bgMusic');
+    if (!bgMusic) return;
+
+    // Если пользователь НЕ включил mute и музыка по каким-то причинам не играет — запустим
+    if (!musicMuted && !bgMusic.isPlaying && !bgMusic.isPaused) {
+      console.log('[Audio] Restarting bgMusic after resume');
+      bgMusic.play({ loop: true });
+    }
+  } catch (e) {
+    console.warn('[Audio] tryResumeBackgroundMusic error:', e);
+  }
+}
+
 
 
 
@@ -1044,6 +1083,7 @@ gameConfig.callbacks = {
 };
 
 
+
 function startPhaserGame() {
   try {
     console.log('Creating Phaser game...');
@@ -1084,6 +1124,29 @@ function startPhaserGame() {
       window.game.registry.set('cachedDPR', window._cachedDPR);
       window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
 
+      // 🔊 ДОБАВЛЕНО: “будильник” аудио на первый тач по canvas
+      try {
+        const canvas = window.game.canvas;
+        if (canvas && !canvas._audioWakeBound) {
+          const wakeAudio = () => {
+            try {
+              // Пытаемся разбудить аудио и синхронизировать mute/bgMusic
+              resumeGameAudio();
+            } catch (e) {
+              console.warn('[Audio] wakeAudio handler error:', e);
+            }
+          };
+
+          // pointerdown охватывает и тап, и клик мышью
+          canvas.addEventListener('pointerdown', wakeAudio, { passive: true });
+          canvas._audioWakeBound = true;
+
+          console.log('[Audio] Global pointerdown wakeAudio listener attached');
+        }
+      } catch (e) {
+        console.warn('[Audio] Failed to attach wakeAudio listener:', e);
+      }
+
       // ❌ НИЧЕГО тут больше не стартуем руками
       // PreloadScene уже работает как первая сцена
     });
@@ -1093,6 +1156,7 @@ function startPhaserGame() {
     showErrorFallback('Не удалось создать игру', e.message);
   }
 }
+
 
 
 
