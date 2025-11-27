@@ -695,10 +695,36 @@ optimizeData(data, maxLevels = 50) {
     }
 
     // Merge achievements - берём объединение
-    merged.achievements = {
-      ...(vkData.achievements || {}),
-      ...(localData.achievements || {})
+// Merge achievements — защищаемся от потери данных
+merged.achievements = {};
+
+// Соберём полный список всех ачивок
+const allAchIds = new Set([
+  ...Object.keys(vkData.achievements || {}),
+  ...Object.keys(localData.achievements || {})
+]);
+
+for (const id of allAchIds) {
+  const vk = vkData.achievements?.[id];
+  const local = localData.achievements?.[id];
+
+  // Приоритет: unlocked = true всегда побеждает
+  const unlocked = (vk?.unlocked || local?.unlocked) ? true : false;
+
+  // Выбираем более ранний момент получения (менее опасно)
+  const unlockedAt = Math.min(
+    vk?.unlockedAt || Infinity,
+    local?.unlockedAt || Infinity
+  );
+
+  if (unlocked) {
+    merged.achievements[id] = {
+      unlocked: true,
+      unlockedAt: unlockedAt === Infinity ? Date.now() : unlockedAt
     };
+  }
+}
+
 
     // Merge stats
     merged.stats = this.mergeStats(localData.stats, vkData.stats);

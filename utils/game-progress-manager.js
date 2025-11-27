@@ -1,4 +1,6 @@
 // utils/game-progress-manager.js - ЦЕНТРАЛЬНЫЙ МЕНЕДЖЕР ПРОГРЕССА
+
+const LEGACY_STORAGE_KEY = 'findpair_data_v2_legacy';
 class GameProgressManager {
   constructor() {
     this.data = {
@@ -39,11 +41,7 @@ class GameProgressManager {
     if (this.isLoaded) return;
     
     this.debug('Initializing GameProgressManager...');
-    
-    // Ждем готовности VKManager
-    if (window.VKManager && !window.VKManager.isAvailable()) {
-      await window.VKManager.init();
-    }
+
     
     await this.load();
     this.startAutoSync();
@@ -56,22 +54,12 @@ class GameProgressManager {
     try {
       // 1. Пытаемся загрузить из VK Cloud
       let vkData = null;
-      if (window.VKManager?.isAvailable()) {
-        try {
-          const response = await window.VKManager.getStorageData(['game_data_v2']);
-          if (response.keys?.[0]?.value) {
-            vkData = JSON.parse(response.keys[0].value);
-            this.debug('Loaded from VK Cloud', vkData);
-          }
-        } catch (error) {
-          this.debug('VK Cloud load failed:', error);
-        }
-      }
+
 
       // 2. Загружаем из localStorage
       let localData = null;
       try {
-        const stored = localStorage.getItem('findpair_data_v2');
+        const stored = localStorage.getItem(LEGACY_STORAGE_KEY);
         if (stored) {
           localData = JSON.parse(stored);
           this.debug('Loaded from localStorage', localData);
@@ -274,19 +262,10 @@ class GameProgressManager {
       };
       
       // 1. Всегда сохраняем в localStorage (fallback)
-      localStorage.setItem('findpair_data_v2', JSON.stringify(saveData));
-      this.debug('Saved to localStorage');
+      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(saveData));
+      this.debug('Saved to localStorage (legacy)');
       
-      // 2. Пытаемся сохранить в VK Cloud
-      if (window.VKManager?.isAvailable()) {
-        try {
-          await window.VKManager.setStorageData('game_data_v2', saveData);
-          this.debug('Saved to VK Cloud');
-        } catch (error) {
-          this.debug('VK Cloud save failed:', error);
-          // Не критично - у нас есть localStorage fallback
-        }
-      }
+
       
     } catch (error) {
       console.error('Failed to save game progress:', error);
