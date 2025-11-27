@@ -667,16 +667,16 @@ window.addEventListener('beforeunload', () => {
   }
 
 
-  function pauseGameAudio() {
+function pauseGameAudio() {
   try {
     if (!window.game || !window.game.sound) return;
 
     const sound = window.game.sound;
 
-    // Если хотим именно паузу, а не глобальный mute:
-    sound.pauseAll();
+    // ✅ Надёжный вариант для мобилок: просто заглушаем
+    sound.mute = true;
 
-    console.log('[Audio] All sounds paused');
+    console.log('[Audio] Global mute ON (pauseGameAudio)');
   } catch (e) {
     console.warn('[Audio] pauseGameAudio error:', e);
   }
@@ -689,15 +689,20 @@ function resumeGameAudio() {
     const sound = window.game.sound;
     const registry = window.game.registry;
 
-    // Учитываем пользовательский mute из MenuScene.initMusic()
-    const musicMuted = registry ? !!registry.get('musicMuted') : false;
-
-    if (!musicMuted) {
-      sound.resumeAll();
-      console.log('[Audio] All sounds resumed');
-    } else {
-      console.log('[Audio] Not resuming, musicMuted = true');
+    // тот же флаг, что использует MenuScene.initMusic()
+    let musicMuted = false;
+    if (registry) {
+      const regVal = registry.get('musicMuted');
+      musicMuted = !!regVal;
     }
+
+    // если пользователь не включал mute — возвращаем звук
+    sound.mute = !!musicMuted;
+
+    console.log(
+      '[Audio] Global mute restored (resumeGameAudio). musicMuted =',
+      musicMuted
+    );
   } catch (e) {
     console.warn('[Audio] resumeGameAudio error:', e);
   }
