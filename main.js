@@ -613,8 +613,8 @@ window.addEventListener('beforeunload', () => {
   function handleAppHide() {
     debugLog('App hidden - pausing game');
 
-    // 🔊 Останавливаем звук
-    pauseGameAudio();
+  // 🔊 Глушим звук и выставляем глобальный mute-флаг
+  forceUserMuteOnHide();
     
     if (window.game && window.game.scene && typeof window.game.scene.getActiveScene === 'function') {
       try {
@@ -665,6 +665,49 @@ window.addEventListener('beforeunload', () => {
       debugLog('Game not ready for app restore handling');
     }
   }
+
+  function forceUserMuteOnHide() {
+  try {
+    if (!window.game) return;
+
+    const game = window.game;
+    const registry = game.registry;
+
+    // 1) Обновляем глобальный флаг mute в registry
+    if (registry) {
+      registry.set('musicMuted', true);
+    }
+
+    // 2) Сохраняем в localStorage — чтобы MenuScene при следующем заходе тоже это увидел
+    try {
+      localStorage.setItem('findpair_musicMuted', 'true');
+    } catch (e) {
+      console.warn('[Audio] Failed to persist musicMuted to localStorage', e);
+    }
+
+    // 3) Глушим весь звук в Phaser
+    if (game.sound) {
+      game.sound.mute = true;
+    }
+
+    // 4) Обновляем кнопку музыки в MenuScene, если она сейчас в памяти
+    if (game.scene && typeof game.scene.getScene === 'function') {
+      const menuScene = game.scene.getScene('MenuScene');
+      if (menuScene && menuScene.musicButton && menuScene.musicButton.label) {
+        try {
+          menuScene.musicButton.label.setText('🔇');
+        } catch (e) {
+          console.warn('[Audio] Failed to update music button label on hide', e);
+        }
+      }
+    }
+
+    console.log('[Audio] forceUserMuteOnHide → musicMuted=true, sound.mute=true');
+  } catch (e) {
+    console.warn('[Audio] forceUserMuteOnHide error:', e);
+  }
+}
+
 
 
 function pauseGameAudio() {
@@ -1500,8 +1543,8 @@ startPhaserGame();
             debugLog('Game input disabled due to page visibility change');
           }
 
-        // 🔊 Глушим все звуки
-        pauseGameAudio();
+        // 🔊 Глушим все звуки + ставим глобальный mute-флаг и кнопку
+        forceUserMuteOnHide();
           
           if (isMobile && window.game.loop) {
             window.game.loop.sleep();

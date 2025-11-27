@@ -195,16 +195,63 @@ toggleMusic() {
   const current = !!registry.get('musicMuted');
   const next = !current;
 
+  // Обновляем глобальный флаг
   registry.set('musicMuted', next);
   localStorage.setItem('findpair_musicMuted', String(next));
 
+  // Обновляем глобальный mute
   this.sound.mute = next;
 
-  // обновляем иконку на кнопке, если она уже создана
+  // Обновляем иконку на кнопке
   if (this.musicButton && this.musicButton.label) {
     this.musicButton.label.setText(next ? '🔇' : '🔊');
   }
+
+  // Если выключили звук — на этом всё
+  if (next) {
+    console.log('[MenuScene] Music turned OFF via toggleMusic');
+    return;
+  }
+
+  // Если включаем звук (next === false) — гарантируем, что музыка реально играет
+  try {
+    // 1) Будим аудиоконтекст (если браузер его засуспендил)
+    const sound = this.sound;
+    const ctx = sound.context || sound.audioContext || sound.ctx;
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(err => {
+        console.warn('[MenuScene] AudioContext resume failed in toggleMusic:', err);
+      });
+    }
+
+    // 2) Находим или создаём фоновую музыку
+    let bgMusic = registry.get('bgMusic');
+
+    if (!bgMusic) {
+      if (this.cache.audio.exists('bg_music')) {
+        bgMusic = this.sound.add('bg_music', {
+          loop: true,
+          volume: 0.4
+        });
+        registry.set('bgMusic', bgMusic);
+        console.log('[MenuScene] bgMusic created in toggleMusic()');
+      } else {
+        console.warn('[MenuScene] bg_music not found in cache in toggleMusic()');
+      }
+    }
+
+    // 3) Если музыка есть и не играет — запускаем
+    if (bgMusic) {
+      if (!bgMusic.isPlaying) {
+        bgMusic.play({ loop: true });
+        console.log('[MenuScene] bgMusic.play() from toggleMusic()');
+      }
+    }
+  } catch (e) {
+    console.warn('[MenuScene] toggleMusic playback error:', e);
+  }
 }
+
 
 
 
