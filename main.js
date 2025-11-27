@@ -470,28 +470,7 @@ window.alert = showGameNotification;
       });
     }
     
-    if (await window.VKSafe.supports('VKWebAppAllowNotifications')) {
-      operations.push({
-        name: 'AllowNotifications',
-        call: async () => {
-          try {
-            if (isMobile) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            return await window.VKSafe.send('VKWebAppAllowNotifications');
-          } catch (error) {
-            if (error.error_data?.error_code === 15) {
-              debugLog('Notifications: App needs moderation approval');
-            } else if (error.error_data?.error_code === 4) {
-              debugLog('Notifications: User denied permission');
-            } else {
-              debugLog('Notifications: Other error', error);
-            }
-            throw error;
-          }
-        }
-      });
-    }
+
     
     const operationTimeout = isMobile ? 8000 : 5000;
     const results = await Promise.allSettled(
