@@ -1167,20 +1167,30 @@ function startPhaserGame() {
       window.game.registry.set('cachedDPR', window._cachedDPR);
       window.game.registry.set('useHDTextures', window._cachedDPR >= 1.5);
 
-      // 🔊 ДОБАВЛЕНО: “будильник” аудио на первый тач по canvas
+      // 🔊 1) WEB/desktop: пробуем сразу включить звук, если нет mute
+      if (!isMobile) {
+        try {
+          console.log('[Audio] Trying auto resume on web/desktop...');
+          resumeGameAudio(); // учитывает registry.musicMuted и bgMusic
+        } catch (e) {
+          console.warn('[Audio] Auto resume failed on web:', e);
+        }
+      }
+
+      // 🔊 2) Универсальный "будильник" аудио на первый тач по canvas
       try {
         const canvas = window.game.canvas;
         if (canvas && !canvas._audioWakeBound) {
           const wakeAudio = () => {
             try {
-              // Пытаемся разбудить аудио и синхронизировать mute/bgMusic
+              console.log('[Audio] wakeAudio pointerdown → resumeGameAudio()');
               resumeGameAudio();
             } catch (e) {
               console.warn('[Audio] wakeAudio handler error:', e);
             }
           };
 
-          // pointerdown охватывает и тап, и клик мышью
+          // pointerdown работает и для мыши, и для тача
           canvas.addEventListener('pointerdown', wakeAudio, { passive: true });
           canvas._audioWakeBound = true;
 
@@ -1199,6 +1209,7 @@ function startPhaserGame() {
     showErrorFallback('Не удалось создать игру', e.message);
   }
 }
+
 
 
 
