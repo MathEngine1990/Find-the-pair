@@ -31,12 +31,28 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Описание
-    this.subtitleText = this.add.text(width / 2, height / 2 - 50, 'Тренируйте память с красивыми карточками', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '18px',
-      color: '#E8E1C9'
-    }).setOrigin(0.5);
+// Описание
+const isMobile =
+  width < 768 ||
+  height < 600 ||
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+const subtitleTextValue = isMobile
+  ? 'Тренируйте память\nс красивыми карточками'  // 🔹 две строки на мобилке
+  : 'Тренируйте память с красивыми карточками'; // 🔹 одна строка на десктопе
+
+this.subtitleText = this.add.text(
+  width / 2,
+  height / 2 - 50,
+  subtitleTextValue,
+  {
+    fontFamily: 'Arial, sans-serif',
+    fontSize: '18px',
+    color: '#E8E1C9',
+    align: 'center'
+  }
+).setOrigin(0.5);
+
 
     // VK приветствие (если есть данные пользователя)
     if (this.vkUserData) {
