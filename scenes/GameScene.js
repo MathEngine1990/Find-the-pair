@@ -997,9 +997,48 @@ async drawHUD() {
   
   homeBtn.setDepth(7);
   this.exitBtn = homeBtn;
+
+    // 🔊 Кнопка музыки рядом с домиком
+  const musicSize = Math.round(hudH * 0.70);
+  const musicIcon = this.game.registry.get('musicMuted') ? '🔇' : '🔊';
+
+  // если раньше была — уничтожаем, чтобы не плодить при перерисовке
+  if (this.musicButton && this.musicButton.destroy) {
+    this.musicButton.destroy();
+    this.musicButton = null;
+  }
+
+  this.musicButton = window.makeIconButton(
+    this,
+    W - (size + musicSize/2 + 24),          // левее кнопки "домой"
+    Math.round(hudH / 2),
+    musicSize,
+    musicIcon,
+    () => this.toggleMusic()
+  );
+  this.musicButton.setDepth(7);
   
   console.log('✅ HUD created successfully');
 }
+
+toggleMusic() {
+  const registry = this.game.registry;
+  const current = !!registry.get('musicMuted');
+  const next = !current;
+
+  // сохраняем состояние
+  registry.set('musicMuted', next);
+  localStorage.setItem('findpair_musicMuted', String(next));
+
+  // глобальный mute для всего звука
+  this.sound.mute = next;
+
+  // обновляем иконку на кнопке, если она уже существует
+  if (this.musicButton && this.musicButton.label) {
+    this.musicButton.label.setText(next ? '🔇' : '🔊');
+  }
+}
+
 
   clearHUD() {
     if (this.hud && this.hud.scene) this.hud.destroy();

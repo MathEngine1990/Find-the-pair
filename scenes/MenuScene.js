@@ -49,6 +49,9 @@ async create() {
   // Фон сразу
   this.ensureGradientBackground();
 
+    // 🔊 Инициализация фоновой музыки
+  this.initMusic();
+
   // 1. Инициализируем syncManager
   try {
     await this.initializeSyncManager();
@@ -155,6 +158,54 @@ async handleResize() {
   this.ensureGradientBackground();
   await this.drawMenu(this.levelPage);
 }
+
+initMusic() {
+  const registry = this.game.registry;
+
+  // 1) читаем сохранённый mute (один раз за игру)
+  let musicMuted = registry.get('musicMuted');
+  if (musicMuted === undefined) {
+    musicMuted = localStorage.getItem('findpair_musicMuted') === 'true';
+    registry.set('musicMuted', musicMuted);
+  }
+
+  // 2) создаём / запускаем музыку один раз за игру
+  let bgMusic = registry.get('bgMusic');
+
+  if (!bgMusic) {
+    if (!this.cache.audio.exists('bg_music')) {
+      console.warn('[MenuScene] bg_music not found in cache');
+    } else {
+      bgMusic = this.sound.add('bg_music', {
+        loop: true,
+        volume: 0.4
+      });
+      bgMusic.play();
+      registry.set('bgMusic', bgMusic);
+    }
+  }
+
+  // 3) применяем mute к глобальному sound менеджеру
+  this.sound.mute = !!musicMuted;
+}
+
+
+toggleMusic() {
+  const registry = this.game.registry;
+  const current = !!registry.get('musicMuted');
+  const next = !current;
+
+  registry.set('musicMuted', next);
+  localStorage.setItem('findpair_musicMuted', String(next));
+
+  this.sound.mute = next;
+
+  // обновляем иконку на кнопке, если она уже создана
+  if (this.musicButton && this.musicButton.label) {
+    this.musicButton.label.setText(next ? '🔇' : '🔊');
+  }
+}
+
 
 
 
@@ -289,6 +340,12 @@ async initializeSyncManager() {
       });
       this.levelButtons = [];
     }
+
+        if (this.musicButton) {
+      this.musicButton.destroy();
+      this.musicButton = null;
+    }
+
 
     console.log('MenuScene cleanup completed');
   }
@@ -476,6 +533,36 @@ async drawMenu(page = 0) {
     const isMobile = W < 768 || H < 600 ||
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const scaleFactor = isMobile ? 1.8 : 1.0;
+
+        // 🔊 Кнопка музыки в правом верхнем углу
+    const musicIcon = this.game.registry.get('musicMuted') ? '🔇' : '🔊';
+
+    // если раньше была создана — удаляем, чтобы не плодить копии при перерисовке
+    if (this.musicButton && this.musicButton.destroy) {
+      this.musicButton.destroy();
+      this.musicButton = null;
+    }
+
+    this.musicButton = window.makeIconButton(
+      this,
+      W - 40,          // x – немного отступаем от правого края
+      40,              // y – от верхнего края
+      isMobile ? 56 : 48, // размер "кружка"
+      musicIcon,
+      () => this.toggleMusic(),
+      {
+        color: '#F2DC9B',
+        hoverColor: '#FFFFFF',
+        bgColor: 0x000000,
+        bgAlpha: 0.45,
+        borderColor: 0xF2DC9B,
+        borderAlpha: 0.9,
+        borderWidth: 2
+      }
+    );
+    this.musicButton.setDepth(500);
+    this.musicButton.setScrollFactor(0);
+
 
     // Корректный номер страницы
     const PER_PAGE = 9; // 3×3

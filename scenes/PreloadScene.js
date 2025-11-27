@@ -358,7 +358,12 @@ loadCustomFont() {
       this.load.audio('card_flip', ['sounds/card_flip.mp3', 'sounds/card_flip.wav']);
       this.load.audio('match_sound', ['sounds/match.mp3', 'sounds/match.wav']);
       this.load.audio('win_sound', ['sounds/win.mp3', 'sounds/win.wav']);
+
+        // 🔊 Фоновая музыка
+  
     }
+
+    this.load.audio('bg_music', ['sounds/bg_music.mp3']);
     
     this.registry.set('useHDTextures', useHD);
     this.registry.set('textureDPR', DPR);
