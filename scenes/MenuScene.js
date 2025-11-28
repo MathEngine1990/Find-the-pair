@@ -997,52 +997,49 @@ updateLevelButtons() {
 
 
 
-  // ИСПРАВЛЕНИЕ: Удаляем старые контейнеры перед созданием новых
+// ИСПРАВЛЕНИЕ: Обновляем кнопку уровня по актуальному рекорду
 updateSingleLevelButton(button, levelIndex, progressLevels) {
   const levelProgress = progressLevels[levelIndex];
   const stars = levelProgress ? (levelProgress.stars || 0) : 0;
 
-  // Обновляем существующие звёзды
+  // ⭐ Обновляем существующие звёзды
   if (button.starsContainer && button.starsContainer.list) {
     button.starsContainer.list.forEach((starText, index) => {
       const filled = (index + 1) <= stars;
 
-      // те же символы
+      // символ
       starText.setText(filled ? '♣' : '♧');
 
-      // ТЕ ЖЕ цвета, что и в createLevelButton:
-      //   filled  → '#243540'
-      //   empty   → '#F2DC9B'
+      // цвета как в createLevelButton
       starText.setColor(filled ? '#243540' : '#F2DC9B');
 
-      // и та же логика тени
+      // тень только у заполненных
       if (filled) {
         starText.setShadow(0, 2, 'rgba(255, 215, 0, 0.6)', 4, false, true);
       } else {
-        // убираем тень у пустых
         starText.setShadow(0, 0, '#000000', 0);
       }
     });
   }
 
-  // Обновляем существующую статистику
-if (button.statsContainer && button.statsContainer.list[0]) {
-  if (levelProgress && levelProgress.bestTime) {
-    const accuracy =
-      levelProgress.lastAccuracy ??
-      levelProgress.bestAccuracy ??
-      levelProgress.accuracy ??
-      100;
+  // 📊 Обновляем рекордную статистику под кнопкой (BEST, а не последнюю)
+  if (button.statsContainer && button.statsContainer.list && button.statsContainer.list[0]) {
+    if (levelProgress && levelProgress.bestTime) {
+      const accuracy =
+        levelProgress.bestAccuracy ??   // приоритет — рекордная точность
+        levelProgress.accuracy ??       // запасной старый формат
+        100;
 
-    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
-    button.statsContainer.list[0].setText(statsText);
-    button.statsContainer.setVisible(true);
-  } else {
-    button.statsContainer.setVisible(false);
+      const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+      button.statsContainer.list[0].setText(statsText);
+      button.statsContainer.setVisible(true);
+    } else {
+      // если рекорда ещё нет — не показываем строку
+      button.statsContainer.setVisible(false);
+    }
   }
 }
 
-}
 
 
   showToast(message, color = '#3498DB', duration = 2000) {
@@ -1328,33 +1325,35 @@ createLevelButton(
   }
 
   // --- Статистика ---
-  const statsOffsetY = isMobile ? h * 0.78 : h * 0.65;
-  btn.statsContainer = this.add.container(x, y + statsOffsetY).setDepth(btn.depth + 1);
+const statsOffsetY = isMobile ? h * 0.78 : h * 0.65;
+btn.statsContainer = this.add.container(x, y + statsOffsetY).setDepth(btn.depth + 1);
 
-  if (levelProgress?.bestTime) {
-    const accuracy =
-      levelProgress.lastAccuracy ??
-      levelProgress.bestAccuracy ??
-      levelProgress.accuracy ??
-      100;
+if (levelProgress && levelProgress.bestTime) {
+  const accuracy =
+    levelProgress.bestAccuracy ??
+    levelProgress.accuracy ??
+    100;
 
-    const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
+  const statsText = `${this.formatTime(levelProgress.bestTime)} | ${accuracy}%`;
 
-    const statBaseSize = this.textManager.getSize('statValue');
-    const statOverrides = isMobile
-      ? { fontSize: Math.round(statBaseSize * 0.8) + 'px' } // тоже чуть меньше
-      : {};
+  const statBaseSize = this.textManager.getSize('statValue');
+  const statOverrides = isMobile
+    ? { fontSize: Math.round(statBaseSize * 0.8) + 'px' }
+    : {};
 
-    const statsDisplay = this.textManager.createText(
-      0,
-      0,
-      statsText,
-      'statValue',
-      statOverrides
-    ).setOrigin(0.5);
+  const statsDisplay = this.textManager.createText(
+    0,
+    0,
+    statsText,
+    'statValue',
+    statOverrides
+  ).setOrigin(0.5);
 
-    btn.statsContainer.add(statsDisplay);
-  }
+  btn.statsContainer.add(statsDisplay);
+} else {
+  btn.statsContainer.setVisible(false);
+}
+
 
   // --- ХОВЕР-МАСШТАБ (как у стрелок!) ---
   const baseScaleX = btn.scaleX;

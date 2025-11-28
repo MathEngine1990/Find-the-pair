@@ -1812,62 +1812,31 @@ checkPair() {
 }
 
   // НОВЫЙ МЕТОД: Сохранение прогресса через ProgressSyncManager
+// НОВЫЙ МЕТОД: Сохранение рекорда уровня через ProgressSyncManager
 async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accuracy) {
 
+  // 1) Считаем звёзды по результату
   let stars = 1;
   const errorRate = attempts > 0 ? errors / attempts : 0;
 
-  if (errorRate === 0 && gameTime <= 60) stars = 3;
-  else if (errorRate <= 0.4 && gameTime <= 90) stars = 2;
+  if (errorRate === 0 && gameTime <= 60) {
+    stars = 3;
+  } else if (errorRate <= 0.4 && gameTime <= 90) {
+    stars = 2;
+  }
 
   const result = {
     stars,
-    improved: false,
+    improved: false,   // стало ли лучше рекорд
     synced: false,
     syncError: false,
     currentBest: null
   };
 
   try {
-    const currentProgress = await this.syncManager.loadProgress();
+    const currentProgress = (await this.syncManager.loadProgress()) || {};
+
     if (!currentProgress.levels) currentProgress.levels = {};
-
-    const existing = currentProgress.levels[levelIndex];
-
-    // ✔ ВСЕГДА обновляем последние показатели
-    const updated = {
-      ...(existing || {}),
-      attempts,
-      errors,
-      lastAccuracy: accuracy, // ← ключевой параметр!
-      timestamp: Date.now(),
-      completedAt: new Date().toISOString()
-    };
-
-    // ✔ проверяем улучшился ли рекорд
-    const prevStars = existing?.stars ?? 0;
-    const prevBestTime = existing?.bestTime ?? Infinity;
-
-    const improved =
-      !existing ||
-      stars > prevStars ||
-      (stars === prevStars && gameTime < prevBestTime);
-
-    result.improved = improved;
-
-    if (improved) {
-      // ✔ обновляем рекордные показатели
-      updated.stars = stars;
-      updated.bestTime = gameTime;
-      updated.bestAccuracy = accuracy;
-      updated.accuracy = accuracy;
-    }
-
-    // ✔ записываем уровень
-    currentProgress.levels[levelIndex] = updated;
-    result.currentBest = updated;
-
-    // ✔ обновляем общую статистику
     if (!currentProgress.stats) {
       currentProgress.stats = {
         gamesPlayed: 0,
@@ -1880,23 +1849,64 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
       };
     }
 
-    const stats = currentProgress.stats;
+    const levels = currentProgress.levels;
+    const stats  = currentProgress.stats;
 
+    const existing = levels[levelIndex];
+
+    // 2) Базовая запись по уровню (то, что можно обновлять всегда)
+    const updated = {
+      ...(existing || {}),
+      attempts,
+      errors,
+      // "последняя точность" — просто для доп. логики/достижений
+      lastAccuracy: accuracy,
+      timestamp: Date.now(),
+      completedAt: new Date().toISOString()
+    };
+
+    // 3) Проверяем, улучшился ли рекорд
+    const prevStars    = existing?.stars    ?? 0;
+    const prevBestTime = existing?.bestTime ?? Infinity;
+
+    const improved =
+      !existing ||
+      stars > prevStars ||
+      (stars === prevStars && gameTime < prevBestTime);
+
+    result.improved = improved;
+
+    if (improved) {
+      // Обновляем ИМЕННО рекорд:
+      updated.stars        = stars;
+      updated.bestTime     = gameTime;
+      updated.bestAccuracy = accuracy;
+      updated.accuracy     = accuracy; // историческое поле, чтобы MenuScene мог читать
+    }
+
+    // Сохраняем уровень
+    levels[levelIndex] = updated;
+    result.currentBest = updated;
+
+    // 4) Обновляем глобальные stats
     stats.gamesPlayed++;
-    stats.totalTime += gameTime;
+    stats.totalTime   += gameTime;
     stats.totalErrors += errors;
-    stats.lastPlayed = Date.now();
+    stats.lastPlayed   = Date.now();
 
-    if (errors === 0) stats.perfectGames++;
+    if (errors === 0) {
+      stats.perfectGames++;
+    }
 
     if (!stats.bestTime || gameTime < stats.bestTime) {
       stats.bestTime = gameTime;
     }
 
-    stats.totalStars = Object.values(currentProgress.levels)
+    // Пересчитываем суммарные звёзды по всем уровням (рекордные)
+    stats.totalStars = Object.values(levels)
       .reduce((sum, lvl) => sum + (lvl.stars || 0), 0);
 
-    // ✔ сохраняем в VK
+    // 5) Сохраняем прогресс (локально + VK, если умеет)
     await this.syncManager.saveProgress(currentProgress, true);
     result.synced = true;
 
@@ -1907,6 +1917,7 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
 
   return result;
 }
+
 
 
 normalizeAchievementEntry(entry) {
