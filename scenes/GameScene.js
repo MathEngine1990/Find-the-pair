@@ -72,9 +72,7 @@ window.GameScene = class GameScene extends Phaser.Scene {
     this.syncManager = data?.syncManager || window.progressSyncManager || null;
     this.progressData = null;
     
-    // Система достижений (локальная + VK)
-    this.achievements = this.getAchievements();
-    this.vkAchievementManager = window.VKAchievementManager || null;
+
     
 
     // Состояние игры для сохранения при resize
@@ -111,14 +109,13 @@ window.GameScene = class GameScene extends Phaser.Scene {
       levelIndex: this.currentLevelIndex
     };
 
-    console.log('GameScene init:', {
-      isVK: this.isVKEnvironment,
-      hasVKUser: !!this.vkUserData,
-      hasVKAchievements: !!this.vkAchievementManager,
-      hasSyncManager: !!this.syncManager,
-      seed: this.gameSeed,
-      levelIndex: this.currentLevelIndex
-    });
+console.log('GameScene init:', {
+  isVK: this.isVKEnvironment,
+  hasVKUser: !!this.vkUserData,
+  hasSyncManager: !!this.syncManager,
+  seed: this.gameSeed,
+  levelIndex: this.currentLevelIndex
+});
   }
 
   // Генерация детерминированного seed
@@ -862,42 +859,11 @@ setCardTexture(card, textureKey) {
     this.clearHUD();
   }
 
-  getSceneWH() {
-    const s = this.scale, cam = this.cameras?.main;
-    const W = (s && (s.width ?? s.gameSize?.width)) || cam?.width || this.sys.game.config.width || 800;
-    const H = (s && (s.height ?? s.gameSize?.height)) || cam?.height || this.sys.game.config.height || 600;
-    return { W: Math.floor(W), H: Math.floor(H) };
-  }
 
-  // Система достижений
-  getAchievements() {
-    if (this.vkAchievementManager) {
-      return this.vkAchievementManager.achievements;
-    }
-    
-    const saved = localStorage.getItem('findpair_achievements');
-    return saved ? JSON.parse(saved) : {
-      first_win: false,
-      perfect_game: false,
-      speed_runner: false,
-      persistent: false,
-      expert: false
-    };
-  }
 
-  async saveAchievements() {
-    try {
-      if (this.vkAchievementManager) {
-        this.vkAchievementManager.achievements = this.achievements;
-        await this.vkAchievementManager.saveAchievements();
-      } else {
-        localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
-      }
-    } catch (error) {
-      console.warn('Failed to save achievements:', error);
-      localStorage.setItem('findpair_achievements', JSON.stringify(this.achievements));
-    }
-  }
+
+
+
 
   // Форматирование времени
   formatTime(seconds) {
@@ -1677,15 +1643,31 @@ checkPair() {
   const accuracy = this.gameMetrics.attempts > 0 ? 
     Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
 
-  const progressResult = await this.saveProgressViaSyncManager(
-    this.currentLevelIndex, 
-    gameTime, 
-    this.gameMetrics.attempts, 
-    this.gameMetrics.errors,
-    accuracy
-  );
+  let progressResult = {
+    stars: 1,
+    improved: false,
+    synced: false,
+    syncError: !this.syncManager,
+    currentBest: null
+  };
 
-  await this.checkAndUnlockAchievements(progressResult, gameTime, this.gameMetrics.errors);
+  if (this.syncManager) {
+    progressResult = await this.saveProgressViaSyncManager(
+      this.currentLevelIndex,
+      gameTime,
+      this.gameMetrics.attempts,
+      this.gameMetrics.errors,
+      accuracy
+    );
+
+    await this.checkAndUnlockAchievements(
+      progressResult,
+      gameTime,
+      this.gameMetrics.errors
+    );
+  } else {
+    console.warn('⚠️ showWin: syncManager is null, progress won’t be saved');
+  }
 
   const { W, H } = this.getSceneWH();
   
@@ -1927,84 +1909,17 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
 }
 
 
-  // ОБНОВЛЕННЫЙ МЕТОД: Fallback сохранение прогресса
-  saveProgressFallback(levelIndex, gameTime, attempts, errors, accuracy) {
-    try {
-      // ✅ ИСПРАВЛЕНО: Используем User ID
-      const storageKey =
-  this.syncManager?.getUserStorageKey?.() ||
-  `findpair_progress_guest`;
 
-      
-      let progress;
-      try {
-        const saved = localStorage.getItem(storageKey);
-        progress = saved ? JSON.parse(saved) : { levels: {} };
-      } catch (e) {
-        progress = { levels: {} };
-      }
-      
-      let stars = 1;
-      const errorRate = attempts > 0 ? errors / attempts : 0;
-      
-      if (errorRate === 0 && gameTime <= 60) stars = 3;
-      else if (errorRate <= 0.4 && gameTime <= 90) stars = 2;
-      
-      const existingLevel = progress.levels[levelIndex];
-      const newLevel = {
-        stars,
-        bestTime: gameTime,
-        bestAccuracy: accuracy,
-        attempts,
-        errors,
-        accuracy,
-        timestamp: Date.now()
-      };
-      
-      const improved = !existingLevel || 
-        stars > existingLevel.stars || 
-        (stars === existingLevel.stars && gameTime < existingLevel.bestTime);
-      
-      if (improved) {
-        progress.levels[levelIndex] = newLevel;
-        localStorage.setItem(storageKey, JSON.stringify(progress));
-        
-        // Также пытаемся синхронизировать с VK если доступно
-        if (this.isVKEnvironment && window.VKHelpers) {
-          window.VKHelpers.setStorageData('findpair_progress', progress)
-            .catch(err => console.warn('VK sync failed:', err));
-        }
-      }
-      
-      return {
-        stars,
-        improved,
-        synced: false,
-        syncError: false,
-        currentBest: progress.levels[levelIndex]
-      };
-      
-    } catch (error) {
-      console.error('❌ Fallback save failed:', error);
-      return {
-        stars: 1,
-        improved: false,
-        synced: false,
-        syncError: true,
-        currentBest: null
-      };
-    }
-  }
 
   // НОВЫЙ МЕТОД: Проверка достижений через ProgressSyncManager
-  async checkAndUnlockAchievements(progressResult, gameTime, errors) {
-    try {
-      if (!this.syncManager) {
-        // Fallback к старой системе
-        return this.checkAchievements(gameTime, errors, this.currentLevel);
-      }
+async checkAndUnlockAchievements(progressResult, gameTime, errors) {
+  try {
+    if (!this.syncManager) {
+      console.warn('⚠️ No syncManager, skipping achievements update');
+      return;
+    }
 
-      const currentProgress = await this.syncManager.loadProgress();
+    const currentProgress = await this.syncManager.loadProgress();
       
       if (!currentProgress.achievements) {
         currentProgress.achievements = {};
@@ -2113,8 +2028,8 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
       
     } catch (error) {
       console.error('❌ Failed to check achievements:', error);
-      // Fallback к старой системе
-      this.checkAchievements(gameTime, errors, this.currentLevel);
+
+     
     }
   }
 
@@ -2333,133 +2248,9 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
     });
   }
 
-  // ОБНОВЛЕННЫЙ МЕТОД: Проверка достижений (fallback)
-  async checkAchievements(gameTime, errors, level) {
-    let newAchievements = [];
-    
-    // Первая победа
-    if (!this.achievements.first_win) {
-      this.achievements.first_win = true;
-      newAchievements.push({
-        id: 'first_win',
-        title: 'Первая победа!',
-        description: 'Найдите все пары в первый раз'
-      });
-    }
-    
-    // Идеальная игра (без ошибок)
-    if (errors === 0 && !this.achievements.perfect_game) {
-      this.achievements.perfect_game = true;
-      newAchievements.push({
-        id: 'perfect_game',
-        title: 'Идеальная игра!',
-        description: 'Пройдите уровень без ошибок'
-      });
-    }
-    
-    // Скоростное прохождение
-    if (gameTime < 30 && !this.achievements.speed_runner) {
-      this.achievements.speed_runner = true;
-      newAchievements.push({
-        id: 'speed_runner',
-        title: 'Скоростной бегун!',
-        description: 'Пройдите уровень за 30 секунд'
-      });
-    }
-    
-    // Эксперт (сложный уровень)
-    const totalPairs = level.cols * level.rows / 2;
-    if (totalPairs >= 9 && !this.achievements.expert) {
-      this.achievements.expert = true;
-      newAchievements.push({
-        id: 'expert',
-        title: 'Эксперт памяти!',
-        description: 'Пройдите сложный уровень'
-      });
-    }
-    
-    
-    
-    // Сохраняем достижения
-    if (newAchievements.length > 0) {
-      await this.saveAchievements();
-      
-      // Показываем уведомления о достижениях
-      this.showAchievements(newAchievements);
-    }
-  }
 
-  // СТАРЫЙ МЕТОД: Показ достижений (fallback)
-  showAchievements(achievements) {
-    const { W, H } = this.getSceneWH();
-    
-    achievements.forEach((achievement, index) => {
-      // Создаем уведомление о достижении
-      const bgWidth = 320;
-      const bgHeight = 80;
-      const x = W / 2;
-      const y = 100 + index * 100;
-      
-      // Фон достижения
-      const achievementBg = this.add.graphics().setDepth(200);
-      achievementBg.fillStyle(0x2C3E50, 0.95);
-      achievementBg.lineStyle(3, 0xF39C12, 0.8);
-      achievementBg.fillRoundedRect(x - bgWidth/2, y - bgHeight/2, bgWidth, bgHeight, 10);
-      achievementBg.strokeRoundedRect(x - bgWidth/2, y - bgHeight/2, bgWidth, bgHeight, 10);
-      
-      // Иконка достижения
-      const achievementIcon = this.add.text(x - bgWidth/2 + 25, y, '🏆', {
-        fontSize: '32px'
-      }).setOrigin(0.5).setDepth(201);
-      
-      // Заголовок достижения
-      const achievementTitle = this.add.text(x - bgWidth/2 + 60, y - 10, achievement.title, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '18px',
-        color: '#F39C12',
-        fontStyle: 'bold'
-      }).setOrigin(0, 0.5).setDepth(201);
-      
-      // Описание достижения
-      const achievementDesc = this.add.text(x - bgWidth/2 + 60, y + 15, achievement.description, {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '14px',
-        color: '#E8E1C9',
-        fontStyle: 'normal'
-      }).setOrigin(0, 0.5).setDepth(201);
-      
-      // Группируем элементы
-      const achievementGroup = this.add.container(0, 0, [
-        achievementBg, achievementIcon, achievementTitle, achievementDesc
-      ]);
-      
-      // Анимация появления
-      achievementGroup.setAlpha(0);
-      achievementGroup.setScale(0.8);
-      
-      this.tweens.add({
-        targets: achievementGroup,
-        alpha: 1,
-        scale: 1,
-        duration: 500,
-        delay: index * 300,
-        ease: 'Back.easeOut'
-      });
 
-      // Удаляем через 4 секунды
-      this.time.delayedCall(4000 + index * 300, () => {
-        this.tweens.add({
-          targets: achievementGroup,
-          alpha: 0,
-          scale: 0.8,
-          duration: 300,
-          onComplete: () => {
-            achievementGroup.destroy();
-          }
-        });
-      });
-    });
-  }
+
 
   // Остальные методы
  // GameScene.js:1783 - ЗАМЕНИТЬ МЕТОД ensureGradientBackground
