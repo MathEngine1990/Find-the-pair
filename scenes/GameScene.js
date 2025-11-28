@@ -1909,9 +1909,40 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
 }
 
 
+normalizeAchievementEntry(entry) {
+  if (!entry) return null;
+
+  // старая схема: просто true
+  if (entry === true) {
+    return {
+      unlocked: true,
+      unlockedAt: Date.now()
+    };
+  }
+
+  // новая / ожидаемая схема
+  if (typeof entry === 'object') {
+    return {
+      unlocked: entry.unlocked !== false,
+      unlockedAt: entry.unlockedAt || Date.now()
+    };
+  }
+
+  return null;
+}
+
+isAchievementUnlocked(achievements, id) {
+  const entry = achievements?.[id];
+  if (!entry) return false;
+  if (entry === true) return true;
+  if (typeof entry === 'object' && entry.unlocked) return true;
+  return false;
+}
 
 
-  // НОВЫЙ МЕТОД: Проверка достижений через ProgressSyncManager
+
+
+// НОВЫЙ МЕТОД: Проверка достижений через ProgressSyncManager
 async checkAndUnlockAchievements(progressResult, gameTime, errors) {
   try {
     if (!this.syncManager) {
@@ -1919,119 +1950,144 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
       return;
     }
 
-    const currentProgress = await this.syncManager.loadProgress();
-      
-      if (!currentProgress.achievements) {
-        currentProgress.achievements = {};
-      }
-      
-      const achievements = currentProgress.achievements;
-      const stats = currentProgress.stats;
-      const newAchievements = [];
-      
-      // Первая победа
-      if (!achievements.first_win) {
-        achievements.first_win = true;
-        newAchievements.push({
-          id: 'first_win',
-          title: 'Первая победа!',
-          description: 'Выиграли первую игру',
-          icon: '🏆',
-          points: 10
-        });
-      }
-      
-      // Идеальная игра
-      if (errors === 0 && !achievements.perfect_game) {
-        achievements.perfect_game = true;
-        newAchievements.push({
-          id: 'perfect_game',
-          title: 'Идеальная память!',
-          description: 'Завершили игру без ошибок',
-          icon: '🧠',
-          points: 50
-        });
-      }
-      
-      // Скоростной бегун
-      if (gameTime <= 30 && !achievements.speed_runner) {
-        achievements.speed_runner = true;
-        newAchievements.push({
-          id: 'speed_runner',
-          title: 'Скоростной бегун!',
-          description: 'Завершили уровень за 30 секунд',
-          icon: '⚡',
-          points: 30
-        });
-      }
-      
-      // Эксперт памяти (сложный уровень)
-      const level = this.currentLevel;
-      const totalPairs = level ? (level.cols * level.rows) / 2 : 0;
-      if (totalPairs >= 12 && !achievements.expert) {
-        achievements.expert = true;
-        newAchievements.push({
-          id: 'expert',
-          title: 'Эксперт памяти!',
-          description: 'Прошли сложный уровень',
-          icon: '🎓',
-          points: 75
-        });
-      }
-      
-      // Упорство (много игр)
-      if (stats && stats.gamesPlayed >= 10 && !achievements.persistent) {
-        achievements.persistent = true;
-        newAchievements.push({
-          id: 'persistent',
-          title: 'Упорство!',
-          description: 'Сыграли 10 игр',
-          icon: '🎯',
-          points: 25
-        });
-      }
-      
-      // Коллекционер звезд
-      if (stats && stats.totalStars >= 30 && !achievements.collector) {
-        achievements.collector = true;
-        newAchievements.push({
-          id: 'collector',
-          title: 'Коллекционер!',
-          description: 'Собрали 30 звезд',
-          icon: '📚',
-          points: 40
-        });
-      }
-      
-      // Марафонец (много времени в игре)
-      if (stats && stats.totalTime >= 3600 && !achievements.marathoner) { // 1 час
-        achievements.marathoner = true;
-        newAchievements.push({
-          id: 'marathoner',
-          title: 'Марафонец!',
-          description: 'Провели в игре больше часа',
-          icon: '🏃',
-          points: 100
-        });
-      }
-      
-      // Сохраняем обновленные достижения
-      if (newAchievements.length > 0) {
-        await this.syncManager.saveProgress(currentProgress, true);
-        
-        // Показываем уведомления о новых достижениях
-        this.showNewAchievements(newAchievements);
-        
-        // Отправляем во VK (если доступно)
-        //await this.shareAchievementsToVK(newAchievements);
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to check achievements:', error);
+    const currentProgress = (await this.syncManager.loadProgress()) || {};
 
-     
+    if (!currentProgress.achievements) currentProgress.achievements = {};
+    if (!currentProgress.stats) currentProgress.stats = {};
+
+    const achievements = currentProgress.achievements;
+    const stats = currentProgress.stats;
+    const newAchievements = [];
+
+    // Хелпер: понять, считается ли ачивка уже открытой
+    const isUnlocked = (entry) => {
+      if (!entry) return false;
+      if (entry === true) return true; // старый формат
+      if (typeof entry === 'object' && entry.unlocked) return true;
+      return false;
+    };
+
+    // Хелпер: аккуратное открытие ачивки с условием
+    const unlock = (id, meta, condition = true) => {
+      if (!condition) return;
+      const existing = achievements[id];
+      if (isUnlocked(existing)) return;
+
+      achievements[id] = {
+        unlocked: true,
+        unlockedAt: Date.now(),
+        ...meta
+      };
+
+      newAchievements.push(meta);
+    };
+
+    // Первая победа — без условий, просто если ещё не была
+    unlock('first_win', {
+      id: 'first_win',
+      title: 'Первая победа!',
+      description: 'Выиграли первую игру',
+      icon: '🏆',
+      points: 10
+    });
+
+    // Идеальная игра
+    unlock(
+      'perfect_game',
+      {
+        id: 'perfect_game',
+        title: 'Идеальная память!',
+        description: 'Завершили игру без ошибок',
+        icon: '🧠',
+        points: 50
+      },
+      errors === 0
+    );
+
+    // Скоростной бегун
+    unlock(
+      'speed_runner',
+      {
+        id: 'speed_runner',
+        title: 'Скоростной бегун!',
+        description: 'Завершили уровень за 30 секунд',
+        icon: '⚡',
+        points: 30
+      },
+      gameTime <= 30
+    );
+
+    // Эксперт памяти (сложный уровень)
+    const level = this.currentLevel;
+    const totalPairs = level ? (level.cols * level.rows) / 2 : 0;
+
+    unlock(
+      'expert',
+      {
+        id: 'expert',
+        title: 'Эксперт памяти!',
+        description: 'Прошли сложный уровень',
+        icon: '🎓',
+        points: 75
+      },
+      totalPairs >= 12
+    );
+
+    // Упорство (много игр)
+    unlock(
+      'persistent',
+      {
+        id: 'persistent',
+        title: 'Упорство!',
+        description: 'Сыграли 10 игр',
+        icon: '🎯',
+        points: 25
+      },
+      stats && stats.gamesPlayed >= 10
+    );
+
+    // Коллекционер звезд
+    unlock(
+      'collector',
+      {
+        id: 'collector',
+        title: 'Коллекционер!',
+        description: 'Собрали 30 звезд',
+        icon: '📚',
+        points: 40
+      },
+      stats && stats.totalStars >= 30
+    );
+
+    // Марафонец (много времени в игре)
+    unlock(
+      'marathoner',
+      {
+        id: 'marathoner',
+        title: 'Марафонец!',
+        description: 'Провели в игре больше часа',
+        icon: '🏃',
+        points: 100
+      },
+      stats && stats.totalTime >= 3600 // 1 час
+    );
+
+    // Сохраняем обновленные достижения
+    if (newAchievements.length > 0) {
+      await this.syncManager.saveProgress(currentProgress, true);
+
+      // Показываем уведомления о новых достижениях
+      this.showNewAchievements(newAchievements);
+
+      // Отправляем во VK (если доступно)
+      // await this.shareAchievementsToVK(newAchievements);
     }
+
+  } catch (error) {
+    console.error('❌ Failed to check achievements:', error);
   }
+}
+
 
   // НОВЫЙ МЕТОД: Показ новых достижений
   showNewAchievements(achievements) {
