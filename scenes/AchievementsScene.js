@@ -249,6 +249,9 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
     const count = achievements.length;
     if (!count) return;
 
+        // 🔹 Простейшее определение мобильной версии
+    const isMobile = !!(window.isMobile || (this.scale && this.scale.width <= 800));
+
     const topMargin    = H * 0.16;   // чуть ниже заголовка
     const bottomMargin = H * 0.06;   // отступ снизу
     const gap          = H * 0.015;  // расстояние между карточками
@@ -310,20 +313,41 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
       container.add(titleText);
 
       // описание
-const descText = this.textManager.createText(
-  panelX + itemHeight * 0.9,
-  centerY + itemHeight * 0.16,
-  ach.description,
-  'achievementDescArial'
-);
-
+      // описание
+      const descText = this.textManager.createText(
+        panelX + itemHeight * 0.9,
+        centerY + itemHeight * 0.18,
+        ach.description,
+        'achievementDescArial'
+      );
       descText.setOrigin(0, 0.5);
+
+      // 🔹 Мобильная версия: поменьше шрифт и жёсткий перенос в 2 строки
+      if (isMobile) {
+        // немного уменьшаем шрифт относительно высоты карточки
+        const mobileFontSize = Math.round(itemHeight * 0.16);
+        if (descText.setFontSize) {
+          descText.setFontSize(mobileFontSize);
+        }
+
+        // ширина текста, чтобы он гарантированно ушёл в несколько строк
+        const wrapWidth = listWidth - (itemHeight * 1.4) - 32; // отступы слева/справа
+        if (descText.setStyle) {
+          descText.setStyle({
+            wordWrap: { width: wrapWidth, useAdvancedWrap: true }
+          });
+        } else if (typeof descText.wordWrapWidth !== 'undefined') {
+          descText.wordWrapWidth = wrapWidth;
+        }
+      }
+
       container.add(descText);
 
-      // статус справа
+      // статус справа (чуть выше центра)
+      const statusY = centerY - itemHeight * (isMobile ? 0.12 : 0.08);
       const status = this.add.text(
         panelX + listWidth - 16,
-        centerY,
+        statusY,
         unlocked ? 'Получено' : 'Не получено',
         {
           fontFamily: 'Arial, sans-serif',
@@ -333,6 +357,7 @@ const descText = this.textManager.createText(
         }
       ).setOrigin(1, 0.5);
       container.add(status);
+
 
       // визуальное ослабление заблокированных
       if (!unlocked) {
