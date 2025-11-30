@@ -351,9 +351,9 @@ window.TEXT_PRESETS = {
   // === СТАТИСТИКА ===
   statLabel: {
     method: 'height',
-    scale: 0.018,        // ⬇️ Уменьшено с 0.022
-    min: 11,            // ⬇️ Уменьшено с 14
-    max: 15,            // ⬇️ Уменьшено с 18
+    scale: 0.024,        // ⬇️ Уменьшено с 0.022
+    min: 14,            // ⬇️ Уменьшено с 14
+    max: 20,            // ⬇️ Уменьшено с 18
     mobileScale: 1.15,
     get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.textSecondary || '#243540'
@@ -361,9 +361,9 @@ window.TEXT_PRESETS = {
 
   statValue: {
     method: 'height',
-    scale: 0.018,        // ⬇️ Уменьшено с 0.020
-    min: 11,            // ⬇️ Уменьшено с 12
-    max: 15,            // ⬇️ Уменьшено с 16
+    scale: 0.024,        // ⬇️ Уменьшено с 0.020
+    min: 14,            // ⬇️ Уменьшено с 12
+    max: 20,            // ⬇️ Уменьшено с 16
     mobileScale: 1.15,
     get font() { return window.THEME?.font || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.statsAccuracy || '#243540'//'#3A5939'
@@ -420,9 +420,9 @@ window.TEXT_PRESETS = {
   // === ДОСТИЖЕНИЯ ===
   achievementTitle: {
     method: 'height',
-    scale: 0.023,        // ⬇️ Уменьшено с 0.025
-    min: 15,
-    max: 20,
+    scale: 0.026,        // ⬇️ Уменьшено с 0.025
+    min: 17,
+    max: 24,
     mobileScale: 1.15,
     get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },  // ✅ Геттер
     color: window.THEME?.colors?.accent || '#FF6B35',
@@ -431,19 +431,19 @@ window.TEXT_PRESETS = {
 
     achievementDesc: {
     method: 'height',
-    scale: 0.017,
-    min: 11,
-    max: 15,
+    scale: 0.024,
+    min: 14,
+    max: 22,
     mobileScale: 1.15,
-    get font() { return window.THEME?.fontNot || 'Loreley Antiqua'; },
+    font: 'Arial, sans-serif',
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8'
   },
 
   achievementDescArial: {
     method: 'height',
-    scale: 0.017,
-    min: 11,
-    max: 15,
+    scale: 0.024,
+    min: 14,
+    max: 22,
     mobileScale: 1.15,
     font: 'Arial, sans-serif',
     color: window.THEME?.colors?.notificationDesc || '#E8E8E8'

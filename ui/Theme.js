@@ -102,7 +102,7 @@ window.THEME = {
   titleColor: '#FFE066',
   buttonTextColor: '#FFFFFF',
   titleSizeFactor: 0.070,    // Уменьшено с 0.080
-  btnFontFactor: 0.22,       // Уменьшено с 0.24
+  btnFontFactor: 0.26,       // Уменьшено с 0.24
   
   // Фон и градиенты
   bgTop: '#06120E',

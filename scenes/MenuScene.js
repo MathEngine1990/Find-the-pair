@@ -824,15 +824,16 @@ const achBtn = window.makeImageButton(
   this,
   W / 2,
   H * 0.95,
-  90, 42,
+  180, 42,
   'Достижения',
   () => this.scene.start('AchievementsScene', { fromPage: this.levelPage }),
   {
-    color: '#F2DC9B'      // базовый цвет текста
+    color: '#F2C791'      // базовый цвет текста
     // hoverColor здесь не используется в makeImageButton, так что можно не указывать
   }
 );
 achBtn.setDepth(200);
+achBtn.label.setFontSize(14); // любой размер
 this.levelButtons.push(achBtn);
 
 

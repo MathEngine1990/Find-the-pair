@@ -325,7 +325,7 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
       // 🔹 Мобильная версия: поменьше шрифт и жёсткий перенос в 2 строки
       if (isMobile) {
         // немного уменьшаем шрифт относительно высоты карточки
-        const mobileFontSize = Math.round(itemHeight * 0.16);
+        const mobileFontSize = Math.round(itemHeight * 0.18);
         if (descText.setFontSize) {
           descText.setFontSize(mobileFontSize);
         }
