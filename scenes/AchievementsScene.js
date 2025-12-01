@@ -261,9 +261,14 @@ const gap          = isMobile ? H * 0.018 : H * 0.015;
 
     // динамическая высота карточки с ограничениями
     let itemHeight = availableH / count;
-    if (isMobile) {
-  itemHeight = Phaser.Math.Clamp(itemHeight, 80, 120);
+
+if (isMobile) {
+  // ❗ На мобиле НЕ поднимаем минимальный размер,
+  // только ограничиваем сверху, чтобы не раздувать карточки
+  const maxMobileHeight = Math.round(H * 0.12); // или оставь 120, если нравится
+  itemHeight = Math.min(itemHeight, maxMobileHeight);
 } else {
+  // На десктопе можно использовать привычный клэмп
   itemHeight = Phaser.Math.Clamp(itemHeight, 70, 110);
 }
 
@@ -357,7 +362,7 @@ const descText = this.textManager.createText(
         unlocked ? 'Получено' : 'Не получено',
         {
           fontFamily: 'Arial, sans-serif',
-          fontSize: Math.round(itemHeight * 0.18) + 'px',
+          fontSize: Math.round(itemHeight * (isMobile ? 0.18 : 0.22)) + 'px',
           color: unlocked ? '#27AE60' : '#7F8C8D',
           fontStyle: 'bold'
         }
