@@ -752,7 +752,11 @@ pageLevels.forEach((lvl, i) => {
 
 
     // Навигация по страницам
-    const yNav = H * (isMobile ? 0.88 : 0.86);
+    const yNav = isMobile ? H * 0.83 : H * 0.86;
+    const navYOffset = isMobile ? 0 : 20;   // на десктопе оставляем прежнее смещение вниз
+
+
+
     const navSize = Math.max(
       isMobile ? 60 : 52,
       Math.round(H * 0.07 * scaleFactor)
@@ -775,7 +779,7 @@ pageLevels.forEach((lvl, i) => {
 const prevBtn = window.makeIconButton(
   this,
   W * 0.25,
-  yNav + 20,
+  yNav + navYOffset,
   navSize,
   '‹',
   async () => {
@@ -792,7 +796,8 @@ this.levelButtons.push(prevBtn);
 
     // Текст страницы
 const pageTxt = this.textManager.createText(
-  W * 0.5, yNav + 20,
+  W * 0.5, 
+  yNav + navYOffset,
   `${this.levelPage + 1} / ${PAGES}`,
   'buttonText'
 );
@@ -804,7 +809,7 @@ this.levelButtons.push(pageTxt);
 const nextBtn = window.makeIconButton(
   this,
   W * 0.75,
-  yNav + 20,
+  yNav + navYOffset,
   navSize,
   '›',
   async () => {
