@@ -1297,6 +1297,9 @@ handleResize(gameSize) {
     
     const { W, H } = this.getSceneWH();
 
+    // 🔹 Определяем мобильную версию
+const isMobile = W <= 800 || H <= 600;
+
       // ✅ ДОБАВИТЬ: Обновляем размеры
   this.textManager.updateDimensions();
     
@@ -1310,13 +1313,27 @@ handleResize(gameSize) {
       card.disableInteractive(); // Отключаем клики на время запоминания
     });
 
- // ✅ НОВЫЙ КОД: Уведомление
-  const notification = this.textManager.createText(
-    W/2, H*0.15,
-    'Запомните карты!',
-    'notification'
-  );
-  notification.setOrigin(0.5).setDepth(1000);
+// ✅ НОВЫЙ КОД: Уведомление
+const baseNotificationSize = this.textManager.getSize('notification', { forceRecalc: true });
+
+// пока оставляем одинаковый размер, как сейчас
+const notificationSize = Math.round(
+  baseNotificationSize * (isMobile ? 1.0 : 1.5)
+);
+
+const notification = this.textManager.createText(
+  W / 2,
+  H * 0.15,
+  'Запомните карты!',
+  'notification'
+);
+notification.setOrigin(0.5).setDepth(1000);
+
+// задаём размер через отдельную ветку мобила/веб
+if (notification.setFontSize) {
+  notification.setFontSize(notificationSize);
+}
+
 
   // ✅ НОВЫЙ КОД: Обратный отсчет
   let countdown = 5;
