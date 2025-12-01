@@ -208,6 +208,9 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
     const { W, H } = this.getSceneWH();
     this.textManager.updateDimensions();
 
+      // 🔹 Определяем мобильную версию один раз
+  const isMobile = !!(window.isMobile || (this.scale && this.scale.width <= 800));
+
     // Заголовок
     const title = this.textManager.createText(
       W / 2,
@@ -221,11 +224,21 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
 
     // Кнопка "назад"
     const backSize = Math.round(H * 0.07);
+
+    // отдельные координаты для мобилы и десктопа
+const backX = isMobile
+  ? backSize * 0.9 - 10   // 👈 мобильная версия (как сейчас)
+  : backSize * 0.9;  // 👈 веб-версия (пока те же координаты)
+
+const backY = isMobile
+  ? H * 0.07              // 👈 мобильная версия (как сейчас)
+  : H * 0.07;             // 👈 веб-версия (как сейчас)
+
     const backBtn = window.makeIconButton(
       this,
-      backSize * 0.9 - 10 ,
-      H * 0.07,
-      backSize,
+  backX,
+  backY,
+  backSize,
       '‹',
       () => {
         this.scene.start('MenuScene', { page: this.levelPage || 0 });
@@ -249,8 +262,6 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
     const count = achievements.length;
     if (!count) return;
 
-        // 🔹 Простейшее определение мобильной версии
-    const isMobile = !!(window.isMobile || (this.scale && this.scale.width <= 800));
 
 // На мобиле — меньше отступы, чуть больше расстояние между карточками
 const topMargin    = isMobile ? H * 0.11 : H * 0.16;
