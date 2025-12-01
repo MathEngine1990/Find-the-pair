@@ -252,15 +252,20 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
         // 🔹 Простейшее определение мобильной версии
     const isMobile = !!(window.isMobile || (this.scale && this.scale.width <= 800));
 
-    const topMargin    = H * 0.16;   // чуть ниже заголовка
-    const bottomMargin = H * 0.06;   // отступ снизу
-    const gap          = H * 0.015;  // расстояние между карточками
+// На мобиле — меньше отступы, чуть больше расстояние между карточками
+const topMargin    = isMobile ? H * 0.11 : H * 0.16;
+const bottomMargin = isMobile ? H * 0.03 : H * 0.06;
+const gap          = isMobile ? H * 0.018 : H * 0.015;
 
     const availableH = H - topMargin - bottomMargin - gap * (count - 1);
 
     // динамическая высота карточки с ограничениями
     let itemHeight = availableH / count;
-    itemHeight = Phaser.Math.Clamp(itemHeight, 70, 110);
+    if (isMobile) {
+  itemHeight = Phaser.Math.Clamp(itemHeight, 80, 120);
+} else {
+  itemHeight = Phaser.Math.Clamp(itemHeight, 70, 110);
+}
 
     // первая карточка (центр по Y)
     const startY = topMargin + itemHeight / 2;
@@ -302,24 +307,25 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
       ).setOrigin(0.5);
       container.add(icon);
 
-      // заголовок
-      const titleText = this.textManager.createText(
-        panelX + itemHeight * 0.9,
-        centerY - itemHeight * 0.22,
-        ach.title,
-        'achievementTitle'
-      );
+// заголовок
+const titleOffset = isMobile ? itemHeight * 0.26 : itemHeight * 0.22;
+const titleText = this.textManager.createText(
+  panelX + itemHeight * 0.9,
+  centerY - titleOffset,
+  ach.title,
+  'achievementTitle'
+);
       titleText.setOrigin(0, 0.5);
       container.add(titleText);
 
-      // описание
-      // описание
-      const descText = this.textManager.createText(
-        panelX + itemHeight * 0.9,
-        centerY + itemHeight * 0.18,
-        ach.description,
-        'achievementDescArial'
-      );
+// описание
+const descOffset = isMobile ? itemHeight * 0.05 : itemHeight * 0.18;
+const descText = this.textManager.createText(
+  panelX + itemHeight * 0.9,
+  centerY + descOffset,
+  ach.description,
+  'achievementDescArial'
+);
       descText.setOrigin(0, 0.5);
 
       // 🔹 Мобильная версия: поменьше шрифт и жёсткий перенос в 2 строки
