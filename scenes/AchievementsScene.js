@@ -310,7 +310,7 @@ const gap          = isMobile ? H * 0.018 : H * 0.015;
 // заголовок
 const titleOffset = isMobile ? itemHeight * 0.26 : itemHeight * 0.22;
 const titleText = this.textManager.createText(
-  panelX + itemHeight * 0.9,
+  panelX + itemHeight * (isMobile ? 0.75 : 0.9),
   centerY - titleOffset,
   ach.title,
   'achievementTitle'
@@ -319,9 +319,9 @@ const titleText = this.textManager.createText(
       container.add(titleText);
 
 // описание
-const descOffset = isMobile ? itemHeight * 0.05 : itemHeight * 0.18;
+const descOffset = isMobile ? itemHeight * 0.12 : itemHeight * 0.18;
 const descText = this.textManager.createText(
-  panelX + itemHeight * 0.9,
+  panelX + itemHeight * (isMobile ? 0.75 : 0.9),
   centerY + descOffset,
   ach.description,
   'achievementDescArial'
@@ -352,12 +352,12 @@ const descText = this.textManager.createText(
       // статус справа (чуть выше центра)
       const statusY = centerY - itemHeight * (isMobile ? 0.12 : 0.08);
       const status = this.add.text(
-        panelX + listWidth - 16,
+        panelX + listWidth - 8,
         statusY,
         unlocked ? 'Получено' : 'Не получено',
         {
           fontFamily: 'Arial, sans-serif',
-          fontSize: Math.round(itemHeight * 0.22) + 'px',
+          fontSize: Math.round(itemHeight * 0.18) + 'px',
           color: unlocked ? '#27AE60' : '#7F8C8D',
           fontStyle: 'bold'
         }
