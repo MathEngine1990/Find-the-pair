@@ -591,8 +591,8 @@ async drawMenu(page = 0) {
     }
 
     // Отдельные координаты для мобилы и десктопа
-const musicX = isMobile ? W - 40 : W - 40;  // сейчас одинаково
-const musicY = isMobile ? 40     : 40;      // сейчас одинаково
+const musicX = isMobile ? W - 60 : W - 40;  // сейчас одинаково
+const musicY = isMobile ? 20    : 40;      // сейчас одинаково
 
     this.musicButton = window.makeIconButton(
        this,
