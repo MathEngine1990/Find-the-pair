@@ -1318,7 +1318,7 @@ const baseNotificationSize = this.textManager.getSize('notification', { forceRec
 
 // пока оставляем одинаковый размер, как сейчас
 const notificationSize = Math.round(
-  baseNotificationSize * (isMobile ? 1.0 : 1.5)
+  baseNotificationSize * (isMobile ? 1.0 : 1.2)
 );
 
 const notification = this.textManager.createText(
