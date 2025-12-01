@@ -594,7 +594,7 @@ async drawMenu(page = 0) {
       this,
       W - 40,          // x – немного отступаем от правого края
       40,              // y – от верхнего края
-      isMobile ? 56 : 48, // размер "кружка"
+      isMobile ? 52 : 48, // размер "кружка"
       musicIcon,
       () => this.toggleMusic(),
       {

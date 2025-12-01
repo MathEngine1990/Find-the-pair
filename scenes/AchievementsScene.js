@@ -362,7 +362,7 @@ const descText = this.textManager.createText(
         unlocked ? 'Получено' : 'Не получено',
         {
           fontFamily: 'Arial, sans-serif',
-          fontSize: Math.round(itemHeight * (isMobile ? 0.18 : 0.22)) + 'px',
+          fontSize: Math.round(itemHeight * (isMobile ? 0.18 : 0.24)) + 'px',
           color: unlocked ? '#27AE60' : '#7F8C8D',
           fontStyle: 'bold'
         }
