@@ -350,7 +350,7 @@ const descText = this.textManager.createText(
       container.add(descText);
 
       // статус справа (чуть выше центра)
-      const statusY = centerY - itemHeight * (isMobile ? 0.12 : 0.08);
+      const statusY = centerY - itemHeight * (isMobile ? 0.16 : 0.08);
       const status = this.add.text(
         panelX + listWidth - 8,
         statusY,
