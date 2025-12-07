@@ -1668,21 +1668,20 @@ checkPair() {
     currentBest: null
   };
 
-  if (this.syncManager) {
-    progressResult = await this.saveProgressViaSyncManager(
-      this.currentLevelIndex,
-      gameTime,
-      this.gameMetrics.attempts,
-      this.gameMetrics.errors,
-      accuracy
-    );
-
-    await this.checkAndUnlockAchievements(
-      progressResult,
-      gameTime,
-      this.gameMetrics.errors
-    );
-  } else {
+if (this.syncManager) {
+  // Запускаем сохранение в фоне, НЕ ждем
+  this.saveProgressViaSyncManager(
+    this.currentLevelIndex,
+    gameTime,
+    this.gameMetrics.attempts,
+    this.gameMetrics.errors,
+    accuracy
+  )
+  .then(result => {
+      this.checkAndUnlockAchievements(result, gameTime, this.gameMetrics.errors);
+  })
+  .catch(err => console.warn('Background sync failed:', err));
+} else {
     console.warn('⚠️ showWin: syncManager is null, progress won’t be saved');
   }
 
