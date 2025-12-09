@@ -52,28 +52,16 @@ async create() {
     // 🔊 Инициализация фоновой музыки
   this.initMusic();
 
-  // 1. Инициализируем syncManager
+
+  // 4. Рисуем меню (ТЕПЕРЬ без внешнего _isDrawing)
   try {
-    await this.initializeSyncManager();
-    console.log('✅ SyncManager initialized');
+    await this.drawMenu(this.levelPage);
   } catch (e) {
-    console.error('❌ Sync init failed:', e);
+    console.error('❌ drawMenu error:', e);
   }
 
-  // 2. Один раз пытаемся получить прогресс
-  if (this.syncManager?.getProgress) {
-    try {
-      this.progress = await this.syncManager.getProgress();
-      console.log(
-        '✅ Progress loaded:',
-        Object.keys(this.progress.levels || {}).length,
-        'levels'
-      );
-    } catch (err) {
-      console.warn('⚠️ Initial getProgress failed, using empty progress:', err);
-      this.progress = { levels: {}, achievements: {}, stats: {} };
-    }
-  }
+
+
 
 // 3. МЯГКО ждём шрифты, но недолго
 if (document.fonts && document.fonts.ready) {
@@ -89,12 +77,7 @@ if (document.fonts && document.fonts.ready) {
 }
 
 
-  // 4. Рисуем меню (ТЕПЕРЬ без внешнего _isDrawing)
-  try {
-    await this.drawMenu(this.levelPage);
-  } catch (e) {
-    console.error('❌ drawMenu error:', e);
-  }
+
 
   // Когда все шрифты реально догрузятся – аккуратно обновим текст
 if (document.fonts && document.fonts.ready) {
@@ -107,6 +90,36 @@ if (document.fonts && document.fonts.ready) {
     })
     .catch(() => {});
 }
+
+
+
+// 4️⃣ Инициализация syncManager + загрузка прогресса В ФОНЕ
+this.initializeSyncManager()
+  .then(() => {
+    console.log('✅ SyncManager initialized');
+    if (this.syncManager?.getProgress) {
+      return this.syncManager.getProgress();
+    }
+    return null;
+  })
+  .then(progress => {
+    if (progress) {
+      this.progress = progress;
+      console.log(
+        '✅ Progress loaded:',
+        Object.keys(this.progress.levels || {}).length,
+        'levels'
+      );
+      if (this.scene.isActive()) {
+        this.refreshUI(); // обновит звёзды и статистику
+      }
+    }
+  })
+  .catch(err => {
+    console.warn('⚠️ Initial sync/progress failed, using empty progress:', err);
+    this.progress = { levels: {}, achievements: {}, stats: {} };
+  });
+
 
 
   // 5. Фоновая синхронизация VK один раз
