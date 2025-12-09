@@ -75,16 +75,19 @@ async create() {
     }
   }
 
-  // 3. Ждём шрифты (с таймаутом)
+// 3. МЯГКО ждём шрифты, но недолго
+if (document.fonts && document.fonts.ready) {
   try {
     await Promise.race([
-      document.fonts.ready,
-      new Promise(resolve => setTimeout(resolve, 2000))
+      document.fonts.ready,                          // если уже готовы – сразу
+      new Promise(resolve => setTimeout(resolve, 300)) // максимум 0.3 сек
     ]);
-    console.log('✅ Fonts ready');
+    console.log('✅ Fonts soft-ready');
   } catch (e) {
-    console.warn('⚠️ Fonts timeout:', e);
+    console.warn('⚠️ Fonts soft wait error:', e);
   }
+}
+
 
   // 4. Рисуем меню (ТЕПЕРЬ без внешнего _isDrawing)
   try {
@@ -92,6 +95,19 @@ async create() {
   } catch (e) {
     console.error('❌ drawMenu error:', e);
   }
+
+  // Когда все шрифты реально догрузятся – аккуратно обновим текст
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready
+    .then(() => {
+      if (this.scene.isActive()) {
+        console.log('🔁 Fonts fully ready, refreshing UI');
+        this.refreshUI();
+      }
+    })
+    .catch(() => {});
+}
+
 
   // 5. Фоновая синхронизация VK один раз
   if (this.syncManager?.isVKAvailable?.() && !this._syncInitiated) {

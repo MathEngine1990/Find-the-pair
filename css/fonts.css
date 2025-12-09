@@ -5,7 +5,7 @@
   src: url('../assets/fonts/BoldPixels.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: block; /* ✅ Блокирует рендер до загрузки */
+  font-display: swap; /* ✅ Блокирует рендер до загрузки */
 }
 
 body {
@@ -17,7 +17,7 @@ body {
   src: url('../assets/fonts/LoreleyAntiqua.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: block; /* ✅ Блокирует рендер до загрузки */
+  font-display: swap; /* ✅ Блокирует рендер до загрузки */
 }
 
 /* ✅ Запасной вариант, если есть WOFF2 версия (быстрее): */

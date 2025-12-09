@@ -174,6 +174,12 @@ this.load.on('complete', () => {
 preload() {
   const { width, height } = this.scale;
 
+    // 3️⃣ Рисуем экран загрузки
+  this.createLoadingScreen(width, height);
+
+  // 4️⃣ Вешаем обработчики загрузчика
+  this.setupLoadingHandlers();
+
   // 1️⃣ Стартуем загрузку кастомных шрифтов — НИЧЕГО не ждём, не блокируем Phaser
   this.loadCustomFont()
     .then((ok) => {
@@ -195,11 +201,7 @@ preload() {
       console.warn('⚠️ loadLoreleyFont error in preload:', e);
     });
 
-  // 3️⃣ Рисуем экран загрузки
-  this.createLoadingScreen(width, height);
 
-  // 4️⃣ Вешаем обработчики загрузчика
-  this.setupLoadingHandlers();
 
   // 5️⃣ Кладём ассеты в очередь
   this.load.setPath('assets/');
@@ -402,6 +404,11 @@ startNextScene() {
 
 create() {
   console.log('[PreloadScene] create()');
+
+    // прячем HTML-прелоадер
+  if (document && document.body) {
+    document.body.classList.add('game-loaded');
+  }
 
   // фильтры текстур
   this.applyTextureFiltering();
