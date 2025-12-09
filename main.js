@@ -1493,7 +1493,17 @@ startPhaserGame();
       touchSupport: 'ontouchstart' in window
     });
 
+      // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
+  initGame();
+
+// 4️⃣ А ТЕПЕРЬ — VK / SYNC В ФОНЕ
+
+
     if (isVKEnvironment) {
+
+ // Фоновая VK-инициализация, НЕ блокирует игру
+    (async () => {
+
       try {
         await loadVKBridge();
         debugLog('VK Bridge loaded successfully');
@@ -1507,20 +1517,29 @@ startPhaserGame();
       } catch (error) {
         console.error('VK setup failed:', error);
         debugLog('VK setup failed, falling back to standalone');
-      }
-    } else {
-      debugLog('Not VK environment, starting directly');
-      
-      // ✅ НОВОЕ: Инициализируем ProgressSyncManager даже без VK
-      await window.initGlobalSyncManager().catch(e => {
-        console.warn('ProgressSyncManager init failed:', e);
-      });
-    }
 
-    const stabilizationDelay = isMobile ? 300 : 100;
-    await new Promise(resolve => setTimeout(resolve, stabilizationDelay));
-    
-    initGame();
+        // Fallback: хотя бы локальный ProgressSyncManager
+        try {
+          await window.initGlobalSyncManager();
+        } catch (e) {
+          console.warn('ProgressSyncManager init failed in fallback:', e);
+        }
+
+      }
+
+      })();
+
+    } else {
+
+    (async () => {
+      debugLog('Not VK environment, starting sync manager directly');
+      try {
+        await window.initGlobalSyncManager();
+      } catch (e) {
+        console.warn('ProgressSyncManager init failed:', e);
+      }
+    })();
+  }
   }
 
   // ========================================
