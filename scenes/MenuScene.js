@@ -32,97 +32,102 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
 async create() {
   console.log('MenuScene.create() started');
   
-  // Создаем TextManager ДО любых операций
+  // 0. Базовая инициализация
   this.textManager = new TextManager(this);
-
-  // Флаги
   this._isInitializing = true;
-  this._isDrawing = false;  // просто инициализация, НЕ ставим true перед drawMenu
+  this._isDrawing = false;
 
-  // Базовая структура прогресса
+  // Базовая структура прогресса (на случай, если ничего не загрузится)
   this.progress = {
     levels: {},
     achievements: {},
     stats: {}
   };
 
-  // Фон сразу
+  // Фон + музыка сразу
   this.ensureGradientBackground();
-
-    // 🔊 Инициализация фоновой музыки
   this.initMusic();
 
+  // 1️⃣ Инициализация syncManager (быстрая, локальная)
+  try {
+    await this.initializeSyncManager();
+    console.log('✅ SyncManager initialized');
+  } catch (e) {
+    console.error('❌ Sync init failed:', e);
+  }
 
-  // 4. Рисуем меню (ТЕПЕРЬ без внешнего _isDrawing)
+  // 2️⃣ Быстрый локальный прогресс (НЕ сеть, НЕ VK)
+  if (this.syncManager && typeof this.syncManager.loadFromLocal === 'function') {
+    try {
+      const localProgress = this.syncManager.loadFromLocal();
+      if (localProgress && localProgress.levels) {
+        this.progress = localProgress;
+        console.log(
+          '✅ Fast local progress loaded:',
+          Object.keys(this.progress.levels || {}).length,
+          'levels'
+        );
+      } else {
+        console.log('ℹ️ No local progress yet, using empty object');
+      }
+    } catch (err) {
+      console.warn('⚠️ loadFromLocal failed, keeping empty progress:', err);
+      // this.progress оставляем как есть
+    }
+  }
+
+  // 3️⃣ Рисуем меню — УЖЕ с локальным progress
   try {
     await this.drawMenu(this.levelPage);
   } catch (e) {
     console.error('❌ drawMenu error:', e);
   }
 
+  // 4️⃣ МЯГКО ждём шрифты, но недолго
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await Promise.race([
+        document.fonts.ready,
+        new Promise(resolve => setTimeout(resolve, 300))
+      ]);
+      console.log('✅ Fonts soft-ready');
+    } catch (e) {
+      console.warn('⚠️ Fonts soft wait error:', e);
+    }
 
-
-
-// 3. МЯГКО ждём шрифты, но недолго
-if (document.fonts && document.fonts.ready) {
-  try {
-    await Promise.race([
-      document.fonts.ready,                          // если уже готовы – сразу
-      new Promise(resolve => setTimeout(resolve, 300)) // максимум 0.3 сек
-    ]);
-    console.log('✅ Fonts soft-ready');
-  } catch (e) {
-    console.warn('⚠️ Fonts soft wait error:', e);
+    // Когда шрифты полностью догрузятся – аккуратно обновим текст
+    document.fonts.ready
+      .then(() => {
+        if (this.scene.isActive()) {
+          console.log('🔁 Fonts fully ready, refreshing UI');
+          this.refreshUI();
+        }
+      })
+      .catch(() => {});
   }
-}
 
+  // 5️⃣ Обновление прогресса из syncManager В ФОНЕ (VK / сервер / что угодно)
+  if (this.syncManager?.getProgress) {
+    this.syncManager.getProgress()
+      .then(progress => {
+        if (progress) {
+          this.progress = progress;
+          console.log(
+            '✅ Remote/actual progress loaded:',
+            Object.keys(this.progress.levels || {}).length,
+            'levels'
+          );
+          if (this.scene.isActive()) {
+            this.refreshUI();
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('⚠️ Initial getProgress failed, keeping local progress:', err);
+      });
+  }
 
-
-
-  // Когда все шрифты реально догрузятся – аккуратно обновим текст
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready
-    .then(() => {
-      if (this.scene.isActive()) {
-        console.log('🔁 Fonts fully ready, refreshing UI');
-        this.refreshUI();
-      }
-    })
-    .catch(() => {});
-}
-
-
-
-// 4️⃣ Инициализация syncManager + загрузка прогресса В ФОНЕ
-this.initializeSyncManager()
-  .then(() => {
-    console.log('✅ SyncManager initialized');
-    if (this.syncManager?.getProgress) {
-      return this.syncManager.getProgress();
-    }
-    return null;
-  })
-  .then(progress => {
-    if (progress) {
-      this.progress = progress;
-      console.log(
-        '✅ Progress loaded:',
-        Object.keys(this.progress.levels || {}).length,
-        'levels'
-      );
-      if (this.scene.isActive()) {
-        this.refreshUI(); // обновит звёзды и статистику
-      }
-    }
-  })
-  .catch(err => {
-    console.warn('⚠️ Initial sync/progress failed, using empty progress:', err);
-    this.progress = { levels: {}, achievements: {}, stats: {} };
-  });
-
-
-
-  // 5. Фоновая синхронизация VK один раз
+  // 6️⃣ Фоновая синхронизация VK один раз (как у тебя было)
   if (this.syncManager?.isVKAvailable?.() && !this._syncInitiated) {
     console.log('🔄 Triggering initial background sync');
     this._syncInitiated = true;
@@ -131,7 +136,7 @@ this.initializeSyncManager()
       .then((synced) => {
         if (synced) {
           console.log('✅ Background sync completed');
-          if (this.scene.isActive()) {
+          if (this.scene.isActive() && this.syncManager?.getProgress) {
             this.syncManager.getProgress()
               .then(progress => {
                 this.progress = progress;
@@ -148,14 +153,12 @@ this.initializeSyncManager()
       });
   }
 
-  // Разблокируем resize ПОСЛЕ всех операций
+  // 7️⃣ Разблокируем resize и подписки
   this._isInitializing = false;
-
-  // глобальный debounced-resize
   this.game.events.on('debounced-resize', this.handleResize, this);
-
   this.events.once('shutdown', this.cleanup, this);
 }
+
 
 
 
