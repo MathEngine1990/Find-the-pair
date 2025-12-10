@@ -1272,6 +1272,51 @@ startPhaserGame();
     }
   };
 
+// DEBUG: Полный сброс прогресса и достижений
+window.resetAllGameProgress = async function() {
+  try {
+    if (!window.progressSyncManager) {
+      console.warn('progressSyncManager not ready, trying to init...');
+      if (window.initGlobalSyncManager) {
+        await window.initGlobalSyncManager();
+      }
+    }
+
+    if (!window.progressSyncManager) {
+      console.error('❌ resetAllGameProgress: no ProgressSyncManager available');
+      return;
+    }
+
+    const emptyProgress = {
+      levels: {},
+      stats: {
+        gamesPlayed: 0,
+        totalTime: 0,
+        totalErrors: 0,
+        bestTime: null,
+        lastPlayed: 0,
+        perfectGames: 0,
+        totalStars: 0
+      },
+      achievements: {}
+    };
+
+    await window.progressSyncManager.saveProgress(emptyProgress, true);
+    console.log('✅ Game progress & achievements fully reset');
+    
+    if (window.showToast) {
+      window.showToast('Прогресс и достижения сброшены', 'success', 3000);
+    }
+  } catch (e) {
+    console.error('resetAllGameProgress error:', e);
+    if (window.showToast) {
+      window.showToast('Ошибка сброса прогресса', 'error', 3000);
+    }
+  }
+};
+
+
+
   if (window.VK_BRIDGE_READY) {
     window.initGlobalSyncManager();
   } else {
