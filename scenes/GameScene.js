@@ -166,6 +166,7 @@ console.log('GameScene init:', {
   preload() {}
 
   async create() {
+    
     try {
       this.textManager = new TextManager(this);
       this._isInitializing = true;  // ← Флаг для блокировки cleanup
@@ -696,6 +697,9 @@ setCardTexture(card, textureKey) {
     this.victoryContainer.destroy(true); // ← destroyChildren = true
     this.victoryContainer = null;
   }
+
+  // ✅ сбрасываем сохранённую позицию заголовка
+this.victoryTitleY = null;
   
   // ⚠️ FALLBACK: Удаляем orphan элементы с высоким depth
   const toDestroy = [];
@@ -1722,6 +1726,8 @@ if (this.syncManager) {
   title.setColor('#F2DC9B');
   this.victoryContainer.add(title);
 
+  this.victoryTitleY = title.y;
+
   // Звездочки (без изменений)
   this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
 
@@ -2100,15 +2106,19 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
     );
 
     // Сохраняем обновленные достижения
-    if (newAchievements.length > 0) {
-      await this.syncManager.saveProgress(currentProgress, true);
+if (newAchievements.length > 0) {
+  await this.syncManager.saveProgress(currentProgress, true);
 
-      // Показываем уведомления о новых достижениях
-      this.showNewAchievements(newAchievements);
+  // Небольшая задержка, чтобы игрок сначала увидел "ПОБЕДА!" и стату
+  const delayMs = this.gameState?.showingVictory ? 1200 : 0;
 
-      // Отправляем во VK (если доступно)
-      // await this.shareAchievementsToVK(newAchievements);
-    }
+  this.time.delayedCall(delayMs, () => {
+    this.showNewAchievements(newAchievements);
+    // Если захочешь — можно вернуть VK-шаринг сюда
+    // this.shareAchievementsToVK(newAchievements);
+  });
+}
+
 
   } catch (error) {
     console.error('❌ Failed to check achievements:', error);
@@ -2116,48 +2126,56 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
 }
 
 
-  // НОВЫЙ МЕТОД: Показ новых достижений
-  showNewAchievements(achievements) {
-    const { W, H } = this.getSceneWH();
+showNewAchievements(achievements) {
+  const { W, H } = this.getSceneWH();
 
-  // ✅ ДОБАВИТЬ: Обновляем размеры
+  // ✅ Обновляем размеры шрифтов
   this.textManager.updateDimensions();
-    
-    achievements.forEach((achievement, index) => {
-      setTimeout(() => {
-        // Создаем уведомление о достижении
-        const notification = this.add.container(W / 2, 150 + index * 120);
-        
-        // Фон уведомления
-        const bg = this.add.graphics();
-        bg.fillStyle(0x2C3E50, 0.95);
-        bg.lineStyle(3, 0xF39C12, 1);
-        bg.fillRoundedRect(-160, -40, 320, 80, 15);
-        bg.strokeRoundedRect(-160, -40, 320, 80, 15);
-        
-      // ✅ НОВЫЙ КОД: Иконка (увеличиваем пропорционально)
+
+  // ✅ Базовая точка по Y: стараемся рисовать НАД заголовком "ПОБЕДА!"
+  // если victoryTitleY известна — берём чуть выше него,
+  // иначе используем относительную позицию от высоты экрана
+  const baseY =
+    (this.victoryTitleY ? this.victoryTitleY - 70 : H * 0.18);
+  const stepY = 90; // расстояние между тостами вверх
+
+  achievements.forEach((achievement, index) => {
+    setTimeout(() => {
+      const y = baseY - index * stepY;
+
+      // Создаем уведомление о достижении
+      const notification = this.add.container(W / 2, y);
+
+      // Фон уведомления
+      const bg = this.add.graphics();
+      bg.fillStyle(0x2C3E50, 0.95);
+      bg.lineStyle(3, 0xF39C12, 1);
+      bg.fillRoundedRect(-160, -40, 320, 80, 15);
+      bg.strokeRoundedRect(-160, -40, 320, 80, 15);
+
+      // Иконка
       const iconSize = this.textManager.getSize('achievementTitle') * 1.6;
       const icon = this.add.text(-130, 0, achievement.icon, {
         fontSize: iconSize + 'px'
       }).setOrigin(0.5);
-        
-      // ✅ НОВЫЙ КОД: Заголовок
+
+      // Заголовок
       const title = this.textManager.createText(
         -90, -10,
         achievement.title,
         'achievementTitle'
       );
       title.setOrigin(0, 0.5);
-        
-      // ✅ НОВЫЙ КОД: Описание
+
+      // Описание
       const description = this.textManager.createText(
         -90, 10,
         achievement.description,
         'achievementDesc'
       );
       description.setOrigin(0, 0.5);
-        
-      // ✅ НОВЫЙ КОД: Очки
+
+      // Очки
       const pointsSize = this.textManager.getSize('achievementTitle');
       const points = this.add.text(140, 0, `+${achievement.points}`, {
         fontFamily: window.THEME.font,
@@ -2165,41 +2183,45 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
         color: '#27AE60',
         fontStyle: 'bold'
       }).setOrigin(1, 0.5);
-        
-        notification.add([bg, icon, title, description, points]);
-        notification.setDepth(1000);
-        
-        // Анимация появления
-        notification.setAlpha(0);
-        notification.setScale(0.8);
-        
+
+      notification.add([bg, icon, title, description, points]);
+
+      // оставляем большой depth, чтобы быть поверх фона/карт,
+      // но ниже глобальных игровых уведомлений из main.js (у них 9999)
+      notification.setDepth(1000);
+
+      // Анимация появления
+      notification.setAlpha(0);
+      notification.setScale(0.8);
+
+      this.tweens.add({
+        targets: notification,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 500,
+        ease: 'Back.easeOut'
+      });
+
+      // Автоматическое скрытие через 4 секунды
+      setTimeout(() => {
         this.tweens.add({
           targets: notification,
-          alpha: 1,
-          scaleX: 1,
-          scaleY: 1,
-          duration: 500,
-          ease: 'Back.easeOut'
+          alpha: 0,
+          scaleX: 0.8,
+          scaleY: 0.8,
+          duration: 300,
+          ease: 'Power2.easeIn',
+          onComplete: () => {
+            notification.destroy();
+          }
         });
-        
-        // Автоматическое скрытие через 4 секунды
-        setTimeout(() => {
-          this.tweens.add({
-            targets: notification,
-            alpha: 0,
-            scaleX: 0.8,
-            scaleY: 0.8,
-            duration: 300,
-            ease: 'Power2.easeIn',
-            onComplete: () => {
-              notification.destroy();
-            }
-          });
-        }, 4000);
-        
-      }, index * 500); // Задержка между достижениями
-    });
-  }
+      }, 4000);
+
+    }, index * 500); // задержка между достижениями
+  });
+}
+
 
   // НОВЫЙ МЕТОД: Шаринг достижений во VK
   async shareAchievementsToVK(achievements) {
