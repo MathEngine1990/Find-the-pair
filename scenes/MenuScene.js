@@ -13,7 +13,10 @@ window.MenuScene = class MenuScene extends Phaser.Scene {
     this.syncButton = null;
     this._resizeDebounce = false;
     this._wheelHandler = null;
-      this._syncInitiated = false; // ← ✅ НОВОЕ: Флаг для sync
+    this._syncInitiated = false; // ← ✅ НОВОЕ: Флаг для sync
+
+    this.greetingTextObject = null; // ← ссылка на "Привет, ..." в меню
+
     
     // Получаем VK данные если есть
     this.vkUserData = data?.userData || window.VK_USER_DATA;
@@ -572,6 +575,9 @@ clearMenu() {
         });
         this.levelButtons = [];
     }
+        // Сбрасываем ссылку на приветствие
+    this.greetingTextObject = null;
+
 }
 
 getSafeAreaInsets() {
@@ -681,18 +687,34 @@ const musicY = isMobile ? 30    : 40;      // сейчас одинаково
     let currentY = safeArea.top + 10;
 
     // Персонализация для VK
-    if (this.vkUserData && this.vkUserData.first_name) {
-      const greeting = this.textManager.createText(
-        W / 2, currentY,
-        `Привет, ${this.vkUserData.first_name}!`,
-        'titleMedium'
-      );
-      greeting.setOrigin(0.5, 0);
-      greeting.setColor('#243540');
-      this.levelButtons.push(greeting);
+    // Персонализация для VK — ВСЕГДА резервируем место под приветствие
+    const greetingPlaceholderHeight = this.textManager.getSize('statLabel') + 30;
 
-      currentY += this.textManager.getSize('statLabel') + 30;
+    let greetingText = '';
+    if (this.vkUserData && this.vkUserData.first_name) {
+      greetingText = `Привет, ${this.vkUserData.first_name}!`;
     }
+
+    const greeting = this.textManager.createText(
+      W / 2,
+      currentY,
+      greetingText,
+      'titleMedium'
+    );
+    greeting.setOrigin(0.5, 0);
+    greeting.setColor('#243540');
+
+    // Если имени ещё нет — текст невидимый, но место под него уже занято
+    if (!this.vkUserData || !this.vkUserData.first_name) {
+      greeting.setAlpha(0);
+    }
+
+    this.levelButtons.push(greeting);
+    this.greetingTextObject = greeting;
+
+    // Отступ вниз всегда одинаковый — верстка не прыгает
+    currentY += greetingPlaceholderHeight;
+
 
     // Заголовок
     const titleText = 'Сколько пар играть?';
@@ -1000,14 +1022,33 @@ this.levelButtons.push(achBtn);
 }
   
   refreshUI() {
-  if (!this.scene.isActive()) return;
-  if (this._isDrawing) return; // чтобы не ковырять UI во время полной перерисовки
-  if (!this.levelButtons || this.levelButtons.length === 0) return;
+    if (!this.scene.isActive()) return;
+    if (this._isDrawing) return; // чтобы не ковырять UI во время полной перерисовки
+    if (!this.levelButtons || this.levelButtons.length === 0) return;
     
     console.log('🔄 Refreshing MenuScene UI');
+
+    // 1️⃣ Обновляем локальный vkUserData, если глобальные данные уже есть
+    if (!this.vkUserData && window.VK_USER_DATA) {
+      this.vkUserData = window.VK_USER_DATA;
+    }
+
+    // 2️⃣ Обновляем приветствие, если объект создан
+    if (this.greetingTextObject) {
+      if (this.vkUserData && this.vkUserData.first_name) {
+        this.greetingTextObject.setText(`Привет, ${this.vkUserData.first_name}!`);
+        this.greetingTextObject.setAlpha(1); // делаем видимым
+      } else {
+        // Имени по-прежнему нет — оставляем текст пустым и невидимым,
+        // но вертикальное место уже зарезервировано drawMenu()
+      }
+    }
+
+    // 3️⃣ Остальное как было
     this.updateLevelButtons();
     this.updateStatsDisplay();
   }
+
 
 updateLevelButtons() {
   const progressLevels = (this.progress && this.progress.levels) || {};
