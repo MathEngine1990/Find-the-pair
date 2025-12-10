@@ -29,34 +29,53 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
     this.items = [];
   }
 
-  async create() {
-    // TextManager
-    this.textManager = new TextManager(this);
+async create() {
+  // 1️⃣ Базовая инициализация
+  this.textManager = new TextManager(this);
+  this.ensureGradientBackground();
 
-    this.ensureGradientBackground();
+  // 2️⃣ Конфиг достижений можно собрать сразу (он статичный)
+  this.buildAchievementsConfig();
 
-    // ждём шрифты, но с таймаутом
-    if (document.fonts && document.fonts.ready) {
-      try {
-        await Promise.race([
-          document.fonts.ready,
-          new Promise(res => setTimeout(res, 2000))
-        ]);
-      } catch (e) {
-        console.warn('AchievementsScene fonts timeout', e);
-      }
-    }
+  // 3️⃣ Первый рендер UI — СРАЗУ, даже с пустым прогрессом
+  this.drawUI();
 
-    await this.loadProgress();
-    this.buildAchievementsConfig();
-    this.drawUI();
+  // 4️⃣ Подписки на resize и события жизненного цикла
+  this.game.events.on('debounced-resize', this.handleResize, this);
+  this.events.once('shutdown', this.cleanup, this);
+  this.events.once('destroy', this.cleanup, this);
 
-    // реагируем на debounced-resize из main.js
-    this.game.events.on('debounced-resize', this.handleResize, this);
+  // 5️⃣ Мягкое ожидание шрифтов — НЕ блокирует первый рендер
+  if (document.fonts && document.fonts.ready) {
+    Promise.race([
+      document.fonts.ready,
+      new Promise(res => setTimeout(res, 300))
+    ]).catch(e => {
+      console.warn('AchievementsScene fonts soft wait error', e);
+    });
 
-    this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
+    // когда шрифты точно догрузятся — аккуратно перерисуем UI
+    document.fonts.ready
+      .then(() => {
+        if (this.scene.isActive()) {
+          this.redrawUI();
+        }
+      })
+      .catch(() => {});
   }
+
+  // 6️⃣ Загрузка прогресса В ФОНЕ
+  this.loadProgress()
+    .then(() => {
+      if (this.scene.isActive()) {
+        this.redrawUI();
+      }
+    })
+    .catch(e => {
+      console.warn('AchievementsScene: loadProgress failed', e);
+      // прогресс не загрузился — оставляем UI как есть
+    });
+}
 
   async loadProgress() {
     try {
@@ -392,12 +411,10 @@ const descText = this.textManager.createText(
 
   }
 
-  async handleResize() {
+    redrawUI() {
     if (!this.scene.isActive()) return;
 
-    this.ensureGradientBackground();
-
-    // почистить старые элементы и нарисовать заново
+    // чистим старые элементы
     this.items.forEach(item => {
       if (item && item.destroy) {
         try { item.destroy(); } catch (e) {}
@@ -405,8 +422,17 @@ const descText = this.textManager.createText(
     });
     this.items = [];
 
+    // рисуем заново
     this.drawUI();
   }
+
+
+async handleResize() {
+  if (!this.scene.isActive()) return;
+
+  this.ensureGradientBackground();
+  this.redrawUI();
+}
 
   cleanup() {
     this.game?.events?.off('debounced-resize', this.handleResize, this);
