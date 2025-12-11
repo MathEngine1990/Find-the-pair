@@ -1272,48 +1272,7 @@ startPhaserGame();
     }
   };
 
-// DEBUG: Полный сброс прогресса и достижений
-window.resetAllGameProgress = async function() {
-  try {
-    if (!window.progressSyncManager) {
-      console.warn('progressSyncManager not ready, trying to init...');
-      if (window.initGlobalSyncManager) {
-        await window.initGlobalSyncManager();
-      }
-    }
 
-    if (!window.progressSyncManager) {
-      console.error('❌ resetAllGameProgress: no ProgressSyncManager available');
-      return;
-    }
-
-    const emptyProgress = {
-      levels: {},
-      stats: {
-        gamesPlayed: 0,
-        totalTime: 0,
-        totalErrors: 0,
-        bestTime: null,
-        lastPlayed: 0,
-        perfectGames: 0,
-        totalStars: 0
-      },
-      achievements: {}
-    };
-
-    await window.progressSyncManager.saveProgress(emptyProgress, true);
-    console.log('✅ Game progress & achievements fully reset');
-    
-    if (window.showToast) {
-      window.showToast('Прогресс и достижения сброшены', 'success', 3000);
-    }
-  } catch (e) {
-    console.error('resetAllGameProgress error:', e);
-    if (window.showToast) {
-      window.showToast('Ошибка сброса прогресса', 'error', 3000);
-    }
-  }
-};
 
 
 
@@ -1808,6 +1767,60 @@ window.resetAllGameProgress = async function() {
     console.log('📱 VKUtils.showMobileInfo() - show mobile diagnostics');
     console.log('⚡ VKUtils.performanceTest() - test mobile performance');
   }
+
+
+    // ========================================
+  // DEBUG: Полный сброс прогресса и достижений
+  // ========================================
+  window.resetAllGameProgress = async function() {
+    try {
+      console.log('🧹 Starting full progress reset...');
+
+      // Если менеджер ещё не создан — пробуем инициализировать
+      if (!window.progressSyncManager) {
+        console.warn('progressSyncManager not ready, initializing...');
+        if (window.initGlobalSyncManager) {
+          await window.initGlobalSyncManager();
+        }
+      }
+
+      if (!window.progressSyncManager) {
+        console.error('❌ No ProgressSyncManager available');
+        return;
+      }
+
+      const emptyProgress = {
+        levels: {},
+        stats: {
+          gamesPlayed: 0,
+          totalTime: 0,
+          totalErrors: 0,
+          bestTime: null,
+          lastPlayed: 0,
+          perfectGames: 0,
+          totalStars: 0
+        },
+        achievements: {}
+      };
+
+      console.log('💾 Saving empty progress...', emptyProgress);
+
+      // true → форсируем синхронный/приоритетный сейв
+      await window.progressSyncManager.saveProgress(emptyProgress, true);
+
+      console.log('✅ Progress fully reset!');
+
+      if (window.showToast) {
+        window.showToast('Прогресс и достижения сброшены', 'success', 3000);
+      }
+    } catch (e) {
+      console.error('resetAllGameProgress error:', e);
+      if (window.showToast) {
+        window.showToast('Ошибка сброса прогресса', 'error', 3000);
+      }
+    }
+  };
+
 
   // ========================================
   // DEBUG AGREEMENT УТИЛИТЫ
