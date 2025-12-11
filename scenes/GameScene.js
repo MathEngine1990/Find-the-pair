@@ -1651,8 +1651,8 @@ checkPair() {
   }
 }
 
-  // УЛУЧШЕННЫЙ МЕТОД: Экран победы с интеграцией ProgressSyncManager
-  async showWin() {
+// УЛУЧШЕННЫЙ МЕТОД: Экран победы с отдельным экраном достижений
+async showWin() {
   this.clearVictoryScreen();
   this.canClick = false;
   this.gameState.gameStarted = false;
@@ -1661,8 +1661,9 @@ checkPair() {
   this.cards.forEach(c => c.disableInteractive());
 
   const gameTime = this.currentTimeSeconds;
-  const accuracy = this.gameMetrics.attempts > 0 ? 
-    Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100) : 100;
+  const accuracy = this.gameMetrics.attempts > 0
+    ? Math.round((1 - this.gameMetrics.errors / this.gameMetrics.attempts) * 100)
+    : 100;
 
   let progressResult = {
     stars: 1,
@@ -1672,166 +1673,194 @@ checkPair() {
     currentBest: null
   };
 
-if (this.syncManager) {
-  // Запускаем сохранение в фоне, НЕ ждем
-  this.saveProgressViaSyncManager(
-    this.currentLevelIndex,
-    gameTime,
-    this.gameMetrics.attempts,
-    this.gameMetrics.errors,
-    accuracy
-  )
-  .then(result => {
-      this.checkAndUnlockAchievements(result, gameTime, this.gameMetrics.errors);
-  })
-  .catch(err => console.warn('Background sync failed:', err));
-} else {
+  let newAchievements = [];
+
+  // 1) Сначала сохраняем прогресс и считаем ачивки
+  if (this.syncManager) {
+    try {
+      const result = await this.saveProgressViaSyncManager(
+        this.currentLevelIndex,
+        gameTime,
+        this.gameMetrics.attempts,
+        this.gameMetrics.errors,
+        accuracy
+      );
+
+      if (result && typeof result === 'object') {
+        progressResult = { ...progressResult, ...result };
+      }
+
+      newAchievements = await this.checkAndUnlockAchievements(
+        progressResult,
+        gameTime,
+        this.gameMetrics.errors
+      ) || [];
+
+    } catch (err) {
+      console.warn('Background sync failed:', err);
+      progressResult.syncError = true;
+    }
+  } else {
     console.warn('⚠️ showWin: syncManager is null, progress won’t be saved');
   }
 
   const { W, H } = this.getSceneWH();
-  
-  // ✅ ДОБАВИТЬ: Обновляем размеры перед созданием UI
   this.textManager.updateDimensions();
 
-  this.victoryContainer = this.add.container(0, 0);
-  this.victoryContainer.setDepth(100);
+  // 2) Внутренняя функция, которая рисует уже привычное окно "ПОБЕДА!"
+  const renderVictoryUI = () => {
+    this.victoryContainer = this.add.container(0, 0);
+    this.victoryContainer.setDepth(100);
 
-  // Полупрозрачный фон
-  const overlay = this.add.graphics();
-  overlay.fillStyle(0x000000, 0.9);
-  overlay.fillRect(0, 0, W, H);
-  this.victoryContainer.add(overlay);
+    // Полупрозрачный фон
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.9);
+    overlay.fillRect(0, 0, W, H);
+    this.victoryContainer.add(overlay);
 
-  // Панель результатов
-  const panelW = Math.min(500, W * 0.9);
-  const panelH = Math.min(450, H * 0.8);
-  const panelX = W/2;
-  const panelY = H/2;
+    // Панель результатов
+    const panelW = Math.min(500, W * 0.9);
+    const panelH = Math.min(450, H * 0.8);
+    const panelX = W / 2;
+    const panelY = H / 2;
 
-  const panel = this.add.graphics();
-  panel.fillStyle(0x243540, 0.95);
-  panel.lineStyle(3, 0x3A5939, 0.8);
-  panel.fillRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
-  panel.strokeRoundedRect(panelX - panelW/2, panelY - panelH/2, panelW, panelH, 20);
-  this.victoryContainer.add(panel);
+    const panel = this.add.graphics();
+    panel.fillStyle(0x243540, 0.95);
+    panel.lineStyle(3, 0x3A5939, 0.8);
+    panel.fillRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 20);
+    panel.strokeRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 20);
+    this.victoryContainer.add(panel);
 
-  // ✅ НОВЫЙ КОД: Заголовок "ПОБЕДА!"
-  const title = this.textManager.createText(
-    panelX, panelY - panelH/2 + 50,
-    'ПОБЕДА!',
-     'titleLarge'
-  );
-  title.setOrigin(0.5);
-  title.setColor('#F2DC9B');
-  this.victoryContainer.add(title);
-
-  this.victoryTitleY = title.y;
-
-  // Звездочки (без изменений)
-  this.showStarsAnimation(panelX, panelY - panelH/2 + 100, progressResult);
-
-  // ✅ НОВЫЙ КОД: Статистика
-  const statsY = panelY - panelH/2 + 180;
-  const lineHeight = this.textManager.getSize('statLabel') * 1.8; // Межстрочный интервал
-
-  const timeText = this.textManager.createText(
-    panelX, statsY,
-    `Время: ${this.formatTime(gameTime)}`,
-     'statLabel'
-  );
-  timeText.setOrigin(0.5);
-  timeText.setColor('#F2C791');
-  this.victoryContainer.add(timeText);
-
-  const attemptsText = this.textManager.createText(
-    panelX, statsY + lineHeight,
-    `Попыток: ${this.gameMetrics.attempts}`,
-    'statValue'
-  );
-  attemptsText.setOrigin(0.5);
-  attemptsText.setColor('#F2C791');
-  this.victoryContainer.add(attemptsText);
-
-  const errorsText = this.textManager.createText(
-    panelX, statsY + lineHeight * 2,
-    `Ошибок: ${this.mistakeCount}`,
-    'statValue'
-  );
-  errorsText.setOrigin(0.5);
-  errorsText.setColor('#BF3715');
-  this.victoryContainer.add(errorsText);
-
-  const accuracyText = this.textManager.createText(
-    panelX, statsY + lineHeight * 3,
-    `Точность: ${accuracy}%`,
-    'statValue'
-  );
-  accuracyText.setOrigin(0.5);
-  accuracyText.setColor('#F2C791');
-  this.victoryContainer.add(accuracyText);
-
-  // Улучшение результата (если есть)
-  if (progressResult.improved) {
-    const recordText = this.textManager.createText(
-      panelX, statsY + lineHeight * 4,
-      'Новый рекорд!',
-      'achievementTitle'
+    // Заголовок "ПОБЕДА!"
+    const title = this.textManager.createText(
+      panelX, panelY - panelH / 2 + 50,
+      'ПОБЕДА!',
+      'titleLarge'
     );
-    recordText.setOrigin(0.5);
-    this.victoryContainer.add(recordText);
-  }
+    title.setOrigin(0.5);
+    title.setColor('#F2DC9B');
+    this.victoryContainer.add(title);
+    this.victoryTitleY = title.y;
 
-  // Статус синхронизации (если есть)
-  if (progressResult.synced) {
-    const syncText = this.textManager.createText(
-      panelX, statsY + lineHeight * 5,
-      '☁️ Синхронизировано',
+    // Звездочки
+    this.showStarsAnimation(panelX, panelY - panelH / 2 + 100, progressResult);
+
+    // Статистика
+    const statsY = panelY - panelH / 2 + 180;
+    const lineHeight = this.textManager.getSize('statLabel') * 1.8;
+
+    const timeText = this.textManager.createText(
+      panelX, statsY,
+      `Время: ${this.formatTime(gameTime)}`,
+      'statLabel'
+    );
+    timeText.setOrigin(0.5);
+    timeText.setColor('#F2C791');
+    this.victoryContainer.add(timeText);
+
+    const attemptsText = this.textManager.createText(
+      panelX, statsY + lineHeight,
+      `Попыток: ${this.gameMetrics.attempts}`,
       'statValue'
     );
-    syncText.setOrigin(0.5);
-    syncText.setColor('#02733E');
-    this.victoryContainer.add(syncText);
-  } else if (progressResult.syncError) {
-    const syncErrorText = this.textManager.createText(
-      panelX, statsY + lineHeight * 5,
-      '⚠️ Ошибка синхронизации',
+    attemptsText.setOrigin(0.5);
+    attemptsText.setColor('#F2C791');
+    this.victoryContainer.add(attemptsText);
+
+    const errorsText = this.textManager.createText(
+      panelX, statsY + lineHeight * 2,
+      `Ошибок: ${this.mistakeCount}`,
       'statValue'
     );
-    syncErrorText.setOrigin(0.5);
-    syncErrorText.setColor('#BF3715');
-    this.victoryContainer.add(syncErrorText);
+    errorsText.setOrigin(0.5);
+    errorsText.setColor('#BF3715');
+    this.victoryContainer.add(errorsText);
+
+    const accuracyText = this.textManager.createText(
+      panelX, statsY + lineHeight * 3,
+      `Точность: ${accuracy}%`,
+      'statValue'
+    );
+    accuracyText.setOrigin(0.5);
+    accuracyText.setColor('#F2C791');
+    this.victoryContainer.add(accuracyText);
+
+    if (progressResult.improved) {
+      const recordText = this.textManager.createText(
+        panelX, statsY + lineHeight * 4,
+        'Новый рекорд!',
+        'achievementTitle'
+      );
+      recordText.setOrigin(0.5);
+      this.victoryContainer.add(recordText);
+    }
+
+    if (progressResult.synced) {
+      const syncText = this.textManager.createText(
+        panelX, panelY + panelH / 2 - 110,
+        'Прогресс сохранён',
+        'smallLabel'
+      );
+      syncText.setOrigin(0.5);
+      syncText.setColor('#02733E');
+      this.victoryContainer.add(syncText);
+    } else if (progressResult.syncError) {
+      const syncErrorText = this.textManager.createText(
+        panelX, panelY + panelH / 2 - 110,
+        'Не удалось синхронизировать прогресс',
+        'smallLabel'
+      );
+      syncErrorText.setOrigin(0.5);
+      syncErrorText.setColor('#BF3715');
+      this.victoryContainer.add(syncErrorText);
+    }
+
+    // Кнопки
+    const btnY = panelY + panelH / 2 - 60;
+    const btnW = Math.min(160, panelW * 0.35);
+    const btnH = 45;
+
+    const playAgainBtn = window.makeImageButton(
+      this,
+      panelX - btnW / 2 - 10,
+      btnY,
+      btnW,
+      btnH,
+      'Еще раз',
+      () => this.restartLevel(),
+      { color: '#F2C791' }
+    );
+    playAgainBtn.setDepth(102);
+
+    const menuBtn = window.makeImageButton(
+      this,
+      panelX + btnW / 2 + 10,
+      btnY,
+      btnW,
+      btnH,
+      'Меню',
+      () => {
+        this.clearVictoryScreen();
+        this.gameState.gameStarted = false;
+        this.scene.start('MenuScene', { page: this.levelPage });
+      },
+      { color: '#F2C791' }
+    );
+    menuBtn.setDepth(102);
+
+    this.victoryElements = [playAgainBtn, menuBtn];
+  };
+
+  // 3) Логика показа:
+  //    если есть новые достижения — сначала экран достижений, потом окно победы;
+  //    если нет — сразу окно победы.
+  if (newAchievements && newAchievements.length > 0) {
+    this.showAchievementsScreen(newAchievements, renderVictoryUI);
+  } else {
+    renderVictoryUI();
   }
-
-  // Кнопки (без изменений - используют makeImageButton)
-  const btnY = panelY + panelH/2 - 60;
-  const btnW = Math.min(160, panelW * 0.35);
-  const btnH = 45;
-
-  const playAgainBtn = window.makeImageButton(
-    this, panelX - btnW/2 - 10, btnY, btnW, btnH,
-    'Еще раз',
-    () => this.restartLevel(),
-    {color: '#F2C791'}
-  );
-  playAgainBtn.setDepth(102);
-  //playAgainBtn.setColor('#F2C791');
-
-  const menuBtn = window.makeImageButton(
-    this, panelX + btnW/2 + 10, btnY, btnW, btnH,
-    'Меню',
-    () => {
-      this.clearVictoryScreen();
-      this.gameState.gameStarted = false;
-      this.scene.start('MenuScene', { page: this.levelPage });
-    },
-    {color: '#F2C791'}
-  );
-  menuBtn.setDepth(102);
- // menuBtn.setColor('#F2C791');
-
-  this.victoryElements = [playAgainBtn, menuBtn];
 }
+
 
   // НОВЫЙ МЕТОД: Сохранение прогресса через ProgressSyncManager
 // НОВЫЙ МЕТОД: Сохранение рекорда уровня через ProgressSyncManager
@@ -1980,7 +2009,7 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
   try {
     if (!this.syncManager) {
       console.warn('⚠️ No syncManager, skipping achievements update');
-      return;
+      return [];
     }
 
     const currentProgress = (await this.syncManager.loadProgress()) || {};
@@ -2105,25 +2134,141 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
       stats && stats.totalTime >= 3600 // 1 час
     );
 
-    // Сохраняем обновленные достижения
-if (newAchievements.length > 0) {
-  await this.syncManager.saveProgress(currentProgress, true);
+    // Сохраняем обновленные достижения, если они появились
+    if (newAchievements.length > 0) {
+      await this.syncManager.saveProgress(currentProgress, true);
+    }
 
-  // Небольшая задержка, чтобы игрок сначала увидел "ПОБЕДА!" и стату
-  const delayMs = this.gameState?.showingVictory ? 1200 : 0;
-
-  this.time.delayedCall(delayMs, () => {
-    this.showNewAchievements(newAchievements);
-    // Если захочешь — можно вернуть VK-шаринг сюда
-    // this.shareAchievementsToVK(newAchievements);
-  });
-}
-
+    // 👉 возвращаем список новых ачивок
+    return newAchievements;
 
   } catch (error) {
     console.error('❌ Failed to check achievements:', error);
+    return [];
   }
 }
+
+// ЭКРАН НОВЫХ ДОСТИЖЕНИЙ
+showAchievementsScreen(newAchievements, onContinue) {
+  if (!newAchievements || !newAchievements.length) {
+    if (typeof onContinue === 'function') onContinue();
+    return;
+  }
+
+  const { W, H } = this.getSceneWH();
+  this.textManager.updateDimensions();
+
+  const container = this.add.container(0, 0);
+  container.setDepth(150);
+  this.achievementsOverlay = container;
+
+  // затемнение фона
+  const overlay = this.add.graphics();
+  overlay.fillStyle(0x000000, 0.8);
+  overlay.fillRect(0, 0, W, H);
+  overlay.setInteractive(new Phaser.Geom.Rectangle(0, 0, W, H), Phaser.Geom.Rectangle.Contains);
+  container.add(overlay);
+
+  // панель
+  const panelW = Math.min(W * 0.85, 640);
+  const panelH = Math.min(H * 0.7, 420);
+  const panelX = W / 2;
+  const panelY = H / 2;
+
+  const panel = this.add.graphics();
+  panel.fillStyle(0x243540, 0.96);
+  panel.lineStyle(3, 0xF2DC9B, 0.9);
+  panel.fillRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 20);
+  panel.strokeRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 20);
+  container.add(panel);
+
+  // заголовок
+  const title = this.textManager.createText(
+    panelX,
+    panelY - panelH / 2 + 40,
+    'Новые достижения!',
+    'titleMedium'
+  );
+  title.setOrigin(0.5);
+  title.setColor('#F2DC9B');
+  container.add(title);
+
+  // список достижений
+  const listTop = panelY - panelH / 2 + 90;
+  const listBottom = panelY + panelH / 2 - 90;
+  const listHeight = listBottom - listTop;
+  const count = newAchievements.length;
+  const itemGap = count > 1 ? listHeight / count : listHeight * 0.5;
+  let y = listTop + itemGap / 2;
+
+  newAchievements.forEach(ach => {
+    const row = this.add.container(0, 0);
+
+    // иконка
+    const icon = this.add.text(
+      panelX - panelW / 2 + 50,
+      y,
+      ach.icon || '🏆',
+      { fontSize: '32px' }
+    ).setOrigin(0.5);
+    row.add(icon);
+
+    // заголовок достижения
+    const aTitle = this.textManager.createText(
+      panelX - panelW / 2 + 90,
+      y - 14,
+      ach.title || '',
+      'achievementTitle'
+    );
+    aTitle.setOrigin(0, 0.5);
+    row.add(aTitle);
+
+    // описание
+    const desc = this.textManager.createText(
+      panelX - panelW / 2 + 90,
+      y + 14,
+      ach.description || '',
+      'achievementDesc'
+    );
+    desc.setOrigin(0, 0.5);
+
+    const wrapWidth = panelW - 140;
+    if (desc.setStyle) {
+      desc.setStyle({
+        wordWrap: { width: wrapWidth, useAdvancedWrap: true }
+      });
+    }
+    row.add(desc);
+
+    container.add(row);
+    y += itemGap;
+  });
+
+  // кнопка "Далее"
+  const btnY = panelY + panelH / 2 - 50;
+  const btnW = Math.min(200, panelW * 0.6);
+  const btnH = 48;
+
+  const nextBtn = window.makeImageButton(
+    this,
+    panelX,
+    btnY,
+    btnW,
+    btnH,
+    'Далее',
+    () => {
+      container.destroy(true);
+      this.achievementsOverlay = null;
+      if (typeof onContinue === 'function') {
+        onContinue();
+      }
+    },
+    { color: '#F2C791' }
+  );
+  nextBtn.setDepth(151);
+  container.add(nextBtn);
+}
+
 
 
 showNewAchievements(achievements) {
