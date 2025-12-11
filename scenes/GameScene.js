@@ -1885,7 +1885,10 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
   };
 
   try {
-    const currentProgress = (await this.syncManager.loadProgress()) || {};
+    const currentProgress = this.syncManager?.loadFromLocal
+  ? this.syncManager.loadFromLocal()
+  : (await this.syncManager.loadProgress()) || {};
+
 
     if (!currentProgress.levels) currentProgress.levels = {};
     if (!currentProgress.stats) {
@@ -1957,9 +1960,10 @@ async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accurac
     stats.totalStars = Object.values(levels)
       .reduce((sum, lvl) => sum + (lvl.stars || 0), 0);
 
-    // 5) Сохраняем прогресс (локально + VK, если умеет)
-    await this.syncManager.saveProgress(currentProgress, true);
-    result.synced = true;
+// 5) Сохраняем прогресс (локально + VK, если умеет), но БЕЗ мгновенного VK-синка
+await this.syncManager.saveProgress(currentProgress, false);
+result.synced = true;
+
 
   } catch (e) {
     console.error('saveProgressViaSyncManager error:', e);
@@ -2012,7 +2016,10 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
       return [];
     }
 
-    const currentProgress = (await this.syncManager.loadProgress()) || {};
+    const currentProgress = this.syncManager?.loadFromLocal
+  ? this.syncManager.loadFromLocal()
+  : (await this.syncManager.loadProgress()) || {};
+
 
     if (!currentProgress.achievements) currentProgress.achievements = {};
     if (!currentProgress.stats) currentProgress.stats = {};
@@ -2136,7 +2143,7 @@ async checkAndUnlockAchievements(progressResult, gameTime, errors) {
 
     // Сохраняем обновленные достижения, если они появились
     if (newAchievements.length > 0) {
-      await this.syncManager.saveProgress(currentProgress, true);
+      await this.syncManager.saveProgress(currentProgress, false);
     }
 
     // 👉 возвращаем список новых ачивок
