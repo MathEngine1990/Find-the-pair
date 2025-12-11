@@ -1768,25 +1768,52 @@ startPhaserGame();
     console.log('⚡ VKUtils.performanceTest() - test mobile performance');
   }
 
+  // ========================================
+  // ВСПОМОГАТЕЛЬНО: Определение ключа прогресса
+  // ========================================
+  function detectProgressStorageKey() {
+    try {
+      const userId =
+        (window.VK_USER_DATA && window.VK_USER_DATA.id) ||
+        (window.VK_LAUNCH_PARAMS && window.VK_LAUNCH_PARAMS.vk_user_id);
+
+      // Кандидаты по умолчанию
+      const candidates = [];
+      if (userId) {
+        candidates.push(`findpair_progress_${userId}`);
+      }
+      candidates.push('findpair_progress');
+
+      // Пытаемся найти реально существующий ключ в localStorage
+      const ls = window.localStorage || null;
+      if (ls) {
+        const keys = Object.keys(ls);
+        const existing = keys.find(k => k.startsWith('findpair_progress'));
+        if (existing) {
+          return existing;
+        }
+      }
+
+      // Фоллбек
+      return candidates[0];
+    } catch (e) {
+      console.warn('detectProgressStorageKey error:', e);
+      return 'findpair_progress';
+    }
+  }
+
 
     // ========================================
   // DEBUG: Полный сброс прогресса и достижений
   // ========================================
-  window.resetAllGameProgress = async function() {
+  window.resetAllGameProgress = async function () {
     try {
-      console.log('🧹 Starting full progress reset...');
+      console.log('🧹 Starting HARD progress reset.');
 
-      // Если менеджер ещё не создан — пробуем инициализировать
-      if (!window.progressSyncManager) {
-        console.warn('progressSyncManager not ready, initializing...');
-        if (window.initGlobalSyncManager) {
-          await window.initGlobalSyncManager();
-        }
-      }
-
-      if (!window.progressSyncManager) {
-        console.error('❌ No ProgressSyncManager available');
-        return;
+      // Убедимся, что sync-менеджер инициализирован (нам нужен VK/ключи)
+      if (!window.progressSyncManager && window.initGlobalSyncManager) {
+        console.warn('progressSyncManager not ready, initializing.');
+        await window.initGlobalSyncManager();
       }
 
       const emptyProgress = {
@@ -1803,12 +1830,51 @@ startPhaserGame();
         achievements: {}
       };
 
-      console.log('💾 Saving empty progress...', emptyProgress);
+      // 1) Определяем ключ прогресса
+      const storageKey = detectProgressStorageKey();
+      console.log('📦 Progress storage key for reset:', storageKey);
 
-      // true → форсируем синхронный/приоритетный сейв
-      await window.progressSyncManager.saveProgress(emptyProgress, true);
+      // 2) Жёстко перезаписываем localStorage
+      try {
+        if (window.localStorage) {
+          window.localStorage.setItem(storageKey, JSON.stringify(emptyProgress));
+          console.log('💾 localStorage progress overwritten with empty data.');
+        } else {
+          console.warn('localStorage not available');
+        }
+      } catch (err) {
+        console.warn('localStorage reset error:', err);
+      }
 
-      console.log('✅ Progress fully reset!');
+      // 3) Жёстко перезаписываем VK Storage (если доступен VKHelpers)
+      if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
+        try {
+          await window.VKHelpers.setStorageData(storageKey, JSON.stringify(emptyProgress));
+          console.log('☁️ VK Storage progress overwritten with empty data.');
+        } catch (err) {
+          console.warn('VK Storage reset error:', err);
+        }
+      } else {
+        console.warn('VKHelpers.setStorageData not available, VK storage not reset.');
+      }
+
+      // 4) Обновляем кеш менеджера прогресса (по возможности, без синка)
+      if (window.progressSyncManager) {
+        try {
+          // На всякий случай кладём в очевидные поля, если они есть
+          if ('_lastLocalProgress' in window.progressSyncManager) {
+            window.progressSyncManager._lastLocalProgress = emptyProgress;
+          }
+          if ('_cachedProgress' in window.progressSyncManager) {
+            window.progressSyncManager._cachedProgress = emptyProgress;
+          }
+          console.log('📥 ProgressSyncManager cache updated with empty progress.');
+        } catch (err) {
+          console.warn('Failed to update ProgressSyncManager cache:', err);
+        }
+      }
+
+      console.log('✅ HARD reset completed (local + VK).');
 
       if (window.showToast) {
         window.showToast('Прогресс и достижения сброшены', 'success', 3000);
