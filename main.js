@@ -1846,17 +1846,18 @@ startPhaserGame();
         console.warn('localStorage reset error:', err);
       }
 
-      // 3) Жёстко перезаписываем VK Storage (если доступен VKHelpers)
-      if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
-        try {
-          await window.VKHelpers.setStorageData(storageKey, JSON.stringify(emptyProgress));
-          console.log('☁️ VK Storage progress overwritten with empty data.');
-        } catch (err) {
-          console.warn('VK Storage reset error:', err);
-        }
-      } else {
-        console.warn('VKHelpers.setStorageData not available, VK storage not reset.');
-      }
+// 3) Жёстко перезаписываем VK Storage (если доступен VKHelpers)
+if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
+  try {
+    await window.VKHelpers.setStorageData(storageKey, emptyProgress);
+    console.log('☁️ VK Storage progress overwritten with empty data.');
+  } catch (err) {
+    console.warn('VK Storage reset error:', err);
+  }
+} else {
+  console.warn('VKHelpers.setStorageData not available, VK storage not reset.');
+}
+
 
       // 4) Обновляем кеш менеджера прогресса (по возможности, без синка)
       if (window.progressSyncManager) {
