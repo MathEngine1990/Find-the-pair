@@ -707,7 +707,8 @@ optimizeData(data, maxLevels = 50) {
       lastModified: Date.now(),
       levels: {},
       achievements: {},
-      stats: {}
+      stats: {},
+      isReset: false   // 👈 ДОБАВЬ ЭТУ СТРОКУ
     };
 
     // Merge levels - ИСПРАВЛЕНО: корректное слияние
@@ -928,6 +929,11 @@ async getProgress() {
   // НОВЫЙ МЕТОД: Сохранение прогресса уровня
   async saveLevelProgress(levelIndex, levelData) {
     const progress = await this.loadProgress();
+
+      // 👇 Сбрасываем режим reset, так как у нас уже реальный прогресс
+  progress.isReset = false;
+  progress.timestamp = Date.now();
+  progress.lastModified = Date.now();
     
     progress.levels[levelIndex] = {
       ...progress.levels[levelIndex],
@@ -944,6 +950,11 @@ async getProgress() {
   // НОВЫЙ МЕТОД: Сохранение достижений
   async saveAchievement(achievementId, data = {}) {
     const progress = await this.loadProgress();
+
+      // 👇 Любое получение ачивки тоже выводит нас из режима reset
+  progress.isReset = false;
+  progress.timestamp = Date.now();
+  progress.lastModified = Date.now();
     
     progress.achievements[achievementId] = {
       unlocked: true,

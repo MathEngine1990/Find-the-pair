@@ -1408,15 +1408,39 @@ showExitConfirmation(previousDialogElements) {
       previousDialogElements.forEach(el => el.destroy?.());
       
 if (window.vkBridge && window.vkBridge.send) {
-    vkBridge.send("VKWebAppClose", { status: "success" })
-        .catch(() => {
-            // На крайний случай fallback
-            window.location.href = "https://vk.com/app" + (window.VK_LAUNCH_PARAMS?.app_id || "");
-        });
+  vkBridge.send("VKWebAppClose", { status: "success" })
+    .catch(() => {
+      const appId = window.VK_LAUNCH_PARAMS?.app_id || "";
+      window.location.href = appId
+        ? "https://vk.com/app" + appId
+        : "https://vk.com";
+    });
 } else {
-    // если не VK среда — просто возвращаемся назад в браузере
-    window.history.back();
+  // 💥 НЕ VK-среда: полностью «выходим» из игры
+  try {
+    // Глушим звук
+    if (this.game && this.game.sound) {
+      this.game.sound.mute = true;
+    }
+    // Разрушаем Phaser-игру, чтобы точно ничего не жило
+    if (window.game && window.game.destroy) {
+      window.game.destroy(true);
+      window.game = null;
+    }
+  } catch (e) {
+    console.warn('Error while destroying game on agreement decline:', e);
+  }
+
+  // Перенаправляем пользователя — в идеале на страницу приложения в VK
+  const appId = window.VK_LAUNCH_PARAMS?.app_id || "";
+  if (appId) {
+    window.location.href = "https://vk.com/app" + appId;
+  } else {
+    // если запущено просто как сайт — хотя бы обновим страницу
+    window.location.reload();
+  }
 }
+
 
     }
   );
