@@ -647,7 +647,8 @@ optimizeData(data, maxLevels = 50) {
       totalErrors: 0,
       bestTime: null,
       lastPlayed: 0
-    }
+    },
+  isReset: !!data.isReset
   };
 
   if (!data.version || data.version !== this.version) {
@@ -667,6 +668,37 @@ optimizeData(data, maxLevels = 50) {
     if (!localData) return vkData;
 
     console.log('🔀 Merging progress data...');
+
+      const localReset = !!(localData && localData.isReset);
+  const vkReset = !!(vkData && vkData.isReset);
+
+  if (localReset || vkReset) {
+    const localTs = (localData && localData.timestamp) || 0;
+    const vkTs = (vkData && vkData.timestamp) || 0;
+
+    // Если локальный сброс новее или равен по времени — считаем его источником истины
+    if (localReset && localTs >= vkTs) {
+      console.log('[ProgressSyncManager] 🧹 Using LOCAL reset as global source');
+      const empty = this.getDefaultProgressData();
+      empty.isReset = true;
+      empty.timestamp = localTs || Date.now();
+      empty.lastModified = Date.now();
+      return empty;
+    }
+
+    // Если VK-сброс новее — используем его
+    if (vkReset && vkTs >= localTs) {
+      console.log('[ProgressSyncManager] 🧹 Using VK reset as global source');
+      const empty = this.getDefaultProgressData();
+      empty.isReset = true;
+      empty.timestamp = vkTs || Date.now();
+      empty.lastModified = Date.now();
+      return empty;
+    }
+  }
+
+  console.log('[ProgressSyncManager] 🔄 Merging progress data.');
+
     
     const merged = {
       version: this.version,
@@ -942,13 +974,18 @@ async getProgress() {
       lastModified: Date.now(),
       levels: {},
       achievements: {},
-      stats: {
+            stats: {
         gamesPlayed: 0,
         totalTime: 0,
         totalErrors: 0,
         bestTime: null,
-        lastPlayed: 0
-      }
+        lastPlayed: 0,
+        perfectGames: 0,
+        totalStars: 0
+      },
+      // 👇 Новый флаг
+      isReset: false
+
     };
   }
 

@@ -604,6 +604,17 @@ async drawMenu(page = 0) {
   this._isDrawing = true;
   console.log('Drawing menu, page:', page);
 
+    // 🔄 Перед отрисовкой меню подтягиваем соглашение из VK Storage (если доступно)
+  if (!this._agreementSyncedFromVK) {
+    try {
+      await this.syncAgreementFromVKIfPossible();
+      this._agreementSyncedFromVK = true;
+    } catch (e) {
+      console.warn('[MenuScene] Failed to sync agreement from VK Storage:', e);
+    }
+  }
+
+
   try {
     this.clearMenu();
     const { W, H } = this.getSceneWH();
@@ -1267,6 +1278,8 @@ const acceptBtn = window.makeImageButton(
     declineBtn.setDepth(1003);
   }
 
+  
+
   cleanupAgreementDialog(elements) {
     elements.forEach(element => {
       if (element && typeof element.destroy === 'function') {
@@ -1278,6 +1291,73 @@ const acceptBtn = window.makeImageButton(
       }
     });
   }
+
+    /**
+   * 🔄 Подтягивает статус пользовательского соглашения из VK Storage
+   * и синхронизирует его с localStorage.
+   *
+   * Используется при первом входе в MenuScene, чтобы
+   * веб / мобильная версия видели единый статус.
+   */
+  async syncAgreementFromVKIfPossible() {
+    try {
+      if (!window.VKHelpers || typeof window.VKHelpers.getStorageData !== 'function') {
+        // VK Storage недоступен — просто выходим
+        return;
+      }
+
+      const response = await window.VKHelpers.getStorageData(['findpair_agreement_v1']);
+      if (!response || !Array.isArray(response.keys)) {
+        return;
+      }
+
+      const item = response.keys.find(k => k.key === 'findpair_agreement_v1');
+      if (!item || !item.value) {
+        // В VK Storage ничего нет — не трогаем локальный статус
+        return;
+      }
+
+      let data;
+      try {
+        data = typeof item.value === 'string' ? JSON.parse(item.value) : item.value;
+      } catch (e) {
+        console.warn('[MenuScene] Failed to parse VK agreement value:', e);
+        return;
+      }
+
+      if (!data) return;
+
+      if (data.accepted) {
+        // ✅ Соглашение принято на другом устройстве / в другой версии
+        try {
+          localStorage.setItem('acceptedAgreement', 'true');
+          if (data.version) {
+            localStorage.setItem('agreementVersion', data.version);
+          }
+          if (data.acceptedAt) {
+            localStorage.setItem('agreementAcceptedAt', data.acceptedAt);
+          }
+          // Помечаем, что диалог уже показывался через VK
+          localStorage.setItem('vk_agreement_shown', '1');
+        } catch (e) {
+          console.warn('[MenuScene] Failed to write agreement to localStorage:', e);
+        }
+      } else {
+        // ❌ В VK Storage хранится "не принято" — очищаем локальный статус
+        try {
+          localStorage.removeItem('acceptedAgreement');
+          localStorage.removeItem('agreementVersion');
+          localStorage.removeItem('agreementAcceptedAt');
+          localStorage.removeItem('vk_agreement_shown');
+        } catch (e) {
+          console.warn('[MenuScene] Failed to clear agreement from localStorage:', e);
+        }
+      }
+    } catch (e) {
+      console.warn('[MenuScene] syncAgreementFromVKIfPossible error:', e);
+    }
+  }
+
 
   // === MenuScene.js:958+ - ДОБАВИТЬ НОВЫЙ МЕТОД ===
 

@@ -1816,7 +1816,14 @@ window.resetAllGameProgress = async function () {
       await window.initGlobalSyncManager();
     }
 
+    const now = Date.now();
+
     const emptyProgress = {
+      // Метаданные времени
+      timestamp: now,
+      lastModified: now,
+
+      // Фактические данные прогресса (пустые)
       levels: {},
       stats: {
         gamesPlayed: 0,
@@ -1827,8 +1834,12 @@ window.resetAllGameProgress = async function () {
         perfectGames: 0,
         totalStars: 0
       },
-      achievements: {}
+      achievements: {},
+
+      // 👇 Ключевой флаг, который увидит ProgressSyncManager
+      isReset: true
     };
+
     const emptyJson = JSON.stringify(emptyProgress);
 
     // 1) Собираем ВСЕ ключи прогресса в localStorage
