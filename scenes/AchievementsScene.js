@@ -454,11 +454,9 @@ async handleResize() {
     this.bgImage = null;
     this.vignette = null;
 
-    try {
-  if (window.history && history.state?.scene === 'AchievementsScene') {
-    history.back();
-  }
-} catch {}
+  // ✅ НЕ трогаем history здесь.
+  // Навигацию Back контролирует main.js через popstate/backbutton.
+  console.log('AchievementsScene cleanup completed');
 
 
   }
