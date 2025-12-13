@@ -1302,12 +1302,17 @@ showExitConfirmation(previousDialogElements) {
       [confirmOverlay, confirmModal, confirmTitle, confirmText, yesBtn, noBtn].forEach(el => el.destroy());
       previousDialogElements.forEach(el => el.destroy?.());
       
-      // Пытаемся выйти
-      try {
-        window.close();
-      } catch (e) {
-        window.history.back();
-      }
+if (window.vkBridge && window.vkBridge.send) {
+    vkBridge.send("VKWebAppClose", { status: "success" })
+        .catch(() => {
+            // На крайний случай fallback
+            window.location.href = "https://vk.com/app" + (window.VK_LAUNCH_PARAMS?.app_id || "");
+        });
+} else {
+    // если не VK среда — просто возвращаемся назад в браузере
+    window.history.back();
+}
+
     }
   );
   yesBtn.setDepth(2003);
