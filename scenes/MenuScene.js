@@ -1227,6 +1227,10 @@ const acceptBtn = window.makeImageButton(
   this, W/2 - 70, H/2 + modalH/2 - 60, 
   120, 45, 'Принимаю', 
   async () => {
+      // ✅ снимаем “вечную” блокировку, если она была
+  try { localStorage.removeItem('findpair_agreement_declined'); } catch {}
+  window.__AGREEMENT_DECLINED__ = false;
+  
     const acceptedAt = new Date().toISOString();
 
     // 1) Локальное сохранение (как было)
@@ -1402,47 +1406,25 @@ showExitConfirmation(previousDialogElements) {
   const yesBtn = window.makeImageButton(
     this, W/2 - 60, H/2 + 60, 
     100, 40, 'Выйти', 
-    () => {
-      // Закрываем все диалоги
-      [confirmOverlay, confirmModal, confirmTitle, confirmText, yesBtn, noBtn].forEach(el => el.destroy());
-      previousDialogElements.forEach(el => el.destroy?.());
-      
-if (window.vkBridge && window.vkBridge.send) {
-  vkBridge.send("VKWebAppClose", { status: "success" })
-    .catch(() => {
-      const appId = window.VK_LAUNCH_PARAMS?.app_id || "";
-      window.location.href = appId
-        ? "https://vk.com/app" + appId
-        : "https://vk.com";
-    });
-} else {
-  // 💥 НЕ VK-среда: полностью «выходим» из игры
-  try {
-    // Глушим звук
-    if (this.game && this.game.sound) {
-      this.game.sound.mute = true;
-    }
-    // Разрушаем Phaser-игру, чтобы точно ничего не жило
-    if (window.game && window.game.destroy) {
-      window.game.destroy(true);
-      window.game = null;
-    }
-  } catch (e) {
-    console.warn('Error while destroying game on agreement decline:', e);
+() => {
+  // Закрываем все диалоги
+  [confirmOverlay, confirmModal, confirmTitle, confirmText, yesBtn, noBtn].forEach(el => el?.destroy?.());
+  previousDialogElements?.forEach(el => el?.destroy?.());
+
+  // ✅ Жёстко закрываем игру (единая логика в main.js)
+  if (window.forceCloseDueToAgreementDecline) {
+    window.forceCloseDueToAgreementDecline();
+    return;
   }
 
-  // Перенаправляем пользователя — в идеале на страницу приложения в VK
-  const appId = window.VK_LAUNCH_PARAMS?.app_id || "";
-  if (appId) {
-    window.location.href = "https://vk.com/app" + appId;
-  } else {
-    // если запущено просто как сайт — хотя бы обновим страницу
-    window.location.reload();
-  }
+  // Fallback (на случай если main.js ещё не обновили)
+  try {
+    localStorage.setItem('findpair_agreement_declined', '1');
+    window.__AGREEMENT_DECLINED__ = true;
+  } catch {}
+  window.location.href = "https://vk.com";
 }
 
-
-    }
   );
   yesBtn.setDepth(2003);
 

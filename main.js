@@ -1,5 +1,9 @@
 //---main.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ VK И PROGRESSSYNCMANAGER
 
+// ✅ AGREEMENT HARD-BLOCK FLAG (persisted)
+window.__AGREEMENT_DECLINED__ = localStorage.getItem('findpair_agreement_declined') === '1';
+
+
 // ========================================
 // ГЛОБАЛЬНЫЕ КОНСТАНТЫ (ВНЕ IIFE!)
 // ========================================
@@ -221,6 +225,59 @@ function showGameNotification(message, type = 'info') {
         }
     });
 }
+
+window.forceCloseDueToAgreementDecline = async function () {
+  try {
+    // 1) фиксируем флаг (и для текущей вкладки, и на будущее)
+    window.__AGREEMENT_DECLINED__ = true;
+    try { localStorage.setItem('findpair_agreement_declined', '1'); } catch {}
+
+    // 2) глушим Phaser audio
+    try {
+      if (window.game?.sound) {
+        window.game.sound.stopAll();
+        window.game.sound.mute = true;
+      }
+    } catch {}
+
+    // 3) стопаем игровой цикл
+    try { window.game?.loop?.stop?.(); } catch {}
+
+    // 4) уничтожаем Phaser целиком
+    try {
+      if (window.game) {
+        window.game.destroy(true);
+        window.game = null;
+      }
+    } catch {}
+
+    // 5) best-effort: попросить VK закрыть (может не сработать на desktop_web — это ок)
+    try {
+      if (window.vkBridge?.supports?.('VKWebAppClose')) {
+        await window.vkBridge.send('VKWebAppClose', { status: 'success' });
+      } else if (window.VKSafe?.supports) {
+        const ok = await window.VKSafe.supports('VKWebAppClose');
+        if (ok) await window.VKSafe.send('VKWebAppClose', { status: 'success' });
+      }
+    } catch {}
+
+    // 6) если VK не закрыл — показываем заглушку и больше ничего не рисуем
+    document.body.innerHTML = `
+      <div style="
+        display:flex;align-items:center;justify-content:center;
+        height:100vh;background:#0e1621;color:#fff;
+        font-family:Arial;text-align:center;padding:24px;box-sizing:border-box;">
+        <div>
+          <h2 style="margin:0 0 12px 0;">Приложение закрыто</h2>
+          <p style="margin:0;opacity:.85;">Без принятия пользовательского соглашения игра недоступна.</p>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    console.warn('forceCloseDueToAgreementDecline error:', e);
+  }
+};
+
 
   window._nativeAlert = window.alert.bind(window);
 
@@ -1496,6 +1553,14 @@ startPhaserGame();
       isAndroid: isAndroid,
       touchSupport: 'ontouchstart' in window
     });
+
+    // ⛔ Если соглашение отклонено — не запускаем Phaser вообще
+if (window.__AGREEMENT_DECLINED__) {
+  console.warn('⛔ Agreement declined ранее — блокируем запуск');
+  await window.forceCloseDueToAgreementDecline?.();
+  return;
+}
+
 
       // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
   initGame();
