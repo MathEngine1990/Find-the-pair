@@ -30,6 +30,11 @@ window.AchievementsScene = class AchievementsScene extends Phaser.Scene {
   }
 
 async create() {
+
+  if (window.history && history.pushState) {
+  history.pushState({ scene: 'AchievementsScene' }, '');
+}
+
   // 1️⃣ Базовая инициализация
   this.textManager = new TextManager(this);
   this.ensureGradientBackground();
@@ -448,5 +453,13 @@ async handleResize() {
     if (this.vignette && this.vignette.destroy) this.vignette.destroy();
     this.bgImage = null;
     this.vignette = null;
+
+    try {
+  if (window.history && history.state?.scene === 'AchievementsScene') {
+    history.back();
+  }
+} catch {}
+
+
   }
 };

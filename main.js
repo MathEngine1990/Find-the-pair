@@ -1559,6 +1559,43 @@ startPhaserGame();
       // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
   initGame();
 
+  // === GLOBAL BACK HANDLER (Android / VK Mini Apps) ===
+window.addEventListener('popstate', () => {
+  handleSystemBack();
+});
+
+// Android fallback (иногда popstate не стреляет)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Backspace' || e.key === 'Escape') {
+    e.preventDefault();
+    handleSystemBack();
+  }
+});
+
+function handleSystemBack() {
+  if (!window.game || !window.game.scene) return;
+
+  const activeScene = window.game.scene.getScenes(true)[0];
+  if (!activeScene) return;
+
+  console.log('🔙 System BACK pressed, active scene:', activeScene.scene.key);
+
+  // 1️⃣ Если открыты достижения → возвращаемся в меню
+  if (activeScene.scene.key === 'AchievementsScene') {
+    window.game.scene.start('MenuScene');
+    return;
+  }
+
+  // 2️⃣ Если меню → можно показать диалог выхода (или реально выйти)
+  if (activeScene.scene.key === 'MenuScene') {
+    if (window.vkBridge?.supports?.('VKWebAppClose')) {
+      window.vkBridge.send('VKWebAppClose', { status: 'success' });
+    }
+    return;
+  }
+}
+
+
 // 4️⃣ А ТЕПЕРЬ — VK / SYNC В ФОНЕ
 
 
