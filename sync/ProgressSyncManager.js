@@ -673,11 +673,19 @@ optimizeData(data, maxLevels = 50) {
   const vkReset = !!(vkData && vkData.isReset);
 
   if (localReset || vkReset) {
+        const localHasData = !!(localData?.levels && Object.keys(localData.levels).length) ||
+                         !!(localData?.achievements && Object.keys(localData.achievements).length) ||
+                         ((localData?.stats?.gamesPlayed || 0) > 0);
+
+    const vkHasData = !!(vkData?.levels && Object.keys(vkData.levels).length) ||
+                      !!(vkData?.achievements && Object.keys(vkData.achievements).length) ||
+                      ((vkData?.stats?.gamesPlayed || 0) > 0);
+
     const localTs = (localData && localData.timestamp) || 0;
     const vkTs = (vkData && vkData.timestamp) || 0;
 
     // Если локальный сброс новее или равен по времени — считаем его источником истины
-    if (localReset && localTs >= vkTs) {
+    if (localReset && !localHasData && localTs >= vkTs) {
       console.log('[ProgressSyncManager] 🧹 Using LOCAL reset as global source');
       const empty = this.getDefaultProgressData();
       empty.isReset = true;
@@ -687,7 +695,7 @@ optimizeData(data, maxLevels = 50) {
     }
 
     // Если VK-сброс новее — используем его
-    if (vkReset && vkTs >= localTs) {
+    if (vkReset && !vkHasData && vkTs >= localTs) {
       console.log('[ProgressSyncManager] 🧹 Using VK reset as global source');
       const empty = this.getDefaultProgressData();
       empty.isReset = true;
@@ -882,6 +890,17 @@ mergeLevelData(local, vk) {
       deviceId: this.getDeviceId(),
       lastModified: timestamp
     };
+    
+        // ✅ HARD FIX: если в данных есть реальный прогресс — reset-режим запрещён
+    const hasLevels = enrichedData.levels && Object.keys(enrichedData.levels).length > 0;
+    const hasAch = enrichedData.achievements && Object.keys(enrichedData.achievements).length > 0;
+    const hasGames = (enrichedData.stats?.gamesPlayed || 0) > 0;
+
+    if (enrichedData.isReset && (hasLevels || hasAch || hasGames)) {
+      console.warn('[ProgressSyncManager] ⚠️ isReset=true but progress is not empty → forcing isReset=false');
+      enrichedData.isReset = false;
+    }
+
 
     if (!this.validateProgressData(enrichedData)) {
       throw new Error('Invalid progress data structure');
