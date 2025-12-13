@@ -1559,18 +1559,25 @@ startPhaserGame();
       // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
   initGame();
 
-  // === GLOBAL BACK HANDLER (Android / VK Mini Apps) ===
-window.addEventListener('popstate', () => {
-  handleSystemBack();
-});
+  // Создаём базовую точку истории, чтобы Android Back не закрывал WebView сразу
+if (window.history && history.replaceState) {
+  history.replaceState({ scene: 'ROOT' }, '');
+}
 
-// Android fallback (иногда popstate не стреляет)
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Backspace' || e.key === 'Escape') {
-    e.preventDefault();
-    handleSystemBack();
-  }
-});
+
+  // === GLOBAL BACK HANDLER (Android / VK Mini Apps) ===
+if (!window.__BACK_HANDLER_BOUND__) {
+  window.__BACK_HANDLER_BOUND__ = true;
+
+  window.addEventListener('popstate', () => handleSystemBack());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' || e.key === 'Escape') {
+      e.preventDefault();
+      handleSystemBack();
+    }
+  });
+}
+
 
 function handleSystemBack() {
   if (!window.game || !window.game.scene) return;
@@ -1582,7 +1589,8 @@ function handleSystemBack() {
 
   // 1️⃣ Если открыты достижения → возвращаемся в меню
   if (activeScene.scene.key === 'AchievementsScene') {
-    window.game.scene.start('MenuScene');
+    window.game.scene.start('MenuScene', { page: 0 });
+
     return;
   }
 
