@@ -1554,15 +1554,15 @@ startPhaserGame();
     });
 
 
-
-
-      // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
-  initGame();
-
   // Создаём базовую точку истории, чтобы Android Back не закрывал WebView сразу
 if (window.history && history.replaceState) {
   history.replaceState({ scene: 'ROOT' }, '');
 }
+
+      // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
+  initGame();
+
+
 
 
   // === GLOBAL BACK HANDLER (Android / VK Mini Apps) ===
@@ -1576,6 +1576,12 @@ if (!window.__BACK_HANDLER_BOUND__) {
       handleSystemBack();
     }
   });
+
+  document.addEventListener('backbutton', (e) => {
+  e.preventDefault();
+  handleSystemBack();
+}, false);
+
 }
 
 
