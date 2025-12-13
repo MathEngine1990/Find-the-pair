@@ -1569,7 +1569,11 @@ if (window.history && history.replaceState) {
 if (!window.__BACK_HANDLER_BOUND__) {
   window.__BACK_HANDLER_BOUND__ = true;
 
-  window.addEventListener('popstate', () => handleSystemBack());
+  window.addEventListener('popstate', (e) => {
+  console.log('🧭 popstate:', e.state, 'current:', history.state);
+  handleSystemBack();
+});
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Backspace' || e.key === 'Escape') {
       e.preventDefault();
