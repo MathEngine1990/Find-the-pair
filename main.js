@@ -1919,16 +1919,39 @@ window.resetAllGameProgress = async function () {
   // DEBUG AGREEMENT УТИЛИТЫ
   // ========================================
   
-  window.DebugAgreement = {
-    reset: function() {
+window.DebugAgreement = {
+  reset: async function() {
+    // 1) Локальный сброс
+    try {
       localStorage.removeItem('acceptedAgreement');
       localStorage.removeItem('agreementVersion');
       localStorage.removeItem('agreementAcceptedAt');
       localStorage.removeItem('vk_agreement_shown');
       localStorage.removeItem('firstLaunchShown');
-      console.log('✅ Agreement data cleared');
-      console.log('📄 Reload page: location.reload()');
-    },
+      console.log('✅ Agreement data cleared in localStorage');
+    } catch (e) {
+      console.warn('Local agreement clear error:', e);
+    }
+
+    // 2) Сброс в VK Storage
+    try {
+      if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
+        await window.VKHelpers.setStorageData('findpair_agreement_v1', {
+          accepted: false,
+          version: null,
+          acceptedAt: null
+        });
+        console.log('☁️ VK Storage agreement reset (findpair_agreement_v1)');
+      } else {
+        console.log('VKHelpers.setStorageData not available, VK agreement not cleared from VK Storage');
+      }
+    } catch (e) {
+      console.warn('VK Storage agreement reset error:', e);
+    }
+
+    console.log('📄 Reload page: location.reload()');
+  },
+
 
     status: function() {
       const status = {
@@ -1957,12 +1980,38 @@ window.resetAllGameProgress = async function () {
       }
     },
 
-    accept: function() {
-      localStorage.setItem('acceptedAgreement', 'true');
-      localStorage.setItem('agreementVersion', '2025-09-13');
-      localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
-      console.log('✅ Agreement accepted');
+accept: async function() {
+  const acceptedAt = new Date().toISOString();
+
+  // 1) Локально
+  try {
+    localStorage.setItem('acceptedAgreement', 'true');
+    localStorage.setItem('agreementVersion', '2025-09-13');
+    localStorage.setItem('agreementAcceptedAt', acceptedAt);
+    localStorage.setItem('vk_agreement_shown', '1');
+  } catch (e) {
+    console.warn('Failed to save agreement to localStorage', e);
+  }
+
+  // 2) В VK Storage
+  try {
+    if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
+      await window.VKHelpers.setStorageData('findpair_agreement_v1', {
+        accepted: true,
+        version: '2025-09-13',
+        acceptedAt
+      });
+      console.log('☁️ VK Storage: agreement stored (findpair_agreement_v1)');
+    } else {
+      console.log('VKHelpers.setStorageData not available, VK agreement stored only locally');
     }
+  } catch (e) {
+    console.warn('VK Storage agreement save error:', e);
+  }
+
+  console.log('✅ Agreement accepted (local + VK Storage)');
+}
+
   };
 
   console.log(`

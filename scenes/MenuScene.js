@@ -1212,21 +1212,46 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
       wordWrap: { width: modalW - 40 }
     }).setOrigin(0.5).setDepth(1002);
 
-    const acceptBtn = window.makeImageButton(
+const acceptBtn = window.makeImageButton(
   this, W/2 - 70, H/2 + modalH/2 - 60, 
   120, 45, 'Принимаю', 
-  async () => {  // ← добавить async
-    localStorage.setItem('acceptedAgreement', 'true');
-    localStorage.setItem('agreementVersion', '2025-09-13');
-    localStorage.setItem('agreementAcceptedAt', new Date().toISOString());
-    
+  async () => {
+    const acceptedAt = new Date().toISOString();
+
+    // 1) Локальное сохранение (как было)
+    try {
+      localStorage.setItem('acceptedAgreement', 'true');
+      localStorage.setItem('agreementVersion', '2025-09-13');
+      localStorage.setItem('agreementAcceptedAt', acceptedAt);
+      localStorage.setItem('vk_agreement_shown', '1');
+    } catch (e) {
+      console.warn('Failed to save agreement to localStorage', e);
+    }
+
+    // 2) Синхронизация в VK Storage (единый ключ для всех устройств VK)
+    try {
+      if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
+        await window.VKHelpers.setStorageData('findpair_agreement_v1', {
+          accepted: true,
+          version: '2025-09-13',
+          acceptedAt
+        });
+        console.log('☁️ VK Storage: agreement stored (findpair_agreement_v1)');
+      } else {
+        console.log('VKHelpers.setStorageData not available, VK agreement stored only locally');
+      }
+    } catch (e) {
+      console.warn('VK Storage agreement save error:', e);
+    }
+
     this.cleanupAgreementDialog([
       overlay, modal, title, text, acceptBtn, declineBtn
     ]);
-    
+
     await this.drawMenu(this.levelPage);
   }
 );
+
     
     acceptBtn.setDepth(1003);
 
