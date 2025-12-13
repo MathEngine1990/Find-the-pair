@@ -1,7 +1,6 @@
 //---main.js - ПОЛНАЯ ВЕРСИЯ С ИНТЕГРАЦИЕЙ VK И PROGRESSSYNCMANAGER
 
-// ✅ AGREEMENT HARD-BLOCK FLAG (persisted)
-window.__AGREEMENT_DECLINED__ = localStorage.getItem('findpair_agreement_declined') === '1';
+
 
 
 // ========================================
@@ -230,7 +229,7 @@ window.forceCloseDueToAgreementDecline = async function () {
   try {
     // 1) фиксируем флаг (и для текущей вкладки, и на будущее)
     window.__AGREEMENT_DECLINED__ = true;
-    try { localStorage.setItem('findpair_agreement_declined', '1'); } catch {}
+   
 
     // 2) глушим Phaser audio
     try {
@@ -1554,12 +1553,7 @@ startPhaserGame();
       touchSupport: 'ontouchstart' in window
     });
 
-    // ⛔ Если соглашение отклонено — не запускаем Phaser вообще
-if (window.__AGREEMENT_DECLINED__) {
-  console.warn('⛔ Agreement declined ранее — блокируем запуск');
-  await window.forceCloseDueToAgreementDecline?.();
-  return;
-}
+
 
 
       // 3️⃣ СРАЗУ СТАРТУЕМ ИГРУ — БЕЗ ОЖИДАНИЯ VK
@@ -2004,6 +1998,9 @@ window.DebugAgreement = {
       localStorage.removeItem('agreementAcceptedAt');
       localStorage.removeItem('vk_agreement_shown');
       localStorage.removeItem('firstLaunchShown');
+      localStorage.removeItem('findpair_agreement_declined');
+window.__AGREEMENT_DECLINED__ = false;
+
       console.log('✅ Agreement data cleared in localStorage');
     } catch (e) {
       console.warn('Local agreement clear error:', e);
