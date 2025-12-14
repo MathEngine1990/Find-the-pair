@@ -1606,32 +1606,46 @@ window.addEventListener('popstate', (e) => {
 
 
 function handleSystemBack() {
-  if (!window.game || !window.game.scene) return;
+  const game = window.game;
+  const sm = game?.scene;
+  if (!sm) return;
 
-    // 🔑 КЛЮЧЕВОЙ ФЛАГ
+  // 🔑 КЛЮЧЕВОЙ ФЛАГ (оставляем как у тебя)
   window.__BACK_NAV_IN_PROGRESS__ = true;
 
-  const activeScene = window.game.scene.getScenes(true)[0];
-  if (!activeScene) return;
+  // ✅ НЕ полагаемся на getScenes(true)[0] — порядок может быть не тем
+  const achActive = typeof sm.isActive === 'function' && sm.isActive('AchievementsScene');
+  const menuActive = typeof sm.isActive === 'function' && sm.isActive('MenuScene');
 
-  console.log('🔙 System BACK pressed, active scene:', activeScene.scene.key);
+  console.log('🔙 System BACK pressed, achActive=', achActive, 'menuActive=', menuActive);
 
-  // 1️⃣ Если открыты достижения → возвращаемся в меню
-  if (activeScene.scene.key === 'AchievementsScene') {
-    window.game.scene.start('MenuScene', { page: 0 });
+  // 1️⃣ Если достижения активны/видимы → гарантированно уходим в меню
+  if (achActive) {
+    try {
+      // Важно: остановить достижения, чтобы они не оставались поверх
+      sm.stop('AchievementsScene');
+    } catch (e) {}
+
+    // Запускаем меню (или перезапускаем)
+    sm.start('MenuScene', { page: 0 });
+
+    // Поднимаем меню наверх на случай наложений
+    try { sm.bringToTop('MenuScene'); } catch (e) {}
 
     return;
   }
 
-  // 2️⃣ Если меню → можно показать диалог выхода (или реально выйти)
-if (activeScene.scene.key === 'MenuScene') {
-  // ✅ В меню системный Back НЕ закрывает приложение
-  // (можно потом сделать "нажмите ещё раз для выхода" или отдельную кнопку)
-  console.log('🔙 Back on MenuScene ignored');
-  return;
+  // 2️⃣ Если меню → игнор (как ты и хотел)
+  if (menuActive) {
+    console.log('🔙 Back on MenuScene ignored');
+    return;
+  }
+
+  // 3️⃣ Фоллбек: если мы вдруг в другой сцене — возвращаемся в меню
+  sm.start('MenuScene', { page: 0 });
+  try { sm.bringToTop('MenuScene'); } catch (e) {}
 }
 
-}
 
 
 // 4️⃣ А ТЕПЕРЬ — VK / SYNC В ФОНЕ
