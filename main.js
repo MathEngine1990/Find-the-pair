@@ -1575,10 +1575,20 @@ if (window.history && history.replaceState) {
 if (!window.__BACK_HANDLER_BOUND__) {
   window.__BACK_HANDLER_BOUND__ = true;
 
-  window.addEventListener('popstate', (e) => {
+window.addEventListener('popstate', (e) => {
   console.log('🧭 popstate:', e.state, 'current:', history.state);
+
+  // ✅ КЛЮЧ: не даём WebView "уйти назад" дальше и закрыть мини-апп
+  // Подкладываем обратно ROOT-точку истории
+  try {
+    if (window.history && history.pushState) {
+      history.pushState({ scene: 'ROOT' }, '');
+    }
+  } catch {}
+
   handleSystemBack();
 });
+
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Backspace' || e.key === 'Escape') {
@@ -1614,12 +1624,13 @@ function handleSystemBack() {
   }
 
   // 2️⃣ Если меню → можно показать диалог выхода (или реально выйти)
-  if (activeScene.scene.key === 'MenuScene') {
-    if (window.vkBridge?.supports?.('VKWebAppClose')) {
-      window.vkBridge.send('VKWebAppClose', { status: 'success' });
-    }
-    return;
-  }
+if (activeScene.scene.key === 'MenuScene') {
+  // ✅ В меню системный Back НЕ закрывает приложение
+  // (можно потом сделать "нажмите ещё раз для выхода" или отдельную кнопку)
+  console.log('🔙 Back on MenuScene ignored');
+  return;
+}
+
 }
 
 
