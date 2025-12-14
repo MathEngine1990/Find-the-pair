@@ -728,47 +728,33 @@ window.addEventListener('beforeunload', () => {
     }
   }
 
-  function forceUserMuteOnHide() {
+function forceUserMuteOnHide() {
   try {
     if (!window.game) return;
 
     const game = window.game;
     const registry = game.registry;
 
-    // 1) Обновляем глобальный флаг mute в registry
-    if (registry) {
-      registry.set('musicMuted', true);
-    }
+    // ✅ ВАЖНО: НЕ МЕНЯЕМ пользовательский выбор
+    // registry.set('musicMuted', true);          // ❌ убрать
+    // localStorage.setItem('findpair_musicMuted','true'); // ❌ убрать
 
-    // 2) Сохраняем в localStorage — чтобы MenuScene при следующем заходе тоже это увидел
-    try {
-      localStorage.setItem('findpair_musicMuted', 'true');
-    } catch (e) {
-      console.warn('[Audio] Failed to persist musicMuted to localStorage', e);
-    }
-
-    // 3) Глушим весь звук в Phaser
+    // ✅ Просто временно глушим весь звук (на время background/hidden)
     if (game.sound) {
       game.sound.mute = true;
     }
 
-    // 4) Обновляем кнопку музыки в MenuScene, если она сейчас в памяти
-    if (game.scene && typeof game.scene.getScene === 'function') {
-      const menuScene = game.scene.getScene('MenuScene');
-      if (menuScene && menuScene.musicButton && menuScene.musicButton.label) {
-        try {
-          menuScene.musicButton.label.setText('🔇');
-        } catch (e) {
-          console.warn('[Audio] Failed to update music button label on hide', e);
-        }
-      }
-    }
+    // ✅ Не трогаем кнопку 🔊/🔇 — это состояние пользователя, а не "фон"
+    // (иначе будет ощущение, что игра сама выключила звук навсегда)
 
-    console.log('[Audio] forceUserMuteOnHide → musicMuted=true, sound.mute=true');
+    console.log('[Audio] forceUserMuteOnHide → sound temporarily muted (user setting preserved).',
+      { musicMuted: registry?.get?.('musicMuted') }
+    );
   } catch (e) {
     console.warn('[Audio] forceUserMuteOnHide error:', e);
   }
 }
+
 
 
 
@@ -809,13 +795,18 @@ function resumeGameAudio() {
 
       ctx.resume().then(() => {
         console.log('[Audio] AudioContext resumed (promise resolved)');
-        // после пробуждения ещё раз применяем mute-логку
+
+        // 1️⃣ применяем mute после resume
         sound.mute = !!musicMuted;
 
-        // Подстрахуемся: если фоновой музыки нет или она не играет — запускаем
+        // 2️⃣ если фоновой музыки нет или она не играет — запускаем
         tryResumeBackgroundMusic(sound, registry, musicMuted);
+
+        // ✅ FIX #2: финальная страховка
+        sound.mute = !!musicMuted;
       }).catch((err) => {
         console.warn('[Audio] AudioContext resume failed:', err);
+
         // даже если не получилось, всё равно выставим mute-флаг
         sound.mute = !!musicMuted;
       });
@@ -827,11 +818,15 @@ function resumeGameAudio() {
     sound.mute = !!musicMuted;
     tryResumeBackgroundMusic(sound, registry, musicMuted);
 
+    // ✅ FIX #2: финальная синхронизация (race-case)
+    sound.mute = !!musicMuted;
+
     console.log('[Audio] Global mute restored (resumeGameAudio). musicMuted =', musicMuted);
   } catch (e) {
     console.warn('[Audio] resumeGameAudio error:', e);
   }
 }
+
 
 // вспомогательный хелпер рядом с resumeGameAudio
 function tryResumeBackgroundMusic(sound, registry, musicMuted) {

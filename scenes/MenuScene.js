@@ -51,6 +51,14 @@ async create() {
   this.ensureGradientBackground();
   this.initMusic();
 
+  this.events.once('wake', () => {
+  const muted = !!this.game.registry.get('musicMuted');
+  if (this.musicButton?.label) {
+    this.musicButton.label.setText(muted ? '🔇' : '🔊');
+  }
+});
+
+
   // 1️⃣ Инициализация syncManager (быстрая, локальная)
   try {
     await this.initializeSyncManager();
@@ -207,18 +215,15 @@ initMusic() {
   // 2) создаём / запускаем музыку один раз за игру
   let bgMusic = registry.get('bgMusic');
 
-  if (!bgMusic) {
-    if (!this.cache.audio.exists('bg_music')) {
-      console.warn('[MenuScene] bg_music not found in cache');
-    } else {
-      bgMusic = this.sound.add('bg_music', {
-        loop: true,
-        volume: 0.4
-      });
-      bgMusic.play();
-      registry.set('bgMusic', bgMusic);
-    }
+if (!bgMusic) {
+  if (this.cache.audio.exists('bg_music')) {
+    bgMusic = this.sound.add('bg_music', {
+      loop: true,
+      volume: 0.4
+    });
+    this.game.registry.set('bgMusic', bgMusic);
   }
+}
 
   // 3) применяем mute к глобальному sound менеджеру
   this.sound.mute = !!musicMuted;
@@ -1230,7 +1235,7 @@ const acceptBtn = window.makeImageButton(
       // ✅ снимаем “вечную” блокировку, если она была
   try { localStorage.removeItem('findpair_agreement_declined'); } catch {}
   window.__AGREEMENT_DECLINED__ = false;
-  
+
     const acceptedAt = new Date().toISOString();
 
     // 1) Локальное сохранение (как было)
