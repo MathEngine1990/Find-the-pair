@@ -614,9 +614,15 @@ function subscribeToVKEvents() {
       debugLog(`VK Event: ${eventType}`, eventData);
       
       switch (eventType) {
-        case 'VKWebAppViewHide':
-          handleAppHide();
-          break;
+case 'VKWebAppViewHide':
+  if (window.__BACK_NAV_IN_PROGRESS__) {
+    console.log('⛔ VKWebAppViewHide ignored (BACK navigation)');
+    window.__BACK_NAV_IN_PROGRESS__ = false;
+    break;
+  }
+  handleAppHide();
+  break;
+
           
         case 'VKWebAppViewRestore':
           handleAppRestore();
@@ -1591,6 +1597,9 @@ if (!window.__BACK_HANDLER_BOUND__) {
 
 function handleSystemBack() {
   if (!window.game || !window.game.scene) return;
+
+    // 🔑 КЛЮЧЕВОЙ ФЛАГ
+  window.__BACK_NAV_IN_PROGRESS__ = true;
 
   const activeScene = window.game.scene.getScenes(true)[0];
   if (!activeScene) return;
