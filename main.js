@@ -1586,65 +1586,71 @@ window.addEventListener('popstate', (e) => {
     }
   } catch {}
 
-  handleSystemBack();
+  handleSystemBack('popstate');
 });
 
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Backspace' || e.key === 'Escape') {
+    e.preventDefault();
+    handleSystemBack('keydown');
+  }
+});
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Backspace' || e.key === 'Escape') {
-      e.preventDefault();
-      handleSystemBack();
-    }
-  });
-
-  document.addEventListener('backbutton', (e) => {
+document.addEventListener('backbutton', (e) => {
   e.preventDefault();
-  handleSystemBack();
+  handleSystemBack('backbutton');
 }, false);
+
 
 }
 
 
-function handleSystemBack() {
+function handleSystemBack(source = 'unknown') {
   const game = window.game;
   const sm = game?.scene;
   if (!sm) return;
 
-  // 🔑 КЛЮЧЕВОЙ ФЛАГ (оставляем как у тебя)
+  // ✅ Анти-двойной вызов (VK Android иногда дёргает back дважды)
+  const now = Date.now();
+  if (window.__BACK_LOCK_TS__ && (now - window.__BACK_LOCK_TS__ < 400)) {
+    console.log('🔙 Back ignored (lock)', source);
+    return;
+  }
+  window.__BACK_LOCK_TS__ = now;
+
+  // 🔑 твой флаг оставляем
   window.__BACK_NAV_IN_PROGRESS__ = true;
 
-  // ✅ НЕ полагаемся на getScenes(true)[0] — порядок может быть не тем
-  const achActive = typeof sm.isActive === 'function' && sm.isActive('AchievementsScene');
-  const menuActive = typeof sm.isActive === 'function' && sm.isActive('MenuScene');
+  // ✅ Надёжная проверка: не "первая активная", а конкретно сцена достижений
+  const achScene = sm.getScene && sm.getScene('AchievementsScene');
+  const menuScene = sm.getScene && sm.getScene('MenuScene');
 
-  console.log('🔙 System BACK pressed, achActive=', achActive, 'menuActive=', menuActive);
+  const achActive = !!(achScene && achScene.scene && achScene.scene.isActive());
+  const menuActive = !!(menuScene && menuScene.scene && menuScene.scene.isActive());
 
-  // 1️⃣ Если достижения активны/видимы → гарантированно уходим в меню
+  console.log('🔙 System BACK', source, 'achActive=', achActive, 'menuActive=', menuActive);
+
+  // 1) Если в достижениях — СТОПАЕМ достижения, ЗАПУСКАЕМ меню и ПОДНИМАЕМ его
   if (achActive) {
-    try {
-      // Важно: остановить достижения, чтобы они не оставались поверх
-      sm.stop('AchievementsScene');
-    } catch (e) {}
+    try { sm.stop('AchievementsScene'); } catch (e) { console.warn('stop AchievementsScene failed', e); }
 
-    // Запускаем меню (или перезапускаем)
-    sm.start('MenuScene', { page: 0 });
+    try { sm.start('MenuScene', { page: 0 }); } catch (e) { console.warn('start MenuScene failed', e); }
 
-    // Поднимаем меню наверх на случай наложений
     try { sm.bringToTop('MenuScene'); } catch (e) {}
-
     return;
   }
 
-  // 2️⃣ Если меню → игнор (как ты и хотел)
+  // 2) Если в меню — игнор (как ты хотел)
   if (menuActive) {
     console.log('🔙 Back on MenuScene ignored');
     return;
   }
 
-  // 3️⃣ Фоллбек: если мы вдруг в другой сцене — возвращаемся в меню
-  sm.start('MenuScene', { page: 0 });
+  // 3) Фоллбек: если вообще непонятно где — в меню
+  try { sm.start('MenuScene', { page: 0 }); } catch (e) {}
   try { sm.bringToTop('MenuScene'); } catch (e) {}
 }
+
 
 
 
