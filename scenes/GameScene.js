@@ -1424,7 +1424,7 @@ flipAllCardsAndStartGame() {
   });
 
   // Финальная настройка после переворота
-  this.flipTimer = this.time.delayedCall(1000, () => {
+  this.flipTimer = this.time.delayedCall(0, () => {
     // Включаем интерактивность карт
     this.cards.forEach(card => {
       card.setInteractive({ useHandCursor: true });
