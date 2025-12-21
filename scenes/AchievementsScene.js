@@ -276,7 +276,7 @@ const backY = isMobile
         borderAlpha: 0.9
       }
     );
-    backBtn.setDepth(10);
+    backBtn.setDepth(40);
     this.items.push(backBtn);
 
 

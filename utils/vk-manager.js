@@ -89,16 +89,11 @@ class VKManager {
     }
   }
 
-  // 🔹 Безопасное добавление на главный экран
+// ✅ Добавление с защитой от дублей
 async addToHomeScreenSafe() {
-  // Уже добавлено
-  if (this.isAddedToHomeScreen()) {
-    return {
-      alreadyAdded: true
-    };
-  }
+  const already = await this.isAddedToHomeScreenAsync();
+  if (already) return { alreadyAdded: true };
 
-  // Метод не поддерживается
   if (!this.isSupported('VKWebAppAddToHomeScreen')) {
     throw new Error('VKWebAppAddToHomeScreen not supported');
   }
@@ -108,14 +103,22 @@ async addToHomeScreenSafe() {
 }
 
 
-  isAddedToHomeScreen() {
+
+// ✅ Узнать, добавлен ли ярлык (надёжно)
+async isAddedToHomeScreenAsync() {
+  // На некоторых платформах метода может не быть
+  if (!this.isSupported('VKWebAppAddToHomeScreenInfo')) return false;
+
   try {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('vk_has_shortcut') === '1';
-  } catch (e) {
+    const info = await this.send('VKWebAppAddToHomeScreenInfo');
+    // у разных клиентов поле может называться по-разному,
+    // поэтому делаем "мягкую" проверку
+    return !!(info?.is_added_to_home_screen ?? info?.isAdded ?? info?.added ?? info?.result);
+  } catch {
     return false;
   }
 }
+
 
   async loadVKBridge() {
     if (window.vkBridge) return;

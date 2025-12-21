@@ -60,7 +60,7 @@ window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}
   const borderWidth = opts.borderWidth || 2;         // 🔥 НОВОЕ: толщина границы
   
   const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
-  const ts         = Math.round(size * (opts.fontFactor ?? 0.34));
+  const ts         = Math.round(size * (opts.fontFactor ?? 0.45));
   
   // ✅ Используем переданные цвета вместо хардкода
   const bg  = scene.add.circle(0, 0, size/2, bgColor, bgAlpha).setScrollFactor(0);
