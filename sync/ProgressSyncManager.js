@@ -872,7 +872,12 @@ mergeLevelData(local, vk) {
       lastPlayed: Math.max(
         localStats.lastPlayed || 0,
         vkStats.lastPlayed || 0
-      )
+      ),
+      totalStars: Math.max(
+  localStats.totalStars || 0,
+  vkStats.totalStars || 0
+)
+
     };
   }
 

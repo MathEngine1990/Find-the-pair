@@ -2236,11 +2236,30 @@ isAchievementUnlocked(achievements, id) {
   return false;
 }
 
+calculateTotalStars(progress) {
+  if (!progress?.levels) return 0;
+
+  return Object.values(progress.levels)
+    .reduce((sum, lvl) => sum + (lvl.stars || 0), 0);
+}
 
 
 
 // НОВЫЙ МЕТОД: Проверка достижений через ProgressSyncManager
 async checkAndUnlockAchievements(progressResult, gameTime, errors) {
+
+const progress = await this.syncManager.getProgress();
+
+const totalStars = this.calculateTotalStars(progress);
+progress.stats.totalStars = totalStars;
+
+if (totalStars >= 30 && !progress.achievements.collector) {
+  await this.syncManager.saveAchievement('collector');
+  unlocked.push('collector');
+}
+
+
+
   try {
     if (!this.syncManager) {
       console.warn('⚠️ No syncManager, skipping achievements update');
