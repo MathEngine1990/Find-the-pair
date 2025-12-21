@@ -912,11 +912,26 @@ createOrUpdateStarsHUD() {
 
   const isMobile = rm.isMobile || W < 768 || H < 600;
 
-  const starSize = Math.round(hudH * (isMobile ? 0.55 : 0.5));
+  const starSize = Math.round(hudH * (isMobile ? 0.45 : 0.5));
   const spacing  = Math.round(starSize * 0.9);
 
   // ⭐ Позиция ВНУТРИ HUD
-  const anchorX = W / 2 + (isMobile ? spacing * 1.2 : spacing * 1.6);
+ // Размеры кнопок такие же, как в drawHUD()
+const size = Math.round(hudH * 0.76);       // homeBtn size
+const musicSize = Math.round(hudH * 0.70);  // music btn size
+
+// Сколько места справа занято кнопками + зазоры
+const rightOccupied =
+  (size + 14) +           // домик + right margin
+  (musicSize + 24) +      // музыка + gap
+  8;                      // небольшой доп. буфер
+
+// "конец" зоны, где можно рисовать звёзды (правее нельзя)
+const maxRightX = W - rightOccupied;
+
+// anchorX = позиция ПЕРВОЙ звезды (из трёх), чтобы вся тройка влезла
+const anchorX = maxRightX - spacing * 2;
+
   const y = safeTop + hudH / 2;
 
   // ⭐ контейнер — тот же слой, что HUD
