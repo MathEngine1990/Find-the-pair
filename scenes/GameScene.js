@@ -926,13 +926,16 @@ const rightOccupied =
   (musicSize + 24) +      // музыка + gap
   8;                      // небольшой доп. буфер
 
-// "конец" зоны, где можно рисовать звёзды (правее нельзя)
 const maxRightX = (typeof maxRightXOverride === 'number')
   ? maxRightXOverride
-  : (W - Math.round(W * 0.20)); // fallback если вдруг кнопки ещё нет
+  : (W - Math.round(W * 0.20));
+
+// 👈 дополнительный сдвиг звёзд влево
+const starsShiftLeft = isMobile ? Math.round(W * 0.08) : Math.round(W * 0.04);
 
 // anchorX = позиция ПЕРВОЙ звезды так, чтобы вся тройка влезла слева от maxRightX
-const anchorX = maxRightX - spacing * 2;
+const anchorX = maxRightX - spacing * 2 - starsShiftLeft;
+
 
   const y = safeTop + hudH / 2;
 
