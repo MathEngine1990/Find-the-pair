@@ -1958,40 +1958,80 @@ this.updateStarsHUD();
       this.victoryContainer.add(syncErrorText);
     }
 
-    // Кнопки
-    const btnY = panelY + panelH / 2 - 60;
-    const btnW = Math.min(160, panelW * 0.35);
-    const btnH = 45;
+const btnY = panelY + panelH / 2 - 60;
+const btnW = Math.min(150, panelW * 0.30);
+const btnH = 45;
 
-    const playAgainBtn = window.makeImageButton(
+const buttons = [];
+
+// 🔁 Еще раз
+buttons.push(
+  window.makeImageButton(
+    this,
+    0, 0,
+    btnW,
+    btnH,
+    'Еще раз',
+    () => this.restartLevel(),
+    { color: '#F2C791' }
+  )
+);
+
+// 🏠 Меню
+buttons.push(
+  window.makeImageButton(
+    this,
+    0, 0,
+    btnW,
+    btnH,
+    'Меню',
+    () => {
+      this.clearVictoryScreen();
+      this.gameState.gameStarted = false;
+      this.scene.start('MenuScene', { page: this.levelPage });
+    },
+    { color: '#F2C791' }
+  )
+);
+
+// ➡️ Следующий уровень (ТОЛЬКО если он есть)
+const nextLevelIndex = this.currentLevelIndex + 1;
+const hasNextLevel = nextLevelIndex < window.LEVELS.length;
+
+if (hasNextLevel) {
+  buttons.push(
+    window.makeImageButton(
       this,
-      panelX - btnW / 2 - 10,
-      btnY,
+      0, 0,
       btnW,
       btnH,
-      'Еще раз',
-      () => this.restartLevel(),
-      { color: '#F2C791' }
-    );
-    playAgainBtn.setDepth(102);
-
-    const menuBtn = window.makeImageButton(
-      this,
-      panelX + btnW / 2 + 10,
-      btnY,
-      btnW,
-      btnH,
-      'Меню',
+      'Далее',
       () => {
         this.clearVictoryScreen();
-        this.gameState.gameStarted = false;
-        this.scene.start('MenuScene', { page: this.levelPage });
+        this.scene.start('GameScene', {
+          level: nextLevelIndex,
+          page: Math.floor(nextLevelIndex / 9) // корректная страница меню
+        });
       },
-      { color: '#F2C791' }
-    );
-    menuBtn.setDepth(102);
+      { color: '#F2DC9B' }
+    )
+  );
+}
 
-    this.victoryElements = [playAgainBtn, menuBtn];
+// 📐 Раскладка кнопок по центру
+const spacing = 16;
+const totalW = buttons.length * btnW + (buttons.length - 1) * spacing;
+let startX = panelX - totalW / 2 + btnW / 2;
+
+buttons.forEach(btn => {
+  btn.setPosition(startX, btnY);
+  btn.setDepth(102);
+  this.victoryContainer.add(btn);
+  startX += btnW + spacing;
+});
+
+this.victoryElements = buttons;
+
   };
 
   // 3) Логика показа:
