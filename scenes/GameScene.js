@@ -230,6 +230,24 @@ console.log('GameScene init:', {
     this.mistakeText = null;
     this.timeText = null;
     this.bgImage = null;
+
+    // ===== Stars runtime (HUD) =====
+this.starState = {
+  base: true,      // 1-я звезда: за прохождение (всегда true, просто как "есть 1")
+  timeOk: true,    // 2-я звезда: уложился по времени
+  errorsOk: true   // 3-я звезда: уложился по ошибкам
+};
+
+this.starRules = {
+  pairs: 0,
+  timeLimitSec: 0,
+  maxErrors: 0
+};
+
+// HUD элементы звёзд
+this.starsContainer = null;
+this.starIcons = []; // [text,text,text]
+
     
     // Таймеры (важно для правильной очистки)
     this.gameTimer = null;
@@ -876,6 +894,72 @@ this.victoryTitleY = null;
     return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}с`;
   }
 
+
+  createOrUpdateStarsHUD() {
+  const { W, H } = this.getSceneWH();
+  const hudH = Math.min(70, Math.round(H * 0.085));
+
+  // чистим старое
+  if (this.starsContainer && this.starsContainer.scene) {
+    this.starsContainer.destroy();
+  }
+  this.starsContainer = null;
+  this.starIcons = [];
+
+  // базовые размеры
+  const isMobile = W < 768 || H < 600 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  const starSize = isMobile ? Math.round(hudH * 0.55) : Math.round(hudH * 0.50);
+  const spacing = Math.max(18, Math.round(starSize * 0.7));
+
+  // позиция: справа от таймера
+  const anchorX = W / 2 + (isMobile ? 80 : 110);
+  const y = hudH / 2;
+
+  this.starsContainer = this.add.container(0, 0).setDepth(6);
+
+  for (let i = 0; i < 3; i++) {
+    const t = this.add.text(anchorX + i * spacing, y, '♣', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: `${starSize}px`,
+      fontStyle: 'bold',
+      color: '#F2DC9B'
+    }).setOrigin(0.5);
+
+    this.starsContainer.add(t);
+    this.starIcons.push(t);
+  }
+
+  this.updateStarsHUD();
+}
+
+updateStarsHUD() {
+  if (!this.starIcons || this.starIcons.length !== 3) return;
+
+  // 1-я звезда всегда есть
+  const s1 = true;
+
+  // 2-я: время
+  const s2 = !!this.starState?.timeOk;
+
+  // 3-я: ошибки
+  const s3 = !!this.starState?.errorsOk;
+
+  const states = [s1, s2, s3];
+
+  for (let i = 0; i < 3; i++) {
+    const ok = states[i];
+    const icon = this.starIcons[i];
+    if (!icon || !icon.scene) continue;
+
+    icon.setText(ok ? '♣' : '♧');
+    icon.setColor(ok ? '#F2DC9B' : '#BF3715');
+    icon.setAlpha(ok ? 1 : 0.65);
+  }
+}
+
+
   // Обновление HUD с таймером
   // GameScene.js:623 - ЗАМЕНИТЬ МЕТОД drawHUD
 
@@ -935,6 +1019,9 @@ async drawHUD() {
       'hudTimer'
     );
     this.timeText.setOrigin(0.5, 0.5).setDepth(6);
+    // ===== Stars HUD (right from timer) =====
+this.createOrUpdateStarsHUD();
+
     
   } catch (error) {
     console.error('❌ Failed to create HUD text:', error);
@@ -1010,13 +1097,22 @@ toggleMusic() {
 }
 
 
-  clearHUD() {
-    if (this.hud && this.hud.scene) this.hud.destroy();
-    if (this.mistakeText && this.mistakeText.scene) this.mistakeText.destroy();
-    if (this.timeText && this.timeText.scene) this.timeText.destroy();
-    if (this.exitBtn && this.exitBtn.scene) this.exitBtn.destroy();
-    this.hud = this.mistakeText = this.timeText = this.exitBtn = null;
+clearHUD() {
+  if (this.hud && this.hud.scene) this.hud.destroy();
+  if (this.mistakeText && this.mistakeText.scene) this.mistakeText.destroy();
+  if (this.timeText && this.timeText.scene) this.timeText.destroy();
+  if (this.exitBtn && this.exitBtn.scene) this.exitBtn.destroy();
+
+  // ✅ ВОТ ОНО: чистим звёзды HUD
+  if (this.starsContainer && this.starsContainer.scene) {
+    this.starsContainer.destroy();
   }
+  this.starsContainer = null;
+  this.starIcons = [];
+
+  this.hud = this.mistakeText = this.timeText = this.exitBtn = null;
+}
+
 
   // Управление таймером
   startGameTimer() {
@@ -1028,11 +1124,20 @@ toggleMusic() {
     this.gameTimer = this.time.addEvent({
       delay: 1000,
       callback: () => {
-        this.currentTimeSeconds++;
-        if (this.timeText && this.timeText.scene) {
-          this.timeText.setText(this.formatTime(this.currentTimeSeconds));
-        }
-      },
+  this.currentTimeSeconds++;
+
+  if (this.timeText && this.timeText.scene) {
+    this.timeText.setText(this.formatTime(this.currentTimeSeconds));
+  }
+
+  // ⭐ потеря 2-й звезды по времени (только в сторону false)
+  if (this.starState && this.starState.timeOk) {
+    if (this.currentTimeSeconds > (this.starRules?.timeLimitSec || 0)) {
+      this.starState.timeOk = false;
+      this.updateStarsHUD();
+    }
+  }
+},
       loop: true
     });
   }
@@ -1077,6 +1182,23 @@ toggleMusic() {
       timeToFirstMatch: null,
       matchTimes: []
     };  
+
+    // ===== Star rules for this level =====
+const pairs = this.gameMetrics.pairs;
+
+// время: (pairs^2)*0.3 секунд
+const timeLimitSec = Math.round((pairs * pairs) * 0.3);
+
+// ошибки: меньше, чем 33% от кол-ва пар
+// (чтобы было понятно и честно — сделаем порог целым: maxErrors = floor(pairs*0.33))
+// условие будет: errors <= maxErrors
+const maxErrors = Math.floor(pairs * 0.33);
+
+this.starRules = { pairs, timeLimitSec, maxErrors };
+
+// сброс состояния звёзд в начале уровня
+this.starState = { base: true, timeOk: true, errorsOk: true };
+
 
     // Детерминированная генерация колоды
     if (!this.gameState.deck || this.gameState.currentSeed !== this.gameSeed) {
@@ -1561,7 +1683,18 @@ checkPair() {
     console.log('No match');
     
     this.gameMetrics.errors++;
+    
     this.mistakeCount++;
+
+    // ⭐ потеря 3-й звезды по ошибкам (только в сторону false)
+if (this.starState && this.starState.errorsOk) {
+  const maxErrors = this.starRules?.maxErrors ?? 0;
+  if (this.gameMetrics.errors > maxErrors) {
+    this.starState.errorsOk = false;
+    this.updateStarsHUD();
+  }
+}
+
     
     // Обновляем счетчик ошибок
     if (this.mistakeText) {
@@ -1653,6 +1786,16 @@ checkPair() {
 
 // УЛУЧШЕННЫЙ МЕТОД: Экран победы с отдельным экраном достижений
 async showWin() {
+// финальная фиксация условий перед сохранением
+const pairs = this.starRules?.pairs ?? this.gameMetrics?.pairs ?? 0;
+const timeLimitSec = this.starRules?.timeLimitSec ?? Math.round((pairs * pairs) * 0.3);
+const maxErrors = this.starRules?.maxErrors ?? Math.floor(pairs * 0.33);
+
+this.starState.timeOk = this.currentTimeSeconds <= timeLimitSec;
+this.starState.errorsOk = (this.gameMetrics.errors ?? this.mistakeCount) <= maxErrors;
+this.updateStarsHUD();
+
+
   this.clearVictoryScreen();
   this.canClick = false;
   this.gameState.gameStarted = false;
@@ -1866,15 +2009,19 @@ async showWin() {
 // НОВЫЙ МЕТОД: Сохранение рекорда уровня через ProgressSyncManager
 async saveProgressViaSyncManager(levelIndex, gameTime, attempts, errors, accuracy) {
 
-  // 1) Считаем звёзды по результату
-  let stars = 1;
-  const errorRate = attempts > 0 ? errors / attempts : 0;
+// 1) Считаем звёзды по НОВЫМ правилам
+let stars = 1;
 
-  if (errorRate === 0 && gameTime <= 60) {
-    stars = 3;
-  } else if (errorRate <= 0.4 && gameTime <= 90) {
-    stars = 2;
-  }
+const pairs = this.starRules?.pairs ?? this.gameMetrics?.pairs ?? 0;
+
+// +1 за время меньше, чем (pairs^2)*0.3 секунд
+const timeLimitSec = this.starRules?.timeLimitSec ?? Math.round((pairs * pairs) * 0.3);
+if (gameTime <= timeLimitSec) stars++;
+
+// +1 за ошибки меньше, чем 33% от кол-ва пар
+const maxErrors = this.starRules?.maxErrors ?? Math.floor(pairs * 0.33);
+if (errors <= maxErrors) stars++;
+
 
   const result = {
     stars,
