@@ -999,6 +999,11 @@ async drawHUD() {
   this.clearHUD();
   const { W, H } = this.getSceneWH();
 
+  const rm = window.responsiveManager;
+const isMobile = rm?.isMobile || W < 768 || H < 600;
+const timerX = isMobile ? Math.round(W * 0.42) : Math.round(W * 0.50);
+
+
   // ✅ Обновляем размеры TextManager
   this.textManager.updateDimensions();
     
@@ -1022,11 +1027,12 @@ async drawHUD() {
     this.mistakeText.setColor('#B6561A');
 
     // Таймер
-    this.timeText = this.textManager.createText(
-      W/2, hudH/2,
-      this.formatTime(this.currentTimeSeconds),
-      'hudTimer'
-    );
+this.timeText = this.textManager.createText(
+  timerX, hudH/2,
+  this.formatTime(this.currentTimeSeconds),
+  'hudTimer'
+);
+
     this.timeText.setOrigin(0.5, 0.5).setDepth(6);
     // ===== Stars HUD (right from timer) =====
 this.createOrUpdateStarsHUD();
