@@ -895,7 +895,7 @@ this.victoryTitleY = null;
   }
 
 
-createOrUpdateStarsHUD() {
+createOrUpdateStarsHUD(maxRightXOverride) {
   const { W, H } = this.getSceneWH();
 
   const rm = window.responsiveManager || { safeArea: { top: 0 } };
@@ -912,8 +912,8 @@ createOrUpdateStarsHUD() {
 
   const isMobile = rm.isMobile || W < 768 || H < 600;
 
-  const starSize = Math.round(hudH * (isMobile ? 0.45 : 0.5));
-  const spacing  = Math.round(starSize * 0.9);
+  const starSize = Math.round(hudH * (isMobile ? 0.38 : 0.5));
+  const spacing  = Math.round(starSize * 0.85);
 
   // ⭐ Позиция ВНУТРИ HUD
  // Размеры кнопок такие же, как в drawHUD()
@@ -927,9 +927,11 @@ const rightOccupied =
   8;                      // небольшой доп. буфер
 
 // "конец" зоны, где можно рисовать звёзды (правее нельзя)
-const maxRightX = W - rightOccupied;
+const maxRightX = (typeof maxRightXOverride === 'number')
+  ? maxRightXOverride
+  : (W - Math.round(W * 0.20)); // fallback если вдруг кнопки ещё нет
 
-// anchorX = позиция ПЕРВОЙ звезды (из трёх), чтобы вся тройка влезла
+// anchorX = позиция ПЕРВОЙ звезды так, чтобы вся тройка влезла слева от maxRightX
 const anchorX = maxRightX - spacing * 2;
 
   const y = safeTop + hudH / 2;
@@ -1052,7 +1054,7 @@ this.timeText = this.textManager.createText(
 
     this.timeText.setOrigin(0.5, 0.5).setDepth(6);
     // ===== Stars HUD (right from timer) =====
-this.createOrUpdateStarsHUD();
+
 
     
   } catch (error) {
@@ -1106,6 +1108,13 @@ this.createOrUpdateStarsHUD();
     () => this.toggleMusic()
   );
   this.musicButton.setDepth(7);
+
+  // ✅ после создания homeBtn и musicButton:
+const musicBounds = this.musicButton?.getBounds?.();
+const maxRightXForStars = musicBounds ? (musicBounds.left - 8) : (W - 20);
+
+this.createOrUpdateStarsHUD(maxRightXForStars);
+
   
   console.log('✅ HUD created successfully');
 }
