@@ -89,6 +89,34 @@ class VKManager {
     }
   }
 
+  // 🔹 Безопасное добавление на главный экран
+async addToHomeScreenSafe() {
+  // Уже добавлено
+  if (this.isAddedToHomeScreen()) {
+    return {
+      alreadyAdded: true
+    };
+  }
+
+  // Метод не поддерживается
+  if (!this.isSupported('VKWebAppAddToHomeScreen')) {
+    throw new Error('VKWebAppAddToHomeScreen not supported');
+  }
+
+  await this.send('VKWebAppAddToHomeScreen');
+  return { added: true };
+}
+
+
+  isAddedToHomeScreen() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('vk_has_shortcut') === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
   async loadVKBridge() {
     if (window.vkBridge) return;
 
