@@ -895,8 +895,12 @@ this.victoryTitleY = null;
   }
 
 
-  createOrUpdateStarsHUD() {
+createOrUpdateStarsHUD() {
   const { W, H } = this.getSceneWH();
+
+  const rm = window.responsiveManager || { safeArea: { top: 0 } };
+  const safeTop = rm.safeArea?.top || 0;
+
   const hudH = Math.min(70, Math.round(H * 0.085));
 
   // чистим старое
@@ -906,33 +910,38 @@ this.victoryTitleY = null;
   this.starsContainer = null;
   this.starIcons = [];
 
-  // базовые размеры
-  const isMobile = W < 768 || H < 600 ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = rm.isMobile || W < 768 || H < 600;
 
-  const starSize = isMobile ? Math.round(hudH * 0.55) : Math.round(hudH * 0.50);
-  const spacing = Math.max(18, Math.round(starSize * 0.7));
+  const starSize = Math.round(hudH * (isMobile ? 0.55 : 0.5));
+  const spacing  = Math.round(starSize * 0.9);
 
-  // позиция: справа от таймера
-  const anchorX = W / 2 + (isMobile ? 80 : 110);
-  const y = hudH / 2;
+  // ⭐ Позиция ВНУТРИ HUD
+  const anchorX = W / 2 + (isMobile ? spacing * 1.2 : spacing * 1.6);
+  const y = safeTop + hudH / 2;
 
+  // ⭐ контейнер — тот же слой, что HUD
   this.starsContainer = this.add.container(0, 0).setDepth(6);
 
   for (let i = 0; i < 3; i++) {
-    const t = this.add.text(anchorX + i * spacing, y, '♣', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: `${starSize}px`,
-      fontStyle: 'bold',
-      color: '#F2DC9B'
-    }).setOrigin(0.5);
+    const icon = this.add.text(
+      anchorX + i * spacing,
+      y,
+      '♣',
+      {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: `${starSize}px`,
+        fontStyle: 'bold',
+        color: '#F2DC9B'
+      }
+    ).setOrigin(0.5);
 
-    this.starsContainer.add(t);
-    this.starIcons.push(t);
+    this.starsContainer.add(icon);
+    this.starIcons.push(icon);
   }
 
   this.updateStarsHUD();
 }
+
 
 updateStarsHUD() {
   if (!this.starIcons || this.starIcons.length !== 3) return;
