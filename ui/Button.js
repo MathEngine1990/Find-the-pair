@@ -72,6 +72,12 @@ window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}
     fontStyle: (window.THEME?.buttonStyle || 'bold'), 
     color
   }).setOrigin(0.5).setScrollFactor(0);
+
+  // 🔧 Коррекция вертикального центра для стрелок
+if (typeof iconText === 'string' && /[‹›←→]/.test(iconText)) {
+  txt.y += Math.round(ts * 0.08);
+}
+
   
   const zone = scene.add.zone(0, 0, size, size)
     .setOrigin(0.5)
