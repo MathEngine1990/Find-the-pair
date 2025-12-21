@@ -276,7 +276,7 @@ const backY = isMobile
         borderAlpha: 0.9,
 
           // 🔥 КЛЮЧЕВОЕ:
-  fontFactor: isMobile ? 0.7 : 0.45
+  fontFactor: isMobile ? 0.5 : 0.45
       }
     );
     backBtn.setDepth(40);
