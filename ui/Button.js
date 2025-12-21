@@ -73,9 +73,45 @@ window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}
     color
   }).setOrigin(0.5).setScrollFactor(0);
 
-  // 🔧 Коррекция вертикального центра для стрелок
-if (typeof iconText === 'string' && /[‹›←→]/.test(iconText)) {
-  txt.y += Math.round(ts * 0.08);
+
+// ✅ Оптическое центрирование стрелок по реальным bounds глифа
+function opticalCenterArrowText(textObj) {
+  // Иногда bounds корректно считаются не сразу, поэтому делаем несколько попыток
+  const apply = () => {
+    if (!textObj || !textObj.getTextBounds) return;
+
+    // Сбрасываем в "логический центр"
+    textObj.setOrigin(0.5);
+    textObj.x = 0;
+    textObj.y = 0;
+
+    // local bounds относительно позиции/ориджина текста
+    const tb = textObj.getTextBounds(false);
+    const local = tb && tb.local ? tb.local : null;
+    if (!local) return;
+
+    // Центр локального прямоугольника текста
+    const cx = local.x + local.width  / 2;
+    const cy = local.y + local.height / 2;
+
+    // Сдвигаем так, чтобы центр bounds оказался в (0,0)
+    // (это и есть "оптический центр" символа)
+    textObj.x -= cx;
+    textObj.y -= cy;
+  };
+
+  apply();
+
+  // Повторим после рендера/лейаута — на мобиле это критично
+  if (scene?.time?.delayedCall) {
+    scene.time.delayedCall(0, apply);
+    scene.time.delayedCall(50, apply);
+  }
+}
+
+// Применяем только к стрелкам (все кнопки со стрелками станут ровно по центру)
+if (typeof iconText === 'string' && /^[‹›←→]$/.test(iconText)) {
+  opticalCenterArrowText(txt);
 }
 
   
