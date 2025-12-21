@@ -273,7 +273,10 @@ const backY = isMobile
         bgAlpha: 0.9,
         borderColor: '#F2DC9B',
         borderWidth: 2,
-        borderAlpha: 0.9
+        borderAlpha: 0.9,
+
+          // 🔥 КЛЮЧЕВОЕ:
+  fontFactor: isMobile ? 0.7 : 0.45
       }
     );
     backBtn.setDepth(40);
