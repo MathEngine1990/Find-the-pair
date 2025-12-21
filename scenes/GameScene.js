@@ -999,9 +999,7 @@ async drawHUD() {
   this.clearHUD();
   const { W, H } = this.getSceneWH();
 
-  const rm = window.responsiveManager;
-const isMobile = rm?.isMobile || W < 768 || H < 600;
-const timerX = isMobile ? Math.round(W * 0.42) : Math.round(W * 0.50);
+
 
 
   // ✅ Обновляем размеры TextManager
@@ -1025,6 +1023,10 @@ const timerX = isMobile ? Math.round(W * 0.42) : Math.round(W * 0.50);
     );
     this.mistakeText.setOrigin(0, 0.5).setDepth(6);
     this.mistakeText.setColor('#B6561A');
+
+      const rm = window.responsiveManager;
+const isMobile = rm?.isMobile || W < 768 || H < 600;
+const timerX = isMobile ? Math.round(W * 0.42) : Math.round(W * 0.50);
 
     // Таймер
 this.timeText = this.textManager.createText(
