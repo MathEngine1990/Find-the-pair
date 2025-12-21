@@ -931,7 +931,7 @@ const maxRightX = (typeof maxRightXOverride === 'number')
   : (W - Math.round(W * 0.20));
 
 // 👈 дополнительный сдвиг звёзд влево
-const starsShiftLeft = isMobile ? Math.round(W * 0.12) : Math.round(W * 0.04);
+const starsShiftLeft = isMobile ? Math.round(W * 0.1) : Math.round(W * 0.04);
 
 // anchorX = позиция ПЕРВОЙ звезды так, чтобы вся тройка влезла слева от maxRightX
 const anchorX = maxRightX - spacing * 2 - starsShiftLeft;
@@ -1947,7 +1947,7 @@ this.updateStarsHUD();
 
     const attemptsText = this.textManager.createText(
       panelX, statsY + lineHeight,
-      `Попыток: ${this.gameMetrics.attempts}`,
+      `Ходов: ${this.gameMetrics.attempts}`,
       'statValue'
     );
     attemptsText.setOrigin(0.5);
