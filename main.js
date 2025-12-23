@@ -1601,9 +1601,16 @@ document.addEventListener('backbutton', (e) => {
 
 
 function handleSystemBack(source = 'unknown') {
+
   const game = window.game;
   const sm = game?.scene;
   if (!sm) return;
+  
+const gameScene = sm.getScene && sm.getScene('GameScene');
+const gameActive = !!(gameScene && gameScene.scene && gameScene.scene.isActive());
+
+
+
 
   // ✅ Анти-двойной вызов (VK Android иногда дёргает back дважды)
   const now = Date.now();
@@ -1619,6 +1626,24 @@ function handleSystemBack(source = 'unknown') {
   // ✅ Надёжная проверка: не "первая активная", а конкретно сцена достижений
   const achScene = sm.getScene && sm.getScene('AchievementsScene');
   const menuScene = sm.getScene && sm.getScene('MenuScene');
+
+  // 2) Если в игре — отдаём сцене (она покажет confirm)
+if (gameActive) {
+  try {
+    if (typeof gameScene.onSystemBack === 'function') {
+      gameScene.onSystemBack();
+      return;
+    }
+  } catch (e) {
+    console.warn('GameScene onSystemBack failed', e);
+  }
+
+  // жёсткий фоллбек если метода нет
+  try { sm.start('MenuScene', { page: 0 }); } catch (e) {}
+  try { sm.bringToTop('MenuScene'); } catch (e) {}
+  return;
+}
+
 
   const achActive = !!(achScene && achScene.scene && achScene.scene.isActive());
   const menuActive = !!(menuScene && menuScene.scene && menuScene.scene.isActive());

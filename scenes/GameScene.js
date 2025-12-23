@@ -166,6 +166,16 @@ console.log('GameScene init:', {
   preload() {}
 
   async create() {
+
+    try {
+  if (window.history && history.pushState) {
+    history.pushState({ scene: 'GameScene' }, '');
+  }
+} catch {}
+
+
+    this._exitConfirmOpen = false;
+
     
     try {
       this.textManager = new TextManager(this);
@@ -1080,14 +1090,14 @@ this.timeText = this.textManager.createText(
 
   // Кнопка домой справа
   const size = Math.round(hudH * 0.76);
-  const homeBtn = window.makeIconButton(
-    this, W - (size/2 + 14), Math.round(hudH/2), size,
-    '⌂',
-    () => { 
-      this.stopGameTimer();
-      this.scene.start('MenuScene', { page: this.levelPage }); 
-    }
-  );
+const homeBtn = window.makeIconButton(
+  this, W - (size/2 + 14), Math.round(hudH/2), size,
+  '⌂',
+  () => {
+    this.requestExitToMenuConfirm('hud-home');
+  }
+);
+
   
   homeBtn.setDepth(7);
   this.exitBtn = homeBtn;
@@ -1139,6 +1149,89 @@ toggleMusic() {
     this.musicButton.label.setText(next ? '🔇' : '🔊');
   }
 }
+
+// --- выход в меню с подтверждением ---
+
+requestExitToMenuConfirm(source = 'unknown') {
+  // анти-спам
+  if (this._exitConfirmOpen) return;
+
+  // если уже показываем победный экран — можно выходить без подтверждения
+  if (this.gameState?.showingVictory) {
+    this.stopGameTimer();
+    this.scene.start('MenuScene', { page: this.levelPage });
+    return;
+  }
+
+  this._exitConfirmOpen = true;
+
+  // пауза таймера на время диалога
+  const wasTimerRunning = !!this.gameTimer;
+  this.stopGameTimer();
+
+  const { W, H } = this.getSceneWH();
+
+  const overlay = this.add.rectangle(W/2, H/2, W, H, 0x000000, 0.55).setDepth(2000);
+  const modalW = Math.min(520, Math.round(W * 0.84));
+  const modalH = Math.min(260, Math.round(H * 0.30));
+  const modal = this.add.rectangle(W/2, H/2, modalW, modalH, 0x243540, 0.95).setDepth(2001);
+
+  const title = this.add.text(W/2, H/2 - modalH*0.28, 'Выйти в меню?', {
+    fontFamily: 'Arial, sans-serif',
+    fontSize: Math.max(18, Math.round(H * 0.028)) + 'px',
+    color: '#F2DC9B',
+    fontStyle: 'bold'
+  }).setOrigin(0.5).setDepth(2002);
+
+  const text = this.add.text(W/2, H/2 - modalH*0.05,
+    'Прогресс уровня не сохранится.\nТочно выйти?', {
+    fontFamily: 'Arial, sans-serif',
+    fontSize: Math.max(14, Math.round(H * 0.020)) + 'px',
+    color: '#E8E8E8',
+    align: 'center',
+    lineSpacing: 6
+  }).setOrigin(0.5).setDepth(2002);
+
+  const cleanup = () => {
+    [overlay, modal, title, text, yesBtn, noBtn].forEach(el => el?.destroy?.());
+    this._exitConfirmOpen = false;
+
+    // если пользователь отменил — возвращаем таймер, если он был
+    if (wasTimerRunning && this.scene?.isActive()) {
+      this.startGameTimer();
+    }
+  };
+
+  const yesBtn = window.makeImageButton(
+    this,
+    W/2 - 90, H/2 + modalH*0.28,
+    140, 46,
+    'Выйти',
+    () => {
+      cleanup();
+      this.stopGameTimer();
+      this.scene.start('MenuScene', { page: this.levelPage });
+    }
+  );
+  yesBtn.setDepth(2003);
+
+  const noBtn = window.makeImageButton(
+    this,
+    W/2 + 90, H/2 + modalH*0.28,
+    140, 46,
+    'Отмена',
+    () => cleanup()
+  );
+  noBtn.setDepth(2003);
+
+  console.log('🚪 Exit confirm opened from:', source);
+}
+
+// будет вызываться из main.js по системной кнопке "назад"
+onSystemBack() {
+  this.requestExitToMenuConfirm('system-back');
+}
+
 
 
 clearHUD() {
