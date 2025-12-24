@@ -776,6 +776,91 @@ const makeRow = (label, key, y) => {
       { color: isActive ? '#243540' : '#F2DC9B' }
     );
 
+
+    showInstructions() {
+  const { W, H } = this.getSceneWH();
+
+  // Затемнение
+  const overlay = this.add.graphics()
+    .fillStyle(0x000000, 0.85)
+    .fillRect(0, 0, W, H)
+    .setDepth(2500)
+    .setInteractive();
+
+  const modalW = Math.min(W * 0.9, 520);
+  const modalH = Math.min(H * 0.85, 600);
+
+  const modal = this.add.graphics()
+    .fillStyle(0x2C3E50, 0.96)
+    .fillRoundedRect(
+      W / 2 - modalW / 2,
+      H / 2 - modalH / 2,
+      modalW,
+      modalH,
+      16
+    )
+    .lineStyle(3, 0xF2DC9B, 0.9)
+    .strokeRoundedRect(
+      W / 2 - modalW / 2,
+      H / 2 - modalH / 2,
+      modalW,
+      modalH,
+      16
+    )
+    .setDepth(2501);
+
+  const title = this.add.text(
+    W / 2,
+    H / 2 - modalH / 2 + 28,
+    '📘 Как играть',
+    {
+      fontFamily: 'BoldPixels, Arial',
+      fontSize: '20px',
+      color: '#F2DC9B',
+      fontStyle: 'bold'
+    }
+  ).setOrigin(0.5).setDepth(2502);
+
+  const text = this.add.text(
+    W / 2,
+    H / 2 - 20,
+    [
+      '• Открывай по две карты',
+      '• Если они совпали — пара найдена',
+      '• Запомни расположение карт',
+      '• Пройди уровень быстрее и с меньшим числом ошибок',
+      '',
+      '⭐ Чем лучше результат — тем больше звёзд'
+    ].join('\n'),
+    {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#E8E8E8',
+      align: 'left',
+      lineSpacing: 6,
+      wordWrap: { width: modalW - 60 }
+    }
+  ).setOrigin(0.5).setDepth(2502);
+
+  const closeBtn = window.makeImageButton(
+    this,
+    W / 2,
+    H / 2 + modalH / 2 - 50,
+    160,
+    44,
+    'Закрыть',
+    () => {
+      overlay.destroy();
+      modal.destroy();
+      title.destroy();
+      text.destroy();
+      closeBtn.destroy();
+    }
+  );
+  closeBtn.setDepth(2503);
+}
+
+
     btn.setDepth(3003);
     content.add(btn);
   });
@@ -931,6 +1016,34 @@ this.themeButton = window.makeIconButton(
 this.themeButton.setDepth(500);
 this.themeButton.setScrollFactor(0);
 this.levelButtons.push(this.themeButton);
+
+
+// ℹ️ Кнопка инструкции
+const infoX = themeX - (isMobile ? 56 : 62);
+const infoY = isMobile ? 30 : 40;
+
+this.infoButton = window.makeIconButton(
+  this,
+  infoX,
+  infoY,
+  isMobile ? 42 : 48,
+  'ℹ',
+  () => this.showInstructions(),
+  {
+    color: '#F2DC9B',
+    hoverColor: '#FFFFFF',
+    bgColor: 0x000000,
+    bgAlpha: 0.45,
+    borderColor: 0xF2DC9B,
+    borderAlpha: 0.9,
+    borderWidth: 2
+  }
+);
+
+this.infoButton.setDepth(500);
+this.infoButton.setScrollFactor(0);
+this.levelButtons.push(this.infoButton);
+
 
 
 
