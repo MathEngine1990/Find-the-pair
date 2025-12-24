@@ -777,6 +777,54 @@ const makeRow = (label, key, y) => {
     );
 
 
+
+
+
+    btn.setDepth(3003);
+    content.add(btn);
+  });
+};
+
+
+  // 4 строки
+  makeRow('Рубашка', 'back',  -140);
+  makeRow('Фон',     'bg',     -80);
+  makeRow('Карты',   'cards',  -20);
+  makeRow('Кнопка',  'button',  40);
+
+  // Кнопки внизу
+  const applyBtn = window.makeImageButton(
+    this,
+    W/2 - 90,
+    H/2 + modalH/2 - 50,
+    160, 44,
+    'Применить',
+    () => {
+      this.setThemeConfig(selected);
+
+      // Самый надежный способ: перезапуск прелоада (перегрузит текстуры)
+      overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+      applyBtn.destroy(); cancelBtn.destroy();
+
+      this.scene.start('PreloadScene');
+    }
+  );
+  applyBtn.setDepth(3003);
+
+  const cancelBtn = window.makeImageButton(
+    this,
+    W/2 + 90,
+    H/2 + modalH/2 - 50,
+    160, 44,
+    'Закрыть',
+    () => {
+      overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+      applyBtn.destroy(); cancelBtn.destroy();
+    }
+  );
+  cancelBtn.setDepth(3003);
+}
+
     showInstructions() {
   const { W, H } = this.getSceneWH();
 
@@ -858,52 +906,6 @@ const makeRow = (label, key, y) => {
     }
   );
   closeBtn.setDepth(2503);
-}
-
-
-    btn.setDepth(3003);
-    content.add(btn);
-  });
-};
-
-
-  // 4 строки
-  makeRow('Рубашка', 'back',  -140);
-  makeRow('Фон',     'bg',     -80);
-  makeRow('Карты',   'cards',  -20);
-  makeRow('Кнопка',  'button',  40);
-
-  // Кнопки внизу
-  const applyBtn = window.makeImageButton(
-    this,
-    W/2 - 90,
-    H/2 + modalH/2 - 50,
-    160, 44,
-    'Применить',
-    () => {
-      this.setThemeConfig(selected);
-
-      // Самый надежный способ: перезапуск прелоада (перегрузит текстуры)
-      overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
-      applyBtn.destroy(); cancelBtn.destroy();
-
-      this.scene.start('PreloadScene');
-    }
-  );
-  applyBtn.setDepth(3003);
-
-  const cancelBtn = window.makeImageButton(
-    this,
-    W/2 + 90,
-    H/2 + modalH/2 - 50,
-    160, 44,
-    'Закрыть',
-    () => {
-      overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
-      applyBtn.destroy(); cancelBtn.destroy();
-    }
-  );
-  cancelBtn.setDepth(3003);
 }
 
 
@@ -1021,6 +1023,12 @@ this.levelButtons.push(this.themeButton);
 // ℹ️ Кнопка инструкции
 const infoX = themeX - (isMobile ? 56 : 62);
 const infoY = isMobile ? 30 : 40;
+
+if (this.infoButton && this.infoButton.destroy) {
+  this.infoButton.destroy();
+  this.infoButton = null;
+}
+
 
 this.infoButton = window.makeIconButton(
   this,
