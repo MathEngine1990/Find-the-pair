@@ -204,7 +204,7 @@ preload() {
 
 
   // 5️⃣ Кладём ассеты в очередь
-  this.load.setPath('assets/');
+ // this.load.setPath('assets/');
   this.loadGameAssets();
 
   if (this.isVKEnvironment) {
@@ -316,60 +316,104 @@ loadCustomFont() {
     });
   }
 
-  loadGameAssets() {
-    // ✅ FIX: Определяем нужно ли загружать HD версии
-    const DPR = window.devicePixelRatio || 1;
-    const useHD = DPR >= 1.5; // Retina/HD экраны
-    
-    console.log(`📦 Loading assets (HD: ${useHD}, DPR: ${DPR})`);
-    
-    // ✅ FIX: Загружаем карты с @2x суффиксом для HD
-    window.ALL_CARD_KEYS.forEach(key => {
-      const path = useHD
-        ? `cards/${key}@2x.png`
-        : `cards/${key}.png`;
-      
-      this.load.image(key, path);
-    });
+  getThemeConfig() {
+  const defaults = { back: 1, bg: 1, button: 1, cards: 1 };
 
-    // ✅ FIX: Задняя сторона карты тоже в HD
-    const backPath = useHD ? 'back_card02@2x.png' : 'back_card02.png';
-    this.load.image('back', backPath);
+  try {
+    const raw = localStorage.getItem('findpair_theme_v1');
+    if (!raw) return defaults;
 
-    // ✅ FIX: UI элементы в HD
-    const button01Path = useHD ? 'button01@2x.png' : 'button01.png';
-    this.load.image('button01', button01Path);
-
-    // Фоны
-    if (useHD) {
-      this.load.image('bg_menu', 'bg_menu@2x.png');
-      this.load.image('bg_game', 'bg_game@2x.png');
-    } else {
-      this.load.image('bg_menu', 'bg_menu.png');
-      this.load.image('bg_game', 'bg_game.png');
-    }
-
-    // Дополнительные ассеты
-    const starPath = useHD ? 'star@2x.png' : 'star.png';
-    const trophyPath = useHD ? 'trophy@2x.png' : 'trophy.png';
-    this.load.image('star', starPath);
-    this.load.image('trophy', trophyPath);
-
-    // Звуки
-    if (this.load.audioDecodeByList) {
-      this.load.audio('card_flip', ['sounds/card_flip.mp3', 'sounds/card_flip.wav']);
-      this.load.audio('match_sound', ['sounds/match.mp3', 'sounds/match.wav']);
-      this.load.audio('win_sound', ['sounds/win.mp3', 'sounds/win.wav']);
-
-        // 🔊 Фоновая музыка
-  
-    }
-
-    this.load.audio('bg_music', ['sounds/bg_music.mp3']);
-    
-    this.registry.set('useHDTextures', useHD);
-    this.registry.set('textureDPR', DPR);
+    const parsed = JSON.parse(raw);
+    return {
+      back: Number(parsed.back) || 1,
+      bg: Number(parsed.bg) || 1,
+      button: Number(parsed.button) || 1,
+      cards: Number(parsed.cards) || 1
+    };
+  } catch {
+    return defaults;
   }
+}
+
+cleanupThemeTextures() {
+  const keys = [
+    'back', 'button01', 'bg_menu', 'bg_game',
+    ...(window.ALL_CARD_KEYS || [])
+  ];
+
+  keys.forEach(k => {
+    try {
+      if (this.textures.exists(k)) this.textures.remove(k);
+    } catch {}
+  });
+}
+
+
+
+loadGameAssets() {
+  const DPR = window.devicePixelRatio || 1;
+  const useHD = DPR >= 1.5;
+
+  const theme = this.getThemeConfig();
+  this.cleanupThemeTextures();
+
+  console.log(`📦 Loading assets (HD: ${useHD}, DPR: ${DPR})`, theme);
+
+  // 🃏 Карты: assets/cards/{cards}/
+  (window.ALL_CARD_KEYS || []).forEach(key => {
+    const path = useHD
+      ? `assets/cards/${theme.cards}/${key}@2x.png`
+      : `assets/cards/${theme.cards}/${key}.png`;
+    this.load.image(key, path);
+  });
+
+  // 🂠 Рубашка: assets/back_card/{back}/
+  const backPath = useHD
+    ? `assets/back_card/${theme.back}/back_card02@2x.png`
+    : `assets/back_card/${theme.back}/back_card02.png`;
+  this.load.image('back', backPath);
+
+  // 🔘 Кнопка: assets/button/{button}/
+  const buttonPath = useHD
+    ? `assets/button/${theme.button}/button01@2x.png`
+    : `assets/button/${theme.button}/button01.png`;
+  this.load.image('button01', buttonPath);
+
+// 🖼️ ФОНЫ: assets/bg/{bg}/
+const bgMenuPath = useHD
+  ? `assets/bg/${theme.bg}/bg_menu@2x.png`
+  : `assets/bg/${theme.bg}/bg_menu.png`;
+
+const bgGamePath = useHD
+  ? `assets/bg/${theme.bg}/bg_game@2x.png`
+  : `assets/bg/${theme.bg}/bg_game.png`;
+
+this.load.image('bg_menu', bgMenuPath);
+this.load.image('bg_game', bgGamePath);
+
+
+  // ⭐ прочее (как было, только с assets/)
+  const starPath = useHD ? 'assets/star@2x.png' : 'assets/star.png';
+  const trophyPath = useHD ? 'assets/trophy@2x.png' : 'assets/trophy.png';
+  this.load.image('star', starPath);
+  this.load.image('trophy', trophyPath);
+
+  // 🔊 звуки (оставляем)
+  this.load.audio('card_flip', ['assets/sounds/card_flip.mp3', 'assets/sounds/card_flip.wav']);
+  this.load.audio('match_sound', ['assets/sounds/match.mp3', 'assets/sounds/match.wav']);
+  this.load.audio('win_sound', ['assets/sounds/win.mp3', 'assets/sounds/win.wav']);
+  this.load.audio('bg_music', ['assets/sounds/bg_music.mp3']);
+
+  this.registry.set('useHDTextures', useHD);
+  this.registry.set('textureDPR', DPR);
+  this.registry.set('theme', theme);
+
+  // VK avatar (как было)
+  if (this.vkUserData && this.vkUserData.photo_100) {
+    this.load.image('user_avatar', this.vkUserData.photo_100);
+  }
+}
+
 
   loadVKAssets() {
     console.log('📦 Loading VK-specific assets...');

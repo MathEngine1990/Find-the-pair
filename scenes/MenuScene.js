@@ -585,6 +585,244 @@ clearMenu() {
 
 }
 
+
+
+getThemeConfig() {
+  const defaults = { back: 1, bg: 1, button: 1, cards: 1 };
+  try {
+    const raw = localStorage.getItem('findpair_theme_v1');
+    if (!raw) return defaults;
+    const p = JSON.parse(raw);
+    return {
+      back: Number(p.back) || 1,
+      bg: Number(p.bg) || 1,
+      button: Number(p.button) || 1,
+      cards: Number(p.cards) || 1
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+setThemeConfig(next) {
+  localStorage.setItem('findpair_theme_v1', JSON.stringify(next));
+}
+
+
+async fileExists(url) {
+  try {
+    const r = await fetch(url, { method: 'GET', cache: 'no-store' });
+    if (!r.ok) return false;
+
+    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    // ожидаем картинку
+    if (!ct.startsWith('image/')) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+
+async detectThemePacks() {
+  // Кэш, чтобы не долбить сеть каждый заход в меню
+  const cacheKey = 'findpair_theme_packs_cache_v1';
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+if (cached && cached.ts && (Date.now() - cached.ts) < 30 * 1000) {
+  return cached.data;
+}
+
+  } catch {}
+
+  const useHD = !!this.game.registry.get('useHDTextures');
+  const firstCardKey = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : 'card01';
+
+  // Проверяем пакеты 1..10 (можешь увеличить)
+  const MAX = 10;
+
+  const packs = { back: [], bg: [], button: [], cards: [] };
+
+  for (let n = 1; n <= MAX; n++) {
+    const backTest = useHD
+      ? `assets/back_card/${n}/back_card02@2x.png`
+      : `assets/back_card/${n}/back_card02.png`;
+
+    const bgTest = useHD
+      ? `assets/bg/${n}/bg_menu@2x.png`
+      : `assets/bg/${n}/bg_menu.png`;
+
+    const btnTest = useHD
+      ? `assets/button/${n}/button01@2x.png`
+      : `assets/button/${n}/button01.png`;
+
+    const cardsTest = useHD
+      ? `assets/cards/${n}/${firstCardKey}@2x.png`
+      : `assets/cards/${n}/${firstCardKey}.png`;
+
+    // Параллельно
+    const [okBack, okBg, okBtn, okCards] = await Promise.all([
+      this.fileExists(backTest),
+      this.fileExists(bgTest),
+      this.fileExists(btnTest),
+      this.fileExists(cardsTest)
+    ]);
+
+    if (okBack)  packs.back.push(n);
+    if (okBg)    packs.bg.push(n);
+    if (okBtn)   packs.button.push(n);
+    if (okCards) packs.cards.push(n);
+  }
+
+  // если вдруг ничего не найдено — хотя бы 1
+// Никаких fallback: показываем только реально найденные паки.
+// Если список пуст — просто не будет кнопок.
+
+
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: packs }));
+  } catch {}
+
+  return packs;
+}
+
+
+async showThemeSelector(selectedOverride = null) {
+  const { W, H } = this.getSceneWH();
+  const current = this.getThemeConfig();
+
+try { localStorage.removeItem('findpair_theme_packs_cache_v1'); } catch {}
+
+
+  const packs = await this.detectThemePacks();
+
+  const requiredKeys = ['back', 'bg', 'cards', 'button'];
+const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
+
+
+  let selected = selectedOverride ? { ...selectedOverride } : { ...current };
+
+  const overlay = this.add.graphics()
+    .fillStyle(0x000000, 0.85)
+    .fillRect(0, 0, W, H)
+    .setDepth(3000)
+    .setInteractive();
+
+  const modalW = Math.min(W * 0.9, 520);
+  const modalH = Math.min(H * 0.85, 620);
+
+  const modal = this.add.graphics()
+    .fillStyle(0x2C3E50, 0.96)
+    .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
+    .lineStyle(3, 0xF2DC9B, 0.9)
+    .strokeRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
+    .setDepth(3001);
+
+  const title = this.add.text(W/2, H/2 - modalH/2 + 26, '🎨 Оформление', {
+    fontFamily: 'BoldPixels, Arial',
+    fontSize: '20px',
+    color: '#F2DC9B',
+    fontStyle: 'bold'
+  }).setOrigin(0.5).setDepth(3002);
+
+  const content = this.add.container(W/2, H/2).setDepth(3002);
+
+const makeRow = (label, key, y) => {
+  const t = this.add.text(-modalW/2 + 24, y, label, {
+    fontFamily: 'Arial',
+    fontSize: '14px',
+    color: '#E8E8E8'
+  }).setOrigin(0, 0.5);
+
+  content.add(t);
+
+  const options = packs[key] || [];
+  const startX = -modalW/2 + 220;
+
+  // ✅ Если нет ни одной папки/пака — показываем "нет"
+  if (!options.length) {
+    const none = this.add.text(startX, y, 'нет вариантов', {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#95A5A6'
+    }).setOrigin(0, 0.5);
+    content.add(none);
+    return;
+  }
+
+  // ✅ Если текущий selected[key] не существует — ставим первый доступный
+  if (!options.includes(selected[key])) {
+    selected[key] = options[0];
+  }
+
+  options.forEach((num, idx) => {
+    const isActive = selected[key] === num;
+
+    const btn = window.makeImageButton(
+      this,
+      startX + idx * 60,
+      y,
+      46, 34,
+      String(num),
+      () => {
+  selected[key] = num;
+
+  overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+  applyBtn.destroy(); cancelBtn.destroy();
+  this.showThemeSelector(selected); // ✅ сохраняем выбор при перерисовке
+},
+
+      { color: isActive ? '#243540' : '#F2DC9B' }
+    );
+
+    btn.setDepth(3003);
+    content.add(btn);
+  });
+};
+
+
+  // 4 строки
+  makeRow('Рубашка', 'back',  -140);
+  makeRow('Фон',     'bg',     -80);
+  makeRow('Карты',   'cards',  -20);
+  makeRow('Кнопка',  'button',  40);
+
+  // Кнопки внизу
+  const applyBtn = window.makeImageButton(
+    this,
+    W/2 - 90,
+    H/2 + modalH/2 - 50,
+    160, 44,
+    'Применить',
+    () => {
+      this.setThemeConfig(selected);
+
+      // Самый надежный способ: перезапуск прелоада (перегрузит текстуры)
+      overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+      applyBtn.destroy(); cancelBtn.destroy();
+
+      this.scene.start('PreloadScene');
+    }
+  );
+  applyBtn.setDepth(3003);
+
+  const cancelBtn = window.makeImageButton(
+    this,
+    W/2 + 90,
+    H/2 + modalH/2 - 50,
+    160, 44,
+    'Закрыть',
+    () => {
+      overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+      applyBtn.destroy(); cancelBtn.destroy();
+    }
+  );
+  cancelBtn.setDepth(3003);
+}
+
+
+
 getSafeAreaInsets() {
   try {
     const style = getComputedStyle(document.body);
@@ -667,6 +905,33 @@ const musicY = isMobile ? 30    : 40;      // сейчас одинаково
     );
     this.musicButton.setDepth(500);
     this.musicButton.setScrollFactor(0);
+
+
+    // 🎨 Кнопка оформления рядом с музыкой
+const themeX = (isMobile ? W - 30 : W - 40) - (isMobile ? 56 : 62);
+const themeY = isMobile ? 30 : 40;
+
+this.themeButton = window.makeIconButton(
+  this,
+  themeX,
+  themeY,
+  isMobile ? 42 : 48,
+  '🎨',
+  () => this.showThemeSelector(),
+  {
+    color: '#F2DC9B',
+    hoverColor: '#FFFFFF',
+    bgColor: 0x000000,
+    bgAlpha: 0.45,
+    borderColor: 0xF2DC9B,
+    borderAlpha: 0.9,
+    borderWidth: 2
+  }
+);
+this.themeButton.setDepth(500);
+this.themeButton.setScrollFactor(0);
+this.levelButtons.push(this.themeButton);
+
 
 
     // Корректный номер страницы
