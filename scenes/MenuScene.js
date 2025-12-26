@@ -1085,14 +1085,17 @@ this.levelButtons.push(this.infoButton);
     const ROWS = 3;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
- const safeArea = this.getSafeAreaInsets();
+const safeArea = this.getSafeAreaInsets();
 
-// высота верхних кнопок + небольшой отступ (под мобилу)
-const topButtonsH = (isMobile ? 42 : 48);
-const topButtonsPad = (isMobile ? 14 : 16);
-const headerOffset = topButtonsH + topButtonsPad; // ≈ 56px
+// ✅ ВАЖНО: веб НЕ трогаем (как было раньше)
+let currentY = safeArea.top + 10;
 
-let currentY = safeArea.top + headerOffset;
+// ✅ Только для мобилки делаем отдельный отступ, чтобы верхние кнопки
+// гарантированно не пересекались с приветствием/заголовком (VK шапка не учитывается safeArea)
+if (isMobile) {
+  currentY = safeArea.top + 110; // можно 100..130, но 110 обычно идеально
+}
+
 
 
     // Персонализация для VK
