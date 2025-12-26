@@ -1085,8 +1085,15 @@ this.levelButtons.push(this.infoButton);
     const ROWS = 3;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
-    const safeArea = this.getSafeAreaInsets();
-    let currentY = safeArea.top + 10;
+ const safeArea = this.getSafeAreaInsets();
+
+// высота верхних кнопок + небольшой отступ (под мобилу)
+const topButtonsH = (isMobile ? 42 : 48);
+const topButtonsPad = (isMobile ? 14 : 16);
+const headerOffset = topButtonsH + topButtonsPad; // ≈ 56px
+
+let currentY = safeArea.top + headerOffset;
+
 
     // Персонализация для VK
     // Персонализация для VK — ВСЕГДА резервируем место под приветствие
