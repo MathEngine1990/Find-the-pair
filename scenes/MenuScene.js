@@ -1092,7 +1092,7 @@ let currentY = safeArea.top + 10; // веб как было
 let headerX  = W / 2;            // веб центр
 
 if (isMobile) {
-  currentY = mobileLayout.topStartY; // вверх
+  currentY = mobileLayout.topStartY+34; // вверх
   headerX  = mobileLayout.contentX;  // влево
 }
 
@@ -1100,7 +1100,7 @@ if (isMobile) {
 
     // Персонализация для VK
     // Персонализация для VK — ВСЕГДА резервируем место под приветствие
-    const greetingPlaceholderHeight = this.textManager.getSize('statLabel') + 30;
+    const greetingPlaceholderHeight = this.textManager.getSize('statLabel') + 16;
 
     let greetingText = '';
     if (this.vkUserData && this.vkUserData.first_name) {
@@ -1139,7 +1139,7 @@ if (isMobile) {
     title.setOrigin(0.5);
     this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('titleLarge') + 10;
+    currentY += this.textManager.getSize('titleLarge') + 4;
 
     // 🔢 Статистика — синхронно, из this.progress
     const stats = this.getStats();
@@ -1156,7 +1156,7 @@ if (isMobile) {
       statsDisplay.setOrigin(0.5);
       this.levelButtons.push(statsDisplay);
 
-      currentY += this.textManager.getSize('statLabel') + 18;
+      currentY += this.textManager.getSize('statLabel') + 10;
     }
 
     // Область для кнопок уровней
