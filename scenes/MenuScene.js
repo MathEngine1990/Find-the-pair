@@ -958,100 +958,102 @@ async drawMenu(page = 0) {
     // Определяем мобильное устройство
     const isMobile = W < 768 || H < 600 ||
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const safeArea = this.getSafeAreaInsets();
+
+      // ✅ Mobile-only layout constants
+const mobileLayout = {
+  // зона контента (приветствие/заголовок/статы) — вверх и левее
+  contentX: Math.round(W * 0.44),          // потом подвинем ещё левее
+  topStartY: safeArea.top + 78,            // вверх (раньше было ~110)
+  lineGap: 8,
+
+  // вертикальная колонка кнопок справа
+  btnX: W - (safeArea.right + 30),
+  btnYTop: safeArea.top + 34,
+  btnSize: 42,
+  btnGap: 52
+};
+
+if (this.musicButton?.destroy) { this.musicButton.destroy(); this.musicButton = null; }
+if (this.themeButton?.destroy) { this.themeButton.destroy(); this.themeButton = null; }
+if (this.infoButton?.destroy)  { this.infoButton.destroy();  this.infoButton  = null; }
+
+
+
     const scaleFactor = isMobile ? 1.8 : 1.0;
 
-        // 🔊 Кнопка музыки в правом верхнем углу
-    const musicIcon = this.game.registry.get('musicMuted') ? '🔇' : '🔊';
+     const musicIcon = this.game.registry.get('musicMuted') ? '🔇' : '🔊';
 
-    // если раньше была создана — удаляем, чтобы не плодить копии при перерисовке
-    if (this.musicButton && this.musicButton.destroy) {
-      this.musicButton.destroy();
-      this.musicButton = null;
-    }
+if (isMobile) {
+  const x = mobileLayout.btnX;
+  const y0 = mobileLayout.btnYTop;
+  const s = mobileLayout.btnSize;
 
-    // Отдельные координаты для мобилы и десктопа
-const musicX = isMobile ? W - 30 : W - 40;  // сейчас одинаково
-const musicY = isMobile ? 30    : 40;      // сейчас одинаково
+  // ℹ
+  this.infoButton = window.makeIconButton(
+    this, x, y0 + mobileLayout.btnGap * 0, s, 'ℹ',
+    () => this.showInstructions(),
+    { color:'#F2DC9B', hoverColor:'#FFFFFF', bgColor:0x000000, bgAlpha:0.45, borderColor:0xF2DC9B, borderAlpha:0.9, borderWidth:2 }
+  );
+  this.infoButton.setDepth(500);
+  this.infoButton.setScrollFactor(0);
+  this.levelButtons.push(this.infoButton);
 
-    this.musicButton = window.makeIconButton(
-       this,
-  musicX,
-  musicY,
-      isMobile ? 42 : 48, // размер "кружка"
-      musicIcon,
-      () => this.toggleMusic(),
-      {
-        color: '#F2DC9B',
-        hoverColor: '#FFFFFF',
-        bgColor: 0x000000,
-        bgAlpha: 0.45,
-        borderColor: 0xF2DC9B,
-        borderAlpha: 0.9,
-        borderWidth: 2
-      }
-    );
-    this.musicButton.setDepth(500);
-    this.musicButton.setScrollFactor(0);
+  // 🎨
+  this.themeButton = window.makeIconButton(
+    this, x, y0 + mobileLayout.btnGap * 1, s, '🎨',
+    () => this.showThemeSelector(),
+    { color:'#F2DC9B', hoverColor:'#FFFFFF', bgColor:0x000000, bgAlpha:0.45, borderColor:0xF2DC9B, borderAlpha:0.9, borderWidth:2 }
+  );
+  this.themeButton.setDepth(500);
+  this.themeButton.setScrollFactor(0);
+  this.levelButtons.push(this.themeButton);
 
+  // 🔊
+  this.musicButton = window.makeIconButton(
+    this, x, y0 + mobileLayout.btnGap * 2, s, musicIcon,
+    () => this.toggleMusic(),
+    { color:'#F2DC9B', hoverColor:'#FFFFFF', bgColor:0x000000, bgAlpha:0.45, borderColor:0xF2DC9B, borderAlpha:0.9, borderWidth:2 }
+  );
+  this.musicButton.setDepth(500);
+  this.musicButton.setScrollFactor(0);
+  // musicButton в levelButtons не обязательно, но можно:
+  this.levelButtons.push(this.musicButton);
 
-    // 🎨 Кнопка оформления рядом с музыкой
-const themeX = (isMobile ? W - 30 : W - 40) - (isMobile ? 56 : 62);
-const themeY = isMobile ? 30 : 40;
+} else {
+  // ✅ Десктоп — оставь ТВОЙ текущий код (горизонтально справа сверху)
+  const musicX = W - 40;
+  const musicY = 40;
 
-this.themeButton = window.makeIconButton(
-  this,
-  themeX,
-  themeY,
-  isMobile ? 42 : 48,
-  '🎨',
-  () => this.showThemeSelector(),
-  {
-    color: '#F2DC9B',
-    hoverColor: '#FFFFFF',
-    bgColor: 0x000000,
-    bgAlpha: 0.45,
-    borderColor: 0xF2DC9B,
-    borderAlpha: 0.9,
-    borderWidth: 2
-  }
-);
-this.themeButton.setDepth(500);
-this.themeButton.setScrollFactor(0);
-this.levelButtons.push(this.themeButton);
+  this.musicButton = window.makeIconButton(
+    this, musicX, musicY, 48, musicIcon, () => this.toggleMusic(),
+    { color:'#F2DC9B', hoverColor:'#FFFFFF', bgColor:0x000000, bgAlpha:0.45, borderColor:0xF2DC9B, borderAlpha:0.9, borderWidth:2 }
+  );
+  this.musicButton.setDepth(500);
+  this.musicButton.setScrollFactor(0);
 
+  const themeX = musicX - 62;
+  const themeY = musicY;
 
-// ℹ️ Кнопка инструкции
-const infoX = themeX - (isMobile ? 56 : 62);
-const infoY = isMobile ? 30 : 40;
+  this.themeButton = window.makeIconButton(
+    this, themeX, themeY, 48, '🎨', () => this.showThemeSelector(),
+    { color:'#F2DC9B', hoverColor:'#FFFFFF', bgColor:0x000000, bgAlpha:0.45, borderColor:0xF2DC9B, borderAlpha:0.9, borderWidth:2 }
+  );
+  this.themeButton.setDepth(500);
+  this.themeButton.setScrollFactor(0);
+  this.levelButtons.push(this.themeButton);
 
-if (this.infoButton && this.infoButton.destroy) {
-  this.infoButton.destroy();
-  this.infoButton = null;
+  const infoX = themeX - 62;
+  const infoY = musicY;
+
+  this.infoButton = window.makeIconButton(
+    this, infoX, infoY, 48, 'ℹ', () => this.showInstructions(),
+    { color:'#F2DC9B', hoverColor:'#FFFFFF', bgColor:0x000000, bgAlpha:0.45, borderColor:0xF2DC9B, borderAlpha:0.9, borderWidth:2 }
+  );
+  this.infoButton.setDepth(500);
+  this.infoButton.setScrollFactor(0);
+  this.levelButtons.push(this.infoButton);
 }
-
-
-this.infoButton = window.makeIconButton(
-  this,
-  infoX,
-  infoY,
-  isMobile ? 42 : 48,
-  'ℹ',
-  () => this.showInstructions(),
-  {
-    color: '#F2DC9B',
-    hoverColor: '#FFFFFF',
-    bgColor: 0x000000,
-    bgAlpha: 0.45,
-    borderColor: 0xF2DC9B,
-    borderAlpha: 0.9,
-    borderWidth: 2
-  }
-);
-
-this.infoButton.setDepth(500);
-this.infoButton.setScrollFactor(0);
-this.levelButtons.push(this.infoButton);
-
 
 
 
@@ -1085,15 +1087,13 @@ this.levelButtons.push(this.infoButton);
     const ROWS = 3;
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
-const safeArea = this.getSafeAreaInsets();
 
-// ✅ ВАЖНО: веб НЕ трогаем (как было раньше)
-let currentY = safeArea.top + 10;
+let currentY = safeArea.top + 10; // веб как было
+let headerX  = W / 2;            // веб центр
 
-// ✅ Только для мобилки делаем отдельный отступ, чтобы верхние кнопки
-// гарантированно не пересекались с приветствием/заголовком (VK шапка не учитывается safeArea)
 if (isMobile) {
-  currentY = safeArea.top + 110; // можно 100..130, но 110 обычно идеально
+  currentY = mobileLayout.topStartY; // вверх
+  headerX  = mobileLayout.contentX;  // влево
 }
 
 
@@ -1108,7 +1108,7 @@ if (isMobile) {
     }
 
     const greeting = this.textManager.createText(
-      W / 2,
+      headerX,
       currentY,
       greetingText,
       'titleMedium'
@@ -1131,7 +1131,7 @@ if (isMobile) {
     // Заголовок
     const titleText = 'Сколько пар играть?';
     const title = this.textManager.createText(
-      W / 2,
+      headerX,
       currentY,
       titleText,
       isMobile ? 'titleLarge_mobile' : 'titleLarge_desktop'
@@ -1149,7 +1149,7 @@ if (isMobile) {
         `| Звезд: ${stats.totalStars}/${stats.maxStars}`;
 
       const statsDisplay = this.textManager.createText(
-        W / 2, currentY,
+        headerX, currentY,
         statsText,
         'statLabel'
       );
