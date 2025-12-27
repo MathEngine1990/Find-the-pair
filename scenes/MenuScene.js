@@ -1354,7 +1354,7 @@ if (achBtn.zone) {
   });
 }
 
-this.levelButtons.push(achBtn);
+
 
 
 
