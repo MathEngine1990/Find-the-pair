@@ -138,12 +138,45 @@ this.subtitleText = this.add.text(
 
 
 
-    // Ошибка загрузки
-    this.load.on('fileerror', (file) => {
-      console.error('❌ File load error:', file.key);
-      this.loadingText.setText(`Ошибка загрузки: ${file.key}`);
-      this.loadingText.setColor('#E74C3C');
-    });
+// ❗️Ошибка загрузки (правильное событие в Phaser 3)
+this.load.on('loaderror', (file) => {
+  const url = file?.src || file?.url || '';
+  console.error('❌ Load error:', file?.key, url);
+
+  // Показываем ошибку на прелоадере
+  if (this.loadingText) {
+    this.loadingText.setText(`Ошибка загрузки: ${file?.key || 'unknown'}`);
+    this.loadingText.setColor('#E74C3C');
+  }
+
+  // ✅ Авто-fallback: если удалили cards/2 (или другой pack), откатываемся на 1
+  try {
+    const theme = this._loadingTheme || this.getThemeConfig();
+    const badPack = theme?.cards;
+
+    if (badPack && badPack !== 1 && url.includes(`/assets/cards/${badPack}/`)) {
+      console.warn(`[Theme] Cards pack ${badPack} missing → fallback to 1`);
+
+      // сбрасываем выбранный пак карт
+      const fixed = { ...theme, cards: 1 };
+      localStorage.setItem('findpair_theme_v1', JSON.stringify(fixed));
+
+      // сбрасываем кэш доступных паков (чтобы меню не показывало "2")
+      localStorage.removeItem('findpair_theme_packs_cache_v1');
+
+      // чтобы не уйти в цикл
+      if (!this._didCardsFallback) {
+        this._didCardsFallback = true;
+
+        // самый надежный способ обновить ассеты/кэш браузера
+        window.location.reload();
+      }
+    }
+  } catch (e) {
+    console.warn('[Theme] fallback failed:', e);
+  }
+});
+
 
         // Завершение загрузки
 this.load.on('complete', () => {
@@ -355,6 +388,7 @@ loadGameAssets() {
   const useHD = DPR >= 1.5;
 
   const theme = this.getThemeConfig();
+  this._loadingTheme = theme; // ✅ чтобы обработчик loaderror знал, какой pack грузим
   this.cleanupThemeTextures();
 
   console.log(`📦 Loading assets (HD: ${useHD}, DPR: ${DPR})`, theme);
