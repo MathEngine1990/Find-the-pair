@@ -1092,7 +1092,7 @@ let currentY = safeArea.top + 10; // веб как было
 let headerX  = W / 2;            // веб центр
 
 if (isMobile) {
-  currentY = mobileLayout.topStartY+34; // вверх
+  currentY = mobileLayout.topStartY+64; // вверх
   headerX  = mobileLayout.contentX;  // влево
 }
 
