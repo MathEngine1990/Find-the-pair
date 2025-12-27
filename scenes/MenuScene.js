@@ -971,7 +971,7 @@ const mobileLayout = {
   btnX: W - (safeArea.right + 30),
   btnYTop: safeArea.top + 34,
   btnSize: 42,
-  btnGap: 52
+  btnGap: 46
 };
 
 if (this.musicButton?.destroy) { this.musicButton.destroy(); this.musicButton = null; }
@@ -1032,7 +1032,7 @@ if (isMobile) {
   this.musicButton.setDepth(500);
   this.musicButton.setScrollFactor(0);
 
-  const themeX = musicX - 62;
+  const themeX = musicX - 54;
   const themeY = musicY;
 
   this.themeButton = window.makeIconButton(
@@ -1043,7 +1043,7 @@ if (isMobile) {
   this.themeButton.setScrollFactor(0);
   this.levelButtons.push(this.themeButton);
 
-  const infoX = themeX - 62;
+  const infoX = themeX - 54;
   const infoY = musicY;
 
   this.infoButton = window.makeIconButton(
@@ -1097,10 +1097,13 @@ if (isMobile) {
 }
 
 
+const headerGap = 8;
+
+
 
     // Персонализация для VK
     // Персонализация для VK — ВСЕГДА резервируем место под приветствие
-    const greetingPlaceholderHeight = this.textManager.getSize('statLabel') + 16;
+    const greetingPlaceholderHeight = this.textManager.getSize('statLabel') + headerGap;
 
     let greetingText = '';
     if (this.vkUserData && this.vkUserData.first_name) {
@@ -1139,7 +1142,7 @@ if (isMobile) {
     title.setOrigin(0.5);
     this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('titleLarge') + 4;
+    currentY += this.textManager.getSize('titleLarge') + headerGap;
 
     // 🔢 Статистика — синхронно, из this.progress
     const stats = this.getStats();
@@ -1156,7 +1159,7 @@ if (isMobile) {
       statsDisplay.setOrigin(0.5);
       this.levelButtons.push(statsDisplay);
 
-      currentY += this.textManager.getSize('statLabel') + 10;
+      currentY += this.textManager.getSize('statLabel') + headerGap;
     }
 
     // Область для кнопок уровней
