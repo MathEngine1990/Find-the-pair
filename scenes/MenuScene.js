@@ -1032,6 +1032,9 @@ if (isMobile) {
   this.musicButton.setDepth(500);
   this.musicButton.setScrollFactor(0);
 
+  this.levelButtons.push(this.musicButton);
+
+
   const themeX = musicX - 54;
   const themeY = musicY;
 
@@ -1093,7 +1096,7 @@ let headerX  = W / 2;            // веб центр
 
 if (isMobile) {
   currentY = mobileLayout.topStartY-24; // вверх
-  headerX  = mobileLayout.contentX;  // влево
+ // headerX  = mobileLayout.contentX;  // влево
 }
 
 
