@@ -1091,85 +1091,102 @@ if (isMobile) {
     const PAGES = Math.max(1, Math.ceil(window.LEVELS.length / PER_PAGE));
 
 
-let currentY = safeArea.top + 10; // веб как было
-let headerX  = W / 2;            // веб центр
-
-if (isMobile) {
-  currentY = mobileLayout.topStartY-24; // вверх
- // headerX  = mobileLayout.contentX;  // влево
-}
 
 
+// ===================
+// HEADER (greeting/title/stats) layout
+// ===================
 const headerGap = 8;
 
+// дефолт (десктоп)
+let headerX = W / 2;
+let currentY = safeArea.top + 10;
 
+// мобильная привязка: текст слева от вертикальных кнопок
+if (isMobile) {
+  // X — чуть левее колонки кнопок
+  headerX = mobileLayout.btnX - (mobileLayout.btnSize / 2) - 18;
 
-    // Персонализация для VK
-    // Персонализация для VK — ВСЕГДА резервируем место под приветствие
-    const greetingPlaceholderHeight = this.textManager.getSize('statLabel') + headerGap;
+  // Y — ровно по центрам 3-х кнопок (как ты и просишь)
+  // 0: приветствие на уровне верхней кнопки (ℹ)
+  // 1: "Сколько пар играть?" на уровне второй (🎨)
+  // 2: статистика на уровне третьей (🔊)
+  currentY = mobileLayout.btnYTop; // базовая Y первой кнопки
+}
 
-    let greetingText = '';
-    if (this.vkUserData && this.vkUserData.first_name) {
-      greetingText = `Привет, ${this.vkUserData.first_name}!`;
-    }
+// --- Приветствие (в мобиле — строка #1, в веб — обычный поток) ---
+let greetingText = '';
+if (this.vkUserData && this.vkUserData.first_name) {
+  greetingText = `Привет, ${this.vkUserData.first_name}!`;
+}
 
-    const greeting = this.textManager.createText(
-      headerX,
-      currentY,
-      greetingText,
-      'titleMedium'
-    );
-    greeting.setOrigin(0.5, 0);
-    greeting.setColor('#243540');
+const greeting = this.textManager.createText(
+  headerX,
+  isMobile ? (currentY + mobileLayout.btnGap * 0) : currentY,
+  greetingText,
+  'titleMedium'
+);
 
-    // Если имени ещё нет — текст невидимый, но место под него уже занято
-    if (!this.vkUserData || !this.vkUserData.first_name) {
-      greeting.setAlpha(0);
-    }
+// важное: чтобы не “наезжало” друг на друга — на мобиле держим по центру строки, на десктопе по верхнему краю
+if (isMobile) {
+  greeting.setOrigin(1, 0.5);  // справа-налево, центр по Y
+} else {
+  greeting.setOrigin(0.5, 0);  // сверху, как ты уже делал
+}
+
+greeting.setColor('#243540');
+if (!this.vkUserData || !this.vkUserData.first_name) greeting.setAlpha(0);
 
 this.levelButtons.push(greeting);
 this.greetingTextObject = greeting;
 
-// ✅ двигаем вниз по реальной высоте текста
-const gH = greeting.getBounds().height;
-currentY += gH + headerGap;
+// --- Заголовок ---
+const titleText = 'Сколько пар играть?';
+const title = this.textManager.createText(
+  headerX,
+  isMobile ? (currentY + mobileLayout.btnGap * 1) : (currentY + greeting.getBounds().height + headerGap),
+  titleText,
+  isMobile ? 'titleLarge_mobile' : 'titleLarge_desktop'
+);
+
+if (isMobile) {
+  title.setOrigin(1, 0.5);
+} else {
+  // ✅ FIX: делаем верхнее выравнивание, чтобы он не залезал на приветствие
+  title.setOrigin(0.5, 0);
+}
+
+this.levelButtons.push(title);
+
+// --- Статистика ---
+const stats = this.getStats();
+if (stats.completedLevels > 0) {
+  const statsText =
+    `Пройдено: ${stats.completedLevels}/${stats.totalLevels} ` +
+    `| Звезд: ${stats.totalStars}/${stats.maxStars}`;
+
+  const statsDisplay = this.textManager.createText(
+    headerX,
+    isMobile
+      ? (currentY + mobileLayout.btnGap * 2)
+      : (title.y + title.getBounds().height + headerGap),
+    statsText,
+    'statLabel'
+  );
+
+  if (isMobile) {
+    statsDisplay.setOrigin(1, 0.5);
+  } else {
+    // ✅ FIX: тоже сверху, чтобы поток был честный
+    statsDisplay.setOrigin(0.5, 0);
+  }
+
+  this.levelButtons.push(statsDisplay);
+}
 
 
 
-    // Заголовок
-    const titleText = 'Сколько пар играть?';
-    const title = this.textManager.createText(
-      headerX,
-      currentY,
-      titleText,
-      isMobile ? 'titleLarge_mobile' : 'titleLarge_desktop'
-    );
-    title.setOrigin(0.5);
-    this.levelButtons.push(title);
 
-const tH = title.getBounds().height;
-currentY += tH + headerGap;
-
-
-    // 🔢 Статистика — синхронно, из this.progress
-    const stats = this.getStats();
-    if (stats.completedLevels > 0) {
-      const statsText =
-        `Пройдено: ${stats.completedLevels}/${stats.totalLevels} ` +
-        `| Звезд: ${stats.totalStars}/${stats.maxStars}`;
-
-      const statsDisplay = this.textManager.createText(
-        headerX, currentY,
-        statsText,
-        'statLabel'
-      );
-      statsDisplay.setOrigin(0.5);
-      this.levelButtons.push(statsDisplay);
-
-      const sH = statsDisplay.getBounds().height;
-currentY += sH + headerGap;
-
-    }
 
     // Область для кнопок уровней
     const topY    = H * (isMobile ? 0.20 : 0.16);
