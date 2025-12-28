@@ -1127,11 +1127,13 @@ const headerGap = 8;
       greeting.setAlpha(0);
     }
 
-    this.levelButtons.push(greeting);
-    this.greetingTextObject = greeting;
+this.levelButtons.push(greeting);
+this.greetingTextObject = greeting;
 
-    // Отступ вниз всегда одинаковый — верстка не прыгает
-    currentY += greetingPlaceholderHeight;
+// ✅ двигаем вниз по реальной высоте текста
+const gH = greeting.getBounds().height;
+currentY += gH + headerGap;
+
 
 
     // Заголовок
@@ -1145,7 +1147,9 @@ const headerGap = 8;
     title.setOrigin(0.5);
     this.levelButtons.push(title);
 
-    currentY += this.textManager.getSize('titleLarge') + headerGap;
+const tH = title.getBounds().height;
+currentY += tH + headerGap;
+
 
     // 🔢 Статистика — синхронно, из this.progress
     const stats = this.getStats();
@@ -1162,7 +1166,9 @@ const headerGap = 8;
       statsDisplay.setOrigin(0.5);
       this.levelButtons.push(statsDisplay);
 
-      currentY += this.textManager.getSize('statLabel') + headerGap;
+      const sH = statsDisplay.getBounds().height;
+currentY += sH + headerGap;
+
     }
 
     // Область для кнопок уровней
