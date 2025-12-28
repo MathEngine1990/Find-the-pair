@@ -40,6 +40,14 @@ async create() {
   this._isInitializing = true;
   this._isDrawing = false;
 
+  // ✅ Если в localStorage выбран несуществующий пак — исправляем и перезагружаем ассеты
+if (await this.ensureValidThemeConfig()) {
+  console.warn('[Theme] Invalid theme fixed → restarting PreloadScene to reload textures');
+  this.scene.start('PreloadScene', { isVK: this.isVKEnvironment, userData: this.vkUserData, page: 0 });
+  return;
+}
+
+
   // Базовая структура прогресса (на случай, если ничего не загрузится)
   this.progress = {
     levels: {},
@@ -609,6 +617,32 @@ setThemeConfig(next) {
 }
 
 
+async ensureValidThemeConfig() {
+  const current = this.getThemeConfig();
+  const packs = await this.detectThemePacks();
+
+  let changed = false;
+  const keys = ['back', 'bg', 'button', 'cards'];
+
+  for (const k of keys) {
+    const available = packs[k] || [];
+    if (!available.length) continue; // нет вариантов — не трогаем
+    if (!available.includes(current[k])) {
+      current[k] = available[0];     // берём первый доступный
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    this.setThemeConfig(current);
+    try { this.game.registry.set('theme', current); } catch {}
+  }
+
+  return changed;
+}
+
+
+
 async fileExists(url) {
   try {
     const r = await fetch(url, { method: 'GET', cache: 'no-store' });
@@ -692,7 +726,7 @@ async showThemeSelector(selectedOverride = null) {
   const { W, H } = this.getSceneWH();
   const current = this.getThemeConfig();
 
-try { localStorage.removeItem('findpair_theme_packs_cache_v1'); } catch {}
+//try { localStorage.removeItem('findpair_theme_packs_cache_v1'); } catch {}
 
 
   const packs = await this.detectThemePacks();
