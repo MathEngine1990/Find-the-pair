@@ -774,6 +774,13 @@ const makeRow = (label, key, y) => {
   const options = packs[key] || [];
   const startX = -modalW/2 + 220;
 
+  // ✅ только для мобилки делаем одинаковые "квадраты"
+const optW = isMobile ? 42 : 46;
+const optH = isMobile ? 42 : 34;
+
+// ✅ шаг: на мобилке плотнее, на десктопе как было
+const stepX = isMobile ? 52 : 60;
+
   // ✅ Если нет ни одной папки/пака — показываем "нет"
   if (!options.length) {
     const none = this.add.text(startX, y, 'нет вариантов', {
@@ -794,11 +801,11 @@ const makeRow = (label, key, y) => {
     const isActive = selected[key] === num;
 
     const btn = window.makeImageButton(
-      this,
-      startX + idx * 60,
-      y,
-      46, 34,
-      String(num),
+       this,
+  startX + idx * stepX,
+  y,
+  optW, optH,
+  String(num),
       () => {
   selected[key] = num;
 
