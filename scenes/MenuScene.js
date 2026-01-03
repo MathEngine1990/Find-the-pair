@@ -791,17 +791,17 @@ const frame = this.add.rectangle(0, 0, previewW, previewH, 0x000000, 0.15)
   .setOrigin(0.5, 0.5);
 previewBox.add(frame);
 
-// ✅ Маска (клиппинг) — всё внутри previewBox не вылезет наружу
-const maskGfx = this.make.graphics({ x: 0, y: 0, add: false });
-maskGfx.fillStyle(0xffffff);
-maskGfx.fillRect(
-  -previewW/2,
-  -previewH/2,
-  previewW,
-  previewH
-);
+// ✅ GeometryMask работает в мировых координатах,
+// поэтому маску надо создавать в world-позиции previewBox
+const previewWorldX = (W / 2) + rightColX;
+const previewWorldY = (H / 2) + previewTopY;
+
+const maskGfx = this.make.graphics({ x: previewWorldX, y: previewWorldY, add: false });
+maskGfx.fillStyle(0xffffff, 1);
+maskGfx.fillRect(-previewW / 2, -previewH / 2, previewW, previewH);
 
 const previewMask = maskGfx.createGeometryMask();
+
 
 
 
@@ -893,15 +893,18 @@ preview.button = this.add.image(0, thumbsY, 'button01')
   .setMask(previewMask);
 previewBox.add(preview.button);
 
-// карта (если есть загруженная)
 const anyCardKey = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : null;
-if (anyCardKey && this.textures.exists(anyCardKey)) {
-  preview.card = this.add.image(previewW*0.25, thumbsY, anyCardKey)
-    .setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86)
-    .setOrigin(0.5)
-    .setMask(previewMask);
-  previewBox.add(preview.card);
-}
+
+// ✅ создаём объект card всегда, с запасной текстурой (чтобы updatePreview мог её менять)
+const cardFallbackKey =
+  (anyCardKey && this.textures.exists(anyCardKey)) ? anyCardKey : 'back_card02';
+
+preview.card = this.add.image(previewW * 0.25, thumbsY, cardFallbackKey)
+  .setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86)
+  .setOrigin(0.5)
+  .setMask(previewMask);
+previewBox.add(preview.card);
+
 
 let previewUpdateToken = 0;
 
