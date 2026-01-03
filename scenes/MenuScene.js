@@ -771,6 +771,39 @@ const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
 
   const content = this.add.container(W/2, H/2).setDepth(3002);
 
+  // ✅ Колонки окна
+const leftColX  = -modalW/2 + (isMobile ? 40 : 40);      // подписи слева
+const rightColX =  modalW/2 - (isMobile ? 150 : 170);    // блок превью справа
+const rowsBtnX  = -modalW/2 + (isMobile ? 210 : 260);    // кнопки-цифры (не в превью!)
+
+// ✅ Preview frame размеры (фиксируем!)
+const previewW = isMobile ? 240 : 300;
+const previewH = isMobile ? 220 : 260;
+const previewTopY = -modalH/2 + (isMobile ? 90 : 105);
+
+// контейнер превью
+const previewBox = this.add.container(rightColX, previewTopY);
+content.add(previewBox);
+
+// рамка (по желанию — можно убрать, но полезно для понимания границ)
+const frame = this.add.rectangle(0, 0, previewW, previewH, 0x000000, 0.15)
+  .setOrigin(0.5, 0.5);
+previewBox.add(frame);
+
+// ✅ Маска (клиппинг) — всё внутри previewBox не вылезет наружу
+const maskGfx = this.make.graphics({ x: 0, y: 0, add: false });
+maskGfx.fillStyle(0xffffff);
+maskGfx.fillRect(
+  -previewW/2,
+  -previewH/2,
+  previewW,
+  previewH
+);
+
+const previewMask = maskGfx.createGeometryMask();
+
+
+
   // ✅ Lazy-load texture for preview inside MenuScene (no PreloadScene restart)
 const ensurePreviewTexture = (type, num, filename) => {
   return new Promise((resolve) => {
@@ -822,39 +855,47 @@ const previewY = -modalH/2 + (isMobile ? 92 : 95);
 const previewX = isMobile ? 0 : (modalW/2 - 150);
 
 
-// Background preview (small frame)
-preview.bg = this.add.image(previewX, previewY + (isMobile ? 58 : 60), 'bg_menu')
-  .setDisplaySize(isMobile ? 250 : 240, isMobile ? 125 : 120)
-  .setOrigin(0.5, 0.5);
-content.add(preview.bg);
 
-// Button preview
-preview.button = this.add.image(previewX - (isMobile ? 70 : 60), previewY + (isMobile ? 155 : 150), 'button01')
-  .setDisplaySize(isMobile ? 84 : 72, isMobile ? 44 : 40)
-  .setOrigin(0.5, 0.5);
-content.add(preview.button);
+// фон внутри рамки
+preview.bg = this.add.image(0, 0, 'bg_menu')
+  .setDisplaySize(previewW, previewH)
+  .setOrigin(0.5, 0.5)
+  .setMask(previewMask);
+previewBox.add(preview.bg);
 
-// Back-card preview
-preview.back = this.add.image(previewX + (isMobile ? 70 : 60), previewY + (isMobile ? 155 : 150), 'back_card02')
-  .setDisplaySize(isMobile ? 54 : 48, isMobile ? 72 : 64)
-  .setOrigin(0.5, 0.5);
-content.add(preview.back);
+// маленькие превью снизу внутри рамки
+const thumbsY = previewH/2 - (isMobile ? 48 : 54);
 
-// Card preview (use any existing loaded card key; fallback to first from ALL_CARD_KEYS)
+preview.back = this.add.image(-previewW*0.25, thumbsY, 'back_card02')
+  .setDisplaySize(isMobile ? 54 : 60, isMobile ? 72 : 80)
+  .setOrigin(0.5)
+  .setMask(previewMask);
+previewBox.add(preview.back);
+
+preview.button = this.add.image(0, thumbsY, 'button01')
+  .setDisplaySize(isMobile ? 92 : 110, isMobile ? 44 : 50)
+  .setOrigin(0.5)
+  .setMask(previewMask);
+previewBox.add(preview.button);
+
+// карта (если есть загруженная)
 const anyCardKey = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : null;
 if (anyCardKey && this.textures.exists(anyCardKey)) {
-preview.card = this.add.image(previewX, previewY + (isMobile ? 250 : 235), anyCardKey)
-  .setDisplaySize(isMobile ? 60 : 56, isMobile ? 80 : 74)
-    .setOrigin(0.5, 0.5);
-  content.add(preview.card);
+  preview.card = this.add.image(previewW*0.25, thumbsY, anyCardKey)
+    .setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86)
+    .setOrigin(0.5)
+    .setMask(previewMask);
+  previewBox.add(preview.card);
 }
+
 
 const updatePreview = async () => {
   // bg preview
   const bgKey = await ensurePreviewTexture('bg', selected.bg, 'bg_menu.png');
   if (bgKey && preview.bg) {
   preview.bg.setTexture(bgKey);
-  preview.bg.setDisplaySize(isMobile ? 250 : 240, isMobile ? 125 : 120);
+  preview.bg.setDisplaySize(previewW, previewH);
+  preview.bg.setMask(previewMask);
 }
 
 
@@ -862,14 +903,22 @@ const updatePreview = async () => {
   const btnKey = await ensurePreviewTexture('button', selected.button, 'button01.png');
   if (btnKey && preview.button) {
     preview.button.setTexture(btnKey);
-    preview.button.setDisplaySize(isMobile ? 250 : 240, isMobile ? 125 : 120);
+    preview.button.setDisplaySize(
+  isMobile ? 92 : 110,
+  isMobile ? 44 : 50
+);
+    preview.button.setMask(previewMask);
   }
 
   // back-card preview
   const backKey = await ensurePreviewTexture('back_card', selected.back, 'back_card02.png');
   if (backKey && preview.back) {
     preview.back.setTexture(backKey);
-    preview.back.setDisplaySize(isMobile ? 250 : 240, isMobile ? 125 : 120);
+    preview.back.setDisplaySize(
+  isMobile ? 54 : 60,
+  isMobile ? 72 : 80
+);
+    preview.back.setMask(previewMask);
   }
 
   // card preview (если хочешь — показываем одну карту из выбранного card-pack)
@@ -894,14 +943,18 @@ const updatePreview = async () => {
 
     if (this.textures.exists(key)) {
       preview.card.setTexture(key);
-      preview.card.setDisplaySize(isMobile ? 250 : 240, isMobile ? 125 : 120);
+      preview.card.setDisplaySize(
+  isMobile ? 56 : 64,
+  isMobile ? 74 : 86
+);
+      preview.card.setMask(previewMask);
     }
   }
 };
 
 
 const makeRow = (label, key, y) => {
-  const t = this.add.text(-modalW/2 + 24, y, label, {
+  const t = this.add.text(leftColX, y, label, {
     fontFamily: 'Arial',
     fontSize: '14px',
     color: '#E8E8E8'
@@ -910,9 +963,10 @@ const makeRow = (label, key, y) => {
   content.add(t);
 
   const options = packs[key] || [];
- const startX = isMobile
-  ? (-modalW/2 + 170)   // ✅ ближе к центру, чтобы не упираться в край
-  : (-modalW/2 + 220);
+const startX = isMobile
+  ? (-modalW / 2 + 170)
+  : (-modalW / 2 + 220);
+
 
 
   // ✅ только для мобилки делаем одинаковые "квадраты"
@@ -1007,13 +1061,14 @@ rowButtons[key].push(btn);     // складываем в ряд
 
 
  // 4 строки
-const rowsStartY = isMobile ? -10 : -140;   // ✅ на мобилке ниже превью
-const rowsGap    = isMobile ? 78  : 60;
+const rowsStartY = isMobile ? (previewTopY + previewH/2 + 40) : -140;
+const rowsGap    = isMobile ? 78 : 60;
 
 makeRow('Рубашка', 'back',   rowsStartY + rowsGap * 0);
 makeRow('Фон',     'bg',     rowsStartY + rowsGap * 1);
 makeRow('Карты',   'cards',  rowsStartY + rowsGap * 2);
 makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
+
 
 
   updatePreview();
