@@ -645,7 +645,8 @@ async ensureValidThemeConfig() {
 
 async fileExists(url) {
   try {
-    const r = await fetch(url, { method: 'GET', cache: 'no-store' });
+    const r = await fetch(url, { method: 'HEAD', cache: 'force-cache' });
+
     if (!r.ok) return false;
 
     const ct = (r.headers.get('content-type') || '').toLowerCase();
@@ -804,44 +805,58 @@ const previewMask = maskGfx.createGeometryMask();
 
 
 
-  // ✅ Lazy-load texture for preview inside MenuScene (no PreloadScene restart)
-const ensurePreviewTexture = (type, num, filename) => {
-  return new Promise((resolve) => {
-    const useHD = !!this.game.registry.get('useHDTextures');
-    const suffix = useHD ? '@2x' : '';
-    const key = `preview_${type}_${num}${useHD ? '_hd' : ''}`;
-    const url = `assets/${type}/${num}/${filename.replace('.png', `${suffix}.png`)}`;
+// ✅ Preview texture loader (batch, no multiple load.start)
+const useHD = !!this.game.registry.get('useHDTextures');
+const suffix = useHD ? '@2x' : '';
+const hdTag  = useHD ? '_hd' : '';
 
-    if (this.textures.exists(key)) {
-      resolve(key);
-      return;
-    }
+const buildPreviewKey = (type, num, fileBase, extra = '') =>
+  `preview_${type}_${num}${hdTag}${extra ? '_' + extra : ''}`;
 
-    // Phaser loader can run in an active scene
-    this.load.image(key, url);
+const buildUrl = (type, num, fileBase) =>
+  `assets/${type}/${num}/${fileBase}${suffix}.png`;
 
-    const onFileComplete = (loadedKey) => {
-      if (loadedKey === key) {
-        this.load.off('filecomplete-image-' + key, onThisFile);
-        resolve(key);
-      }
-    };
+// 🔒 сериализуем загрузку превью, чтобы не было гонок внутри loader
+let previewLoadChain = Promise.resolve();
 
-    const onThisFile = () => onFileComplete(key);
+/**
+ * Загружает пачку текстур одним this.load.start()
+ * items: [{ key, url }]
+ */
+const loadPreviewBatch = (items) => {
+  // оставляем только отсутствующие
+  const missing = items.filter(it => it && it.key && it.url && !this.textures.exists(it.key));
+  if (!missing.length) return Promise.resolve();
 
-    this.load.once('filecomplete-image-' + key, onThisFile);
-
-    // fallback if load fails (404)
-    this.load.once('loaderror', (file) => {
-      if (file && file.key === key) {
-        this.load.off('filecomplete-image-' + key, onThisFile);
-        resolve(null);
-      }
+  // Важно: Phaser loader один на сцену — делаем очередь
+  previewLoadChain = previewLoadChain.then(() => new Promise((resolve) => {
+    // добавляем только missing
+    missing.forEach(({ key, url }) => {
+      // на всякий случай: если уже добавлен/есть — пропускаем
+      if (!this.textures.exists(key)) this.load.image(key, url);
     });
 
+    // Ждём завершения всей пачки (успех/ошибка — всё равно завершаем)
+    const onComplete = () => {
+      this.load.off('complete', onComplete);
+      this.load.off('loaderror', onError);
+      resolve();
+    };
+
+    const onError = () => {
+      // ошибки отдельных файлов не должны ломать промис
+      // просто дождёмся 'complete'
+    };
+
+    this.load.once('complete', onComplete);
+    this.load.on('loaderror', onError);
+
     this.load.start();
-  });
+  }));
+
+  return previewLoadChain;
 };
+
 
 // ✅ Preview area (right side or center depending on mobile)
 const preview = {
@@ -888,69 +903,61 @@ if (anyCardKey && this.textures.exists(anyCardKey)) {
   previewBox.add(preview.card);
 }
 
+let previewUpdateToken = 0;
 
 const updatePreview = async () => {
-  // bg preview
-  const bgKey = await ensurePreviewTexture('bg', selected.bg, 'bg_menu.png');
-  if (bgKey && preview.bg) {
-  preview.bg.setTexture(bgKey);
-  preview.bg.setDisplaySize(previewW, previewH);
-  preview.bg.setMask(previewMask);
-}
+  const myToken = ++previewUpdateToken;
 
+  // Собираем keys/urls для всех превью разом
+  const bgKey   = buildPreviewKey('bg', selected.bg, 'bg_menu');
+  const btnKey  = buildPreviewKey('button', selected.button, 'button01');
+  const backKey = buildPreviewKey('back_card', selected.back, 'back_card02');
 
-  // button preview
-  const btnKey = await ensurePreviewTexture('button', selected.button, 'button01.png');
-  if (btnKey && preview.button) {
+  // карта-превью: берём первую карту из ALL_CARD_KEYS
+  const firstCard = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : null;
+  const cardKey = firstCard ? buildPreviewKey('cards', selected.cards, firstCard, firstCard) : null;
+
+  const batch = [
+    { key: bgKey,   url: buildUrl('bg',        selected.bg,   'bg_menu') },
+    { key: btnKey,  url: buildUrl('button',    selected.button,'button01') },
+    { key: backKey, url: buildUrl('back_card', selected.back, 'back_card02') },
+    firstCard ? { key: cardKey, url: buildUrl('cards', selected.cards, firstCard) } : null
+  ].filter(Boolean);
+
+  await loadPreviewBatch(batch);
+
+  // 🔒 защита от устаревших async-обновлений
+  if (myToken !== previewUpdateToken) return;
+
+  // bg
+  if (preview.bg && this.textures.exists(bgKey)) {
+    preview.bg.setTexture(bgKey);
+    preview.bg.setDisplaySize(previewW, previewH);
+    preview.bg.setMask(previewMask);
+  }
+
+  // button
+  if (preview.button && this.textures.exists(btnKey)) {
     preview.button.setTexture(btnKey);
-    preview.button.setDisplaySize(
-  isMobile ? 92 : 110,
-  isMobile ? 44 : 50
-);
+    preview.button.setDisplaySize(isMobile ? 92 : 110, isMobile ? 44 : 50);
     preview.button.setMask(previewMask);
   }
 
-  // back-card preview
-  const backKey = await ensurePreviewTexture('back_card', selected.back, 'back_card02.png');
-  if (backKey && preview.back) {
+  // back
+  if (preview.back && this.textures.exists(backKey)) {
     preview.back.setTexture(backKey);
-    preview.back.setDisplaySize(
-  isMobile ? 54 : 60,
-  isMobile ? 72 : 80
-);
+    preview.back.setDisplaySize(isMobile ? 54 : 60, isMobile ? 72 : 80);
     preview.back.setMask(previewMask);
   }
 
-  // card preview (если хочешь — показываем одну карту из выбранного card-pack)
-  if (preview.card && window.ALL_CARD_KEYS && window.ALL_CARD_KEYS.length) {
-    const cardFile = `${window.ALL_CARD_KEYS[0]}.png`; // например qd.png
-    // cards лежат в assets/cards/{num}/qd.png (у тебя так)
-    const useHD = !!this.game.registry.get('useHDTextures');
-    const suffix = useHD ? '@2x' : '';
-    const key = `preview_cards_${selected.cards}${useHD ? '_hd' : ''}_${window.ALL_CARD_KEYS[0]}`;
-    const url = `assets/cards/${selected.cards}/${window.ALL_CARD_KEYS[0]}${suffix}.png`;
-
-    if (!this.textures.exists(key)) {
-      this.load.image(key, url);
-      this.load.start();
-      await new Promise((res) => {
-        this.load.once('filecomplete-image-' + key, () => res());
-        this.load.once('loaderror', (file) => {
-          if (file && file.key === key) res();
-        });
-      });
-    }
-
-    if (this.textures.exists(key)) {
-      preview.card.setTexture(key);
-      preview.card.setDisplaySize(
-  isMobile ? 56 : 64,
-  isMobile ? 74 : 86
-);
-      preview.card.setMask(previewMask);
-    }
+  // card
+  if (preview.card && cardKey && this.textures.exists(cardKey)) {
+    preview.card.setTexture(cardKey);
+    preview.card.setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86);
+    preview.card.setMask(previewMask);
   }
 };
+
 
 
 const makeRow = (label, key, y) => {
