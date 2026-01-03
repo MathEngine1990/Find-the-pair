@@ -1071,8 +1071,10 @@ rowButtons[key].push(btn);     // складываем в ряд
 
 
  // 4 строки
-const rowsStartY = isMobile ? (previewTopY + previewH/2 + 40) : -140;
+// 4 строки — всегда стартуем ниже превью, иначе оно залезает на кнопки
+const rowsStartY = (previewTopY + previewH/2) + (isMobile ? 40 : 30);
 const rowsGap    = isMobile ? 78 : 60;
+
 
 makeRow('Рубашка', 'back',   rowsStartY + rowsGap * 0);
 makeRow('Фон',     'bg',     rowsStartY + rowsGap * 1);
