@@ -746,6 +746,9 @@ const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
   const modalW = Math.min(W * 0.9, 520);
   const modalH = Math.min(H * 0.85, 620);
 
+  const rowButtons = {}; // key -> array of buttons
+
+
   const modal = this.add.graphics()
     .fillStyle(0x2C3E50, 0.96)
     .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
@@ -761,6 +764,123 @@ const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
   }).setOrigin(0.5).setDepth(3002);
 
   const content = this.add.container(W/2, H/2).setDepth(3002);
+
+  // ✅ Lazy-load texture for preview inside MenuScene (no PreloadScene restart)
+const ensurePreviewTexture = (type, num, filename) => {
+  return new Promise((resolve) => {
+    const useHD = !!this.game.registry.get('useHDTextures');
+    const suffix = useHD ? '@2x' : '';
+    const key = `preview_${type}_${num}${useHD ? '_hd' : ''}`;
+    const url = `assets/${type}/${num}/${filename.replace('.png', `${suffix}.png`)}`;
+
+    if (this.textures.exists(key)) {
+      resolve(key);
+      return;
+    }
+
+    // Phaser loader can run in an active scene
+    this.load.image(key, url);
+
+    const onFileComplete = (loadedKey) => {
+      if (loadedKey === key) {
+        this.load.off('filecomplete-image-' + key, onThisFile);
+        resolve(key);
+      }
+    };
+
+    const onThisFile = () => onFileComplete(key);
+
+    this.load.once('filecomplete-image-' + key, onThisFile);
+
+    // fallback if load fails (404)
+    this.load.once('loaderror', (file) => {
+      if (file && file.key === key) {
+        this.load.off('filecomplete-image-' + key, onThisFile);
+        resolve(null);
+      }
+    });
+
+    this.load.start();
+  });
+};
+
+// ✅ Preview area (right side or center depending on mobile)
+const preview = {
+  bg: null,
+  button: null,
+  back: null,
+  card: null
+};
+
+const previewY = -modalH/2 + 95;
+const previewX = isMobile ? 0 : (modalW/2 - 150);
+
+// Background preview (small frame)
+preview.bg = this.add.image(previewX, previewY + 60, 'bg_menu')
+  .setDisplaySize(isMobile ? 220 : 240, isMobile ? 110 : 120)
+  .setOrigin(0.5, 0.5);
+content.add(preview.bg);
+
+// Button preview
+preview.button = this.add.image(previewX - 60, previewY + 150, 'button01')
+  .setDisplaySize(72, 40)
+  .setOrigin(0.5, 0.5);
+content.add(preview.button);
+
+// Back-card preview
+preview.back = this.add.image(previewX + 60, previewY + 150, 'back_card02')
+  .setDisplaySize(48, 64)
+  .setOrigin(0.5, 0.5);
+content.add(preview.back);
+
+// Card preview (use any existing loaded card key; fallback to first from ALL_CARD_KEYS)
+const anyCardKey = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : null;
+if (anyCardKey && this.textures.exists(anyCardKey)) {
+  preview.card = this.add.image(previewX, previewY + 235, anyCardKey)
+    .setDisplaySize(56, 74)
+    .setOrigin(0.5, 0.5);
+  content.add(preview.card);
+}
+
+const updatePreview = async () => {
+  // bg preview
+  const bgKey = await ensurePreviewTexture('bg', selected.bg, 'bg_menu.png');
+  if (bgKey && preview.bg) preview.bg.setTexture(bgKey);
+
+  // button preview
+  const btnKey = await ensurePreviewTexture('button', selected.button, 'button01.png');
+  if (btnKey && preview.button) preview.button.setTexture(btnKey);
+
+  // back-card preview
+  const backKey = await ensurePreviewTexture('back_card', selected.back, 'back_card02.png');
+  if (backKey && preview.back) preview.back.setTexture(backKey);
+
+  // card preview (если хочешь — показываем одну карту из выбранного card-pack)
+  if (preview.card && window.ALL_CARD_KEYS && window.ALL_CARD_KEYS.length) {
+    const cardFile = `${window.ALL_CARD_KEYS[0]}.png`; // например qd.png
+    // cards лежат в assets/cards/{num}/qd.png (у тебя так)
+    const useHD = !!this.game.registry.get('useHDTextures');
+    const suffix = useHD ? '@2x' : '';
+    const key = `preview_cards_${selected.cards}${useHD ? '_hd' : ''}_${window.ALL_CARD_KEYS[0]}`;
+    const url = `assets/cards/${selected.cards}/${window.ALL_CARD_KEYS[0]}${suffix}.png`;
+
+    if (!this.textures.exists(key)) {
+      this.load.image(key, url);
+      this.load.start();
+      await new Promise((res) => {
+        this.load.once('filecomplete-image-' + key, () => res());
+        this.load.once('loaderror', (file) => {
+          if (file && file.key === key) res();
+        });
+      });
+    }
+
+    if (this.textures.exists(key)) {
+      preview.card.setTexture(key);
+    }
+  }
+};
+
 
 const makeRow = (label, key, y) => {
   const t = this.add.text(-modalW/2 + 24, y, label, {
@@ -781,6 +901,9 @@ const optH = isMobile ? 42 : 34;
 // ✅ шаг: на мобилке плотнее, на десктопе как было
 const stepX = isMobile ? 52 : 60;
 
+rowButtons[key] = [];
+
+
   // ✅ Если нет ни одной папки/пака — показываем "нет"
   if (!options.length) {
     const none = this.add.text(startX, y, 'нет вариантов', {
@@ -797,6 +920,30 @@ const stepX = isMobile ? 52 : 60;
     selected[key] = options[0];
   }
 
+  const refreshRowActive = () => {
+  const arr = rowButtons[key] || [];
+  arr.forEach((b) => {
+    const active = (b.__num === selected[key]);
+
+    // если makeImageButton поддерживает setColors — используем
+    if (typeof b.setColors === 'function') {
+      b.setColors(active ? '#243540' : '#F2DC9B');
+    }
+
+    // если есть фон-спрайт — меняем tint/alpha
+    if (b.bg && typeof b.bg.setTint === 'function') {
+      b.bg.setTint(active ? 0x243540 : 0xF2DC9B);
+      b.bg.setAlpha(1);
+    }
+
+    // если есть label — подправим цвет (не обязательно)
+    if (b.label && typeof b.label.setColor === 'function') {
+      b.label.setColor(active ? '#F2DC9B' : '#243540');
+    }
+  });
+};
+
+
   options.forEach((num, idx) => {
     const isActive = selected[key] === num;
 
@@ -809,21 +956,32 @@ const stepX = isMobile ? 52 : 60;
       () => {
   selected[key] = num;
 
-  overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
-  applyBtn.destroy(); cancelBtn.destroy();
-  this.showThemeSelector(selected); // ✅ сохраняем выбор при перерисовке
+  //overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+  //applyBtn.destroy(); cancelBtn.destroy();
+  //this.showThemeSelector(selected); // ✅ сохраняем выбор при перерисовке
+
+refreshRowActive(); // ✅ мгновенная подсветка кнопок ряда
+  updatePreview();    // ✅ мгновенное обновление превью
+
 },
 
       { color: isActive ? '#243540' : '#F2DC9B' }
     );
 
-
+    btn.__num = num;               // запоминаем номер варианта
+rowButtons[key].push(btn);     // складываем в ряд
 
 
 
     btn.setDepth(3003);
     content.add(btn);
+
+
+
+
+
   });
+  refreshRowActive();
 };
 
 
@@ -833,10 +991,13 @@ const stepX = isMobile ? 52 : 60;
   makeRow('Карты',   'cards',  -20);
   makeRow('Кнопка',  'button',  40);
 
+  updatePreview();
+
+
   // Кнопки внизу
   const applyBtn = window.makeImageButton(
     this,
-    W/2 - 90,
+    W/2 - 70,
     H/2 + modalH/2 - 50,
     160, 44,
     'Применить',
@@ -854,7 +1015,7 @@ const stepX = isMobile ? 52 : 60;
 
   const cancelBtn = window.makeImageButton(
     this,
-    W/2 + 90,
+    W/2 + 70,
     H/2 + modalH/2 - 50,
     160, 44,
     'Закрыть',
