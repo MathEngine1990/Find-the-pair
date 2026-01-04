@@ -783,36 +783,57 @@ const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
 
   const content = this.add.container(W/2, H/2).setDepth(3002);
 
-  // ✅ Колонки окна
-const leftColX  = -modalW/2 + (isMobile ? 40 : 40);      // подписи слева
+// ✅ Колонки окна (авто-раскладка, чтобы всё помещалось)
+const leftColX = -modalW/2 + 40; // подписи слева
 
-const rowsBtnX  = -modalW/2 + (isMobile ? 210 : 260);    // кнопки-цифры (не в превью!)
-
-// ✅ Preview frame размеры (фиксируем!)
-const previewW = isMobile ? 210 : 240;
-const previewH = isMobile ? 320 : 360;
-
-
-
-const optW = isMobile ? 42 : 46;
-
-
-  // ✅ только для мобилки делаем одинаковые "квадраты"
-
-const optH = isMobile ? 42 : 34;
-
-// ✅ шаг: на мобилке плотнее, на десктопе как было
+// размеры кнопок опций
+const optW  = isMobile ? 42 : 46;
+const optH  = isMobile ? 42 : 34;
 const stepX = isMobile ? 52 : 60;
 
-const maxOptions = Math.max(...(['back','bg','cards','button'].map(k => (packs[k] || []).length)), 1);
-const buttonsBlockW = (maxOptions - 1) * (isMobile ? 52 : 60) + (isMobile ? 42 : 46);
-const gapToPreview = isMobile ? 26 : 34;
+// ширина "колонки" под подписи + отступ до кнопок
+const labelColW = isMobile ? 135 : 165;
 
-const rightColX = rowsBtnX + buttonsBlockW + gapToPreview + previewW / 2;
+// X старта кнопок (центры кнопок)
+const rowsBtnX = -modalW/2 + labelColW;
 
+// сколько кнопок максимум в ряду
+const maxOptions = Math.max(
+  ...(['back','bg','cards','button'].map(k => (packs[k] || []).length)),
+  1
+);
 
+// правая граница модалки (в координатах content, т.е. относительно центра модалки)
+const modalRight = (modalW / 2);
+const modalLeft  = -(modalW / 2);
 
-const previewTopY = -modalH/2 + (isMobile ? 170 : 165);
+// где заканчиваются кнопки опций (ПРАВАЯ граница последней кнопки)
+const buttonsRightEdge = rowsBtnX + (maxOptions - 1) * stepX + optW / 2;
+
+// отступ между кнопками и превью + отступ от правого края модалки
+const gapToPreview   = isMobile ? 14 : 18;
+const rightPadding   = isMobile ? 16 : 20;
+
+// желаемый размер превью, но будем зажимать по месту
+const desiredPreviewW = isMobile ? 210 : 240;
+const desiredPreviewH = isMobile ? 320 : 360;
+
+// доступная ширина под превью между кнопками и правым краем
+const availablePreviewW = (modalRight - rightPadding) - (buttonsRightEdge + gapToPreview);
+
+// финальная ширина превью (не меньше 140, но не больше доступного/желаемого)
+const previewW = Math.max(140, Math.min(desiredPreviewW, availablePreviewW));
+const previewH = desiredPreviewH;
+
+// X превью: сразу после кнопок, но НЕ вылезаем за правый край
+let rightColX = buttonsRightEdge + gapToPreview + previewW / 2;
+rightColX = Math.min(rightColX, modalRight - rightPadding - previewW / 2);
+
+// Y превью: центрируем между заголовком и нижними кнопками
+const topSafe    = -modalH/2 + (isMobile ? 120 : 115);
+const bottomSafe =  modalH/2 - (isMobile ? 165 : 160);
+const previewTopY = (topSafe + bottomSafe) / 2;
+
 
 
 // контейнер превью
@@ -904,8 +925,6 @@ const preview = {
   card: null
 };
 
-const previewY = -modalH/2 + (isMobile ? 92 : 95);
-const previewX = isMobile ? 0 : (modalW/2 - 150);
 
 
 
@@ -1150,8 +1169,9 @@ rowButtons[key].push(btn);     // складываем в ряд
 
  // 4 строки
 // 4 строки — всегда стартуем ниже превью, иначе оно залезает на кнопки
-const rowsStartY = -modalH/2 + (isMobile ? 180 : 170);
-const rowsGap    = isMobile ? 70 : 58;
+const rowsStartY = -modalH/2 + (isMobile ? 165 : 160);
+const rowsGap    = isMobile ? 66 : 56;
+
 
 
 
