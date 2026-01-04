@@ -71,7 +71,8 @@ this.subtitleText = this.add.text(
     const progressBoxY = height / 2 + 50;
 
     // Фон прогресс-бара
-    //this.progressBox = this.add.graphics();
+    this.progressBox = this.add.graphics();
+    this.progressBox.setVisible(false);
     this.progressBox.fillStyle(0x222222, 0.8);
     this.progressBox.fillRoundedRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight, 10);
     
@@ -80,7 +81,8 @@ this.subtitleText = this.add.text(
     this.progressBox.strokeRoundedRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight, 10);
 
     // Сам прогресс-бар
-    //this.progressBar = this.add.graphics();
+    this.progressBar = this.add.graphics();
+    this.progressBar.setVisible(false);
 
     // Текст прогресса
     // this.progressText = this.add.text(width / 2, progressBoxY + progressBoxHeight / 2, '0%', {
@@ -115,26 +117,14 @@ this.subtitleText = this.add.text(
     const progressBoxX = width / 2 - 160;
     const progressBoxY = height / 2 + 50;
 
-    // Обновление прогресса
-    this.load.on('progress', (value) => {
-      this.progressBar.clear();
-      this.progressBar.fillStyle(0x4ECDC4);
-      this.progressBar.fillRoundedRect(
-        progressBoxX + 10,
-        progressBoxY + 10,
-        progressBoxWidth * value,
-        30,
-        5
-      );
-      
-      const percentage = Math.round(value * 100);
-      this.progressText.setText(`${percentage}%`);
-    });
+// Прогресс/имя файла не показываем
+this.load.on('progress', (value) => {
+  // ничего не рисуем
+});
 
-    // Загрузка файла
-    this.load.on('fileprogress', (file) => {
-      this.loadingText.setText(`Загрузка: ${file.key}`);
-    });
+this.load.on('fileprogress', (file) => {
+  // ничего не показываем
+});
 
 
 
@@ -180,13 +170,10 @@ this.load.on('loaderror', (file) => {
 
         // Завершение загрузки
 this.load.on('complete', () => {
-  console.log('[PreloadScene] Loader complete event');
-  this.loadingText.setText('Загрузка завершена!');
-  
-  this.time.delayedCall(500, () => {
-    this.startNextScene();
-  });
+  console.log('[PreloadScene] Loader complete');
+  this.startNextScene();
 });
+
     
   }
 
