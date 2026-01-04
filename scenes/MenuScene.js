@@ -1058,6 +1058,10 @@ if (preview.card && cardKey && this.textures.exists(cardKey)) {
 
 
 const makeRow = (label, key, y) => {
+  const COLOR_NORMAL = '#243540';
+const COLOR_HOVER  = '#FFFFFF';
+const COLOR_ACTIVE = '#F2DC9B';
+
   const t = this.add.text(leftColX, y, label, {
     fontFamily: 'Arial',
     fontSize: '14px',
@@ -1107,8 +1111,9 @@ if (b.bg) {
   b.bg.setAlpha(active ? 1 : 0.9);
 }
 if (b.label && b.label.setColor) {
-  b.label.setColor(active ? '#F2DC9B' : '#243540');
+  b.label.setColor(active ? COLOR_ACTIVE : COLOR_NORMAL);
 }
+
 
 
     // если есть label — подправим цвет (не обязательно)
@@ -1172,10 +1177,30 @@ const previewKey = buildPreviewKey(type, num, fileBase, extra);
     btn.__num = num;               // запоминаем номер варианта
 rowButtons[key].push(btn);     // складываем в ряд
 
+// --- Hover подсветка цифр ---
+if (btn.zone && btn.label) {
+  btn.zone.on('pointerover', () => {
+    // если кнопка НЕ активная — подсвечиваем hover-цветом
+    if (btn.__num !== selected[key]) {
+      btn.label.setColor(COLOR_HOVER);
+    }
+  });
+
+  btn.zone.on('pointerout', () => {
+    // возвращаем цвет в зависимости от active / normal
+    btn.label.setColor(
+      btn.__num === selected[key]
+        ? COLOR_ACTIVE
+        : COLOR_NORMAL
+    );
+  });
+}
 
 
     btn.setDepth(3003);
     content.add(btn);
+
+    
 
 
 
