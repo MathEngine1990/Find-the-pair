@@ -785,13 +785,13 @@ const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
 
   // ✅ Колонки окна
 const leftColX  = -modalW/2 + (isMobile ? 40 : 40);      // подписи слева
-const rightColX =  modalW/2 - (isMobile ? 150 : 170);    // блок превью справа
+const rightColX =  modalW/2 - (isMobile ? 120 : 140);    // блок превью справа
 const rowsBtnX  = -modalW/2 + (isMobile ? 210 : 260);    // кнопки-цифры (не в превью!)
 
 // ✅ Preview frame размеры (фиксируем!)
-const previewW = isMobile ? 240 : 300;
-const previewH = isMobile ? 220 : 260;
-const previewTopY = -modalH/2 + (isMobile ? 90 : 105);
+const previewW = isMobile ? 210 : 240;
+const previewH = isMobile ? 320 : 360;
+const previewTopY = -modalH/2 + (isMobile ? 140 : 150);
 
 // контейнер превью
 const previewBox = this.add.container(rightColX, previewTopY);
@@ -812,6 +812,10 @@ maskGfx.fillStyle(0xffffff, 1);
 maskGfx.fillRect(-previewW / 2, -previewH / 2, previewW, previewH);
 
 const previewMask = maskGfx.createGeometryMask();
+
+content.__themeMaskGfx = maskGfx;
+content.__themePreviewMask = previewMask;
+
 
 
 
@@ -912,6 +916,22 @@ let previewUpdateToken = 0;
 let applyBtn = null;
 let cancelBtn = null;
 
+const applyButtonSkinToAllOptionButtons = async () => {
+  const btnKey  = buildPreviewKey('button', selected.button, 'button01');
+  await loadPreviewBatch([{ key: btnKey, url: buildUrl('button', selected.button, 'button01') }]);
+
+  // все кнопки во всех рядах получают один и тот же skin кнопки
+  Object.keys(rowButtons).forEach((k) => {
+    (rowButtons[k] || []).forEach((b) => {
+      if (b?.bg && this.textures.exists(btnKey)) {
+        b.bg.setTexture(btnKey);
+        b.bg.clearTint?.();
+      }
+    });
+  });
+};
+
+
 
 const updatePreview = async () => {
   const myToken = ++previewUpdateToken;
@@ -949,6 +969,9 @@ if (this.textures.exists(btnKey)) {
   }
 }
 
+// ✅ Применяем стиль кнопок ко всем кнопкам выбора
+await applyButtonSkinToAllOptionButtons();
+if (myToken !== previewUpdateToken) return;
 
   if (bgPreviewImage && this.textures.exists(bgKey)) {
   bgPreviewImage.setTexture(bgKey);
@@ -1084,13 +1107,13 @@ if (key === 'bg') {
 
 const previewKey = buildPreviewKey(type, num, fileBase, extra);
 
-loadPreviewBatch([{ key: previewKey, url: buildUrl(type, num, fileBase) }]).then(() => {
-  if (btn.bg && this.textures.exists(previewKey)) {
-    btn.bg.setTexture(previewKey);
-    // важно: НЕ tint'ить текстуры
-    if (btn.bg.clearTint) btn.bg.clearTint();
-  }
-});
+// loadPreviewBatch([{ key: previewKey, url: buildUrl(type, num, fileBase) }]).then(() => {
+//   if (btn.bg && this.textures.exists(previewKey)) {
+//     btn.bg.setTexture(previewKey);
+//     // важно: НЕ tint'ить текстуры
+//     if (btn.bg.clearTint) btn.bg.clearTint();
+//   }
+// });
 
 
 
@@ -1107,7 +1130,8 @@ rowButtons[key].push(btn);     // складываем в ряд
 
 
   });
-  refreshRowActive();
+    refreshRowActive();
+  applyButtonSkinToAllOptionButtons(); 
 };
 
 
@@ -1138,6 +1162,9 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
     () => {
       this.setThemeConfig(selected);
 
+      try { content.__themeMaskGfx?.destroy?.(); } catch {}
+
+
       // Самый надежный способ: перезапуск прелоада (перегрузит текстуры)
       overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
       applyBtn.destroy(); cancelBtn.destroy();
@@ -1154,6 +1181,8 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
     130, 44,
     'Закрыть',
     () => {
+      try { content.__themeMaskGfx?.destroy?.(); } catch {}
+
       overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
       applyBtn.destroy(); cancelBtn.destroy();
     }
