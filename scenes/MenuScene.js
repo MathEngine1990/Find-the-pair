@@ -781,12 +781,13 @@ const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
   const rowButtons = {}; // key -> array of buttons
 
 
-  const modal = this.add.graphics()
-    .fillStyle(0x2C3E50, 0.05)
-    .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
-    .lineStyle(3, 0xF2DC9B, 0.9)
-    .strokeRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
-    .setDepth(3001);
+const modal = this.add.graphics()
+  .fillStyle(0x2C3E50, 0.05)
+  .fillRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH)
+  .lineStyle(3, 0xF2DC9B, 0.9)
+  .strokeRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH)
+  .setDepth(3001);
+
 
   const title = this.add.text(W/2, H/2 - modalH/2 + 26, '🎨 Оформление', {
     fontFamily: 'BoldPixels, Arial',
@@ -979,10 +980,12 @@ const applyButtonSkinToAllOptionButtons = async () => {
   // все кнопки во всех рядах получают один и тот же skin кнопки
   Object.keys(rowButtons).forEach((k) => {
     (rowButtons[k] || []).forEach((b) => {
-      if (b?.bg && this.textures.exists(btnKey)) {
-        b.bg.setTexture(btnKey);
-        b.bg.clearTint?.();
-      }
+if (b?.bg && this.textures.exists(btnKey)) {
+  b.bg.setTexture(btnKey);
+  b.bg.setDisplaySize(optW, optH);     // ✅ ключевой фикс масштаба
+  b.bg.clearTint?.();
+}
+
     });
   });
 };
@@ -1015,14 +1018,17 @@ const updatePreview = async () => {
 
   // ✅ Применяем выбранный стиль кнопки к нижним кнопкам
 if (this.textures.exists(btnKey)) {
-  if (applyBtn?.bg) {
-    applyBtn.bg.setTexture(btnKey);
-    applyBtn.bg.clearTint?.();
-  }
-  if (cancelBtn?.bg) {
-    cancelBtn.bg.setTexture(btnKey);
-    cancelBtn.bg.clearTint?.();
-  }
+if (applyBtn?.bg) {
+  applyBtn.bg.setTexture(btnKey);
+  applyBtn.bg.setDisplaySize(130, 44);   // ✅ фикс размеров
+  applyBtn.bg.clearTint?.();
+}
+if (cancelBtn?.bg) {
+  cancelBtn.bg.setTexture(btnKey);
+  cancelBtn.bg.setDisplaySize(130, 44);  // ✅ фикс размеров
+  cancelBtn.bg.clearTint?.();
+}
+
 }
 
 // ✅ Применяем стиль кнопок ко всем кнопкам выбора
@@ -1098,7 +1104,7 @@ rowButtons[key] = [];
 
 if (b.bg) {
   if (b.bg.clearTint) b.bg.clearTint();
-  b.bg.setAlpha(active ? 1 : 0.75);
+  b.bg.setAlpha(active ? 1 : 0.9);
 }
 if (b.label && b.label.setColor) {
   b.label.setColor(active ? '#F2DC9B' : '#243540');
@@ -1315,7 +1321,7 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
     44,
     'Закрыть',
     () => {
-      clickBlocker.destroy();
+     //clickBlocker.destroy();
       overlay.destroy();
       modal.destroy();
       title.destroy();
