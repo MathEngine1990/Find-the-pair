@@ -113,7 +113,7 @@ this.subtitleText = this.add.text(
 
   setupLoadingHandlers() {
     const { width, height } = this.scale;
-    const progressBoxWidth = 320;
+    const progressBoxWidth = 300;
     const progressBoxX = width / 2 - 160;
     const progressBoxY = height / 2 + 50;
 
