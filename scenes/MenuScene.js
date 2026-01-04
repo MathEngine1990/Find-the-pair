@@ -40,6 +40,8 @@ async create() {
   this._isInitializing = true;
   this._isDrawing = false;
 
+  this.input.setTopOnly(true);
+
   // ✅ Если в localStorage выбран несуществующий пак — исправляем и перезагружаем ассеты
 if (await this.ensureValidThemeConfig()) {
   console.warn('[Theme] Invalid theme fixed → restarting PreloadScene to reload textures');
@@ -750,6 +752,18 @@ const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
     .setDepth(3000)
     .setInteractive();
 
+    // ✅ Ловим клики, чтобы не прокликивалось меню под модалкой
+const clickBlocker = this.add.zone(W / 2, H / 2, W, H)
+  .setOrigin(0.5)
+  .setScrollFactor(0)
+  .setDepth(overlay.depth + 1)      // или просто 2999, главное — выше меню
+  .setInteractive({ useHandCursor: false });
+
+clickBlocker.on('pointerdown', () => {
+  // ничего не делаем — просто блокируем "сквозной" клик
+});
+
+
 const modalW = Math.min(W * 0.9, 520);
 const modalH = Math.min(H * 0.85, 620);
 
@@ -1199,7 +1213,9 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
 
 
       // Самый надежный способ: перезапуск прелоада (перегрузит текстуры)
+      clickBlocker.destroy();
       overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+      bgPreviewImage.destroy();
       applyBtn.destroy(); cancelBtn.destroy();
 
       this.scene.start('PreloadScene');
@@ -1215,8 +1231,9 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
     'Закрыть',
     () => {
       try { content.__themeMaskGfx?.destroy?.(); } catch {}
-
+      clickBlocker.destroy();
       overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
+      bgPreviewImage.destroy();
       applyBtn.destroy(); cancelBtn.destroy();
     }
   );
@@ -1298,6 +1315,7 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
     44,
     'Закрыть',
     () => {
+      clickBlocker.destroy();
       overlay.destroy();
       modal.destroy();
       title.destroy();
