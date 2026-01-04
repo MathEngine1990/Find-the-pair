@@ -750,14 +750,17 @@ const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
     .setDepth(3000)
     .setInteractive();
 
-    const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
+const modalW = Math.min(W * 0.9, 520);
+const modalH = Math.min(H * 0.85, 620);
+
+// overlay должен быть НИЖЕ фоновой картинки модалки
+overlay.setDepth(2998);
+
+const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
   .setDepth(2999)
   .setDisplaySize(modalW, modalH)
   .setOrigin(0.5);
 
-
-  const modalW = Math.min(W * 0.9, 520);
-  const modalH = Math.min(H * 0.85, 620);
 
 
 
@@ -889,7 +892,7 @@ previewBox.add(preview.bg);
 // маленькие превью снизу внутри рамки
 const thumbsY = previewH/2 - (isMobile ? 48 : 54);
 
-preview.back = this.add.image(-previewW*0.25, thumbsY, 'back_card02')
+preview.back = this.add.image(-previewW*0.25, thumbsY, 'back')
   .setDisplaySize(isMobile ? 54 : 60, isMobile ? 72 : 80)
   .setOrigin(0.5)
   .setMask(previewMask);
@@ -905,7 +908,7 @@ const anyCardKey = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.AL
 
 // ✅ создаём объект card всегда, с запасной текстурой (чтобы updatePreview мог её менять)
 const cardFallbackKey =
-  (anyCardKey && this.textures.exists(anyCardKey)) ? anyCardKey : 'back_card02';
+  (anyCardKey && this.textures.exists(anyCardKey)) ? anyCardKey : 'back';
 
 preview.card = this.add.image(previewW * 0.25, thumbsY, cardFallbackKey)
   .setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86)
@@ -1047,7 +1050,7 @@ rowButtons[key] = [];
   optW, optH,
   String(num),
       () => {
-  //selected[key] = num;
+  selected[key] = num;
 
   //overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
   //applyBtn.destroy(); cancelBtn.destroy();
