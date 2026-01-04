@@ -750,14 +750,22 @@ const hasAll = requiredKeys.every(k => (packs[k] && packs[k].length > 0));
     .setDepth(3000)
     .setInteractive();
 
+    const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
+  .setDepth(2999)
+  .setDisplaySize(modalW, modalH)
+  .setOrigin(0.5);
+
+
   const modalW = Math.min(W * 0.9, 520);
   const modalH = Math.min(H * 0.85, 620);
+
+
 
   const rowButtons = {}; // key -> array of buttons
 
 
   const modal = this.add.graphics()
-    .fillStyle(0x2C3E50, 0.96)
+    .fillStyle(0x2C3E50, 0.05)
     .fillRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
     .lineStyle(3, 0xF2DC9B, 0.9)
     .strokeRoundedRect(W/2 - modalW/2, H/2 - modalH/2, modalW, modalH, 16)
@@ -1039,7 +1047,7 @@ rowButtons[key] = [];
   optW, optH,
   String(num),
       () => {
-  selected[key] = num;
+  //selected[key] = num;
 
   //overlay.destroy(); modal.destroy(); title.destroy(); content.destroy();
   //applyBtn.destroy(); cancelBtn.destroy();
@@ -1052,6 +1060,21 @@ refreshRowActive(); // ✅ мгновенная подсветка кнопок 
 
       { color: isActive ? '#243540' : '#F2DC9B' }
     );
+
+    const previewKey = buildPreviewKey(
+  key === 'button' ? 'button' : key,
+  num,
+  key === 'button' ? 'button01' : 'bg_menu'
+);
+
+loadPreviewBatch([
+  { key: previewKey, url: buildUrl(key === 'button' ? 'button' : 'bg', num, key === 'button' ? 'button01' : 'bg_menu') }
+]).then(() => {
+  if (btn.bg && this.textures.exists(previewKey)) {
+    btn.bg.setTexture(previewKey);
+  }
+});
+
 
     btn.__num = num;               // запоминаем номер варианта
 rowButtons[key].push(btn);     // складываем в ряд
