@@ -882,42 +882,36 @@ const previewX = isMobile ? 0 : (modalW/2 - 150);
 
 
 
-// фон внутри рамки
-preview.bg = this.add.image(0, 0, 'bg_menu')
-  .setDisplaySize(previewW, previewH)
-  .setOrigin(0.5, 0.5)
-  .setMask(previewMask);
-previewBox.add(preview.bg);
 
-// маленькие превью снизу внутри рамки
-const thumbsY = previewH/2 - (isMobile ? 48 : 54);
 
-preview.back = this.add.image(-previewW*0.25, thumbsY, 'back')
-  .setDisplaySize(isMobile ? 54 : 60, isMobile ? 72 : 80)
+// ✅ Превью справа: рубашка + лицевая карта (крупно, вертикально)
+const cardW = isMobile ? 95 : 120;
+const cardH = isMobile ? 130 : 165;
+
+const rightCenterY = 0;            // центр previewBox
+const gap = isMobile ? 12 : 16;
+
+preview.back = this.add.image(0, rightCenterY - (cardH/2 + gap/2), 'back')
+  .setDisplaySize(cardW, cardH)
   .setOrigin(0.5)
   .setMask(previewMask);
 previewBox.add(preview.back);
 
-preview.button = this.add.image(0, thumbsY, 'button01')
-  .setDisplaySize(isMobile ? 92 : 110, isMobile ? 44 : 50)
-  .setOrigin(0.5)
-  .setMask(previewMask);
-previewBox.add(preview.button);
-
 const anyCardKey = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : null;
+const cardFallbackKey = (anyCardKey && this.textures.exists(anyCardKey)) ? anyCardKey : 'back';
 
-// ✅ создаём объект card всегда, с запасной текстурой (чтобы updatePreview мог её менять)
-const cardFallbackKey =
-  (anyCardKey && this.textures.exists(anyCardKey)) ? anyCardKey : 'back';
-
-preview.card = this.add.image(previewW * 0.25, thumbsY, cardFallbackKey)
-  .setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86)
+preview.card = this.add.image(0, rightCenterY + (cardH/2 + gap/2), cardFallbackKey)
+  .setDisplaySize(cardW, cardH)
   .setOrigin(0.5)
   .setMask(previewMask);
 previewBox.add(preview.card);
 
 
 let previewUpdateToken = 0;
+
+let applyBtn = null;
+let cancelBtn = null;
+
 
 const updatePreview = async () => {
   const myToken = ++previewUpdateToken;
@@ -942,6 +936,19 @@ const updatePreview = async () => {
 
   // 🔒 защита от устаревших async-обновлений
   if (myToken !== previewUpdateToken) return;
+
+  // ✅ Применяем выбранный стиль кнопки к нижним кнопкам
+if (this.textures.exists(btnKey)) {
+  if (applyBtn?.bg) {
+    applyBtn.bg.setTexture(btnKey);
+    applyBtn.bg.clearTint?.();
+  }
+  if (cancelBtn?.bg) {
+    cancelBtn.bg.setTexture(btnKey);
+    cancelBtn.bg.clearTint?.();
+  }
+}
+
 
   if (bgPreviewImage && this.textures.exists(bgKey)) {
   bgPreviewImage.setTexture(bgKey);
@@ -1106,8 +1113,9 @@ rowButtons[key].push(btn);     // складываем в ряд
 
  // 4 строки
 // 4 строки — всегда стартуем ниже превью, иначе оно залезает на кнопки
-const rowsStartY = (previewTopY + previewH/2) + (isMobile ? 40 : 30);
-const rowsGap    = isMobile ? 78 : 60;
+const rowsStartY = -modalH/2 + (isMobile ? 180 : 170);
+const rowsGap    = isMobile ? 70 : 58;
+
 
 
 makeRow('Рубашка', 'back',   rowsStartY + rowsGap * 0);
@@ -1121,7 +1129,7 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
 
 
   // Кнопки внизу
-  const applyBtn = window.makeImageButton(
+  applyBtn = window.makeImageButton(
     this,
     W/2 - 70,
     H/2 + modalH/2 - 50,
@@ -1139,7 +1147,7 @@ makeRow('Кнопка',  'button', rowsStartY + rowsGap * 3);
   );
   applyBtn.setDepth(3003);
 
-  const cancelBtn = window.makeImageButton(
+ cancelBtn = window.makeImageButton(
     this,
     W/2 + 70,
     H/2 + modalH/2 - 50,
