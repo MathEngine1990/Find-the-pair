@@ -786,6 +786,24 @@ const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
   // ✅ Колонки окна
 const leftColX  = -modalW/2 + (isMobile ? 40 : 40);      // подписи слева
 
+const rowsBtnX  = -modalW/2 + (isMobile ? 210 : 260);    // кнопки-цифры (не в превью!)
+
+// ✅ Preview frame размеры (фиксируем!)
+const previewW = isMobile ? 210 : 240;
+const previewH = isMobile ? 320 : 360;
+
+
+
+const optW = isMobile ? 42 : 46;
+
+
+  // ✅ только для мобилки делаем одинаковые "квадраты"
+
+const optH = isMobile ? 42 : 34;
+
+// ✅ шаг: на мобилке плотнее, на десктопе как было
+const stepX = isMobile ? 52 : 60;
+
 const maxOptions = Math.max(...(['back','bg','cards','button'].map(k => (packs[k] || []).length)), 1);
 const buttonsBlockW = (maxOptions - 1) * (isMobile ? 52 : 60) + (isMobile ? 42 : 46);
 const gapToPreview = isMobile ? 26 : 34;
@@ -793,11 +811,6 @@ const gapToPreview = isMobile ? 26 : 34;
 const rightColX = rowsBtnX + buttonsBlockW + gapToPreview + previewW / 2;
 
 
-const rowsBtnX  = -modalW/2 + (isMobile ? 210 : 260);    // кнопки-цифры (не в превью!)
-
-// ✅ Preview frame размеры (фиксируем!)
-const previewW = isMobile ? 210 : 240;
-const previewH = isMobile ? 320 : 360;
 
 const previewTopY = -modalH/2 + (isMobile ? 170 : 165);
 
@@ -1020,12 +1033,6 @@ const startX = rowsBtnX;
 
 
 
-  // ✅ только для мобилки делаем одинаковые "квадраты"
-const optW = isMobile ? 42 : 46;
-const optH = isMobile ? 42 : 34;
-
-// ✅ шаг: на мобилке плотнее, на десктопе как было
-const stepX = isMobile ? 52 : 60;
 
 rowButtons[key] = [];
 
