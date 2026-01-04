@@ -785,22 +785,32 @@ const bgPreviewImage = this.add.image(W / 2, H / 2, 'bg_menu')
 
   // ✅ Колонки окна
 const leftColX  = -modalW/2 + (isMobile ? 40 : 40);      // подписи слева
-const rightColX =  modalW/2 - (isMobile ? 120 : 140);    // блок превью справа
+
+const maxOptions = Math.max(...(['back','bg','cards','button'].map(k => (packs[k] || []).length)), 1);
+const buttonsBlockW = (maxOptions - 1) * (isMobile ? 52 : 60) + (isMobile ? 42 : 46);
+const gapToPreview = isMobile ? 26 : 34;
+
+const rightColX = rowsBtnX + buttonsBlockW + gapToPreview + previewW / 2;
+
+
 const rowsBtnX  = -modalW/2 + (isMobile ? 210 : 260);    // кнопки-цифры (не в превью!)
 
 // ✅ Preview frame размеры (фиксируем!)
 const previewW = isMobile ? 210 : 240;
 const previewH = isMobile ? 320 : 360;
-const previewTopY = -modalH/2 + (isMobile ? 140 : 150);
+
+const previewTopY = -modalH/2 + (isMobile ? 170 : 165);
+
 
 // контейнер превью
 const previewBox = this.add.container(rightColX, previewTopY);
 content.add(previewBox);
 
 // рамка (по желанию — можно убрать, но полезно для понимания границ)
-const frame = this.add.rectangle(0, 0, previewW, previewH, 0x000000, 0.15)
-  .setOrigin(0.5, 0.5);
+const frame = this.add.rectangle(0, 0, previewW, previewH);
+frame.setStrokeStyle(2, 0xF2DC9B, 0.35);
 previewBox.add(frame);
+
 
 // ✅ GeometryMask работает в мировых координатах,
 // поэтому маску надо создавать в world-позиции previewBox
@@ -981,19 +991,16 @@ if (myToken !== previewUpdateToken) return;
 
 
 
-  // back
-  if (preview.back && this.textures.exists(backKey)) {
-    preview.back.setTexture(backKey);
-    preview.back.setDisplaySize(isMobile ? 54 : 60, isMobile ? 72 : 80);
-    preview.back.setMask(previewMask);
-  }
+if (preview.back && this.textures.exists(backKey)) {
+  preview.back.setTexture(backKey);
+  preview.back.setMask(previewMask);
+}
 
-  // card
-  if (preview.card && cardKey && this.textures.exists(cardKey)) {
-    preview.card.setTexture(cardKey);
-    preview.card.setDisplaySize(isMobile ? 56 : 64, isMobile ? 74 : 86);
-    preview.card.setMask(previewMask);
-  }
+if (preview.card && cardKey && this.textures.exists(cardKey)) {
+  preview.card.setTexture(cardKey);
+  preview.card.setMask(previewMask);
+}
+
 };
 
 
@@ -1008,9 +1015,8 @@ const makeRow = (label, key, y) => {
   content.add(t);
 
   const options = packs[key] || [];
-const startX = isMobile
-  ? (-modalW / 2 + 170)
-  : (-modalW / 2 + 220);
+const startX = rowsBtnX;
+
 
 
 
