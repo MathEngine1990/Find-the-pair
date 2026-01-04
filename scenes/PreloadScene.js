@@ -72,7 +72,7 @@ this.subtitleText = this.add.text(
 
     // Фон прогресс-бара
     this.progressBox = this.add.graphics();
-    this.progressBox.setVisible(false);
+    //this.progressBox.setVisible(false);
     this.progressBox.fillStyle(0x222222, 0.8);
     this.progressBox.fillRoundedRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight, 10);
     
@@ -82,7 +82,7 @@ this.subtitleText = this.add.text(
 
     // Сам прогресс-бар
     this.progressBar = this.add.graphics();
-    this.progressBar.setVisible(false);
+    //this.progressBar.setVisible(false);
 
     // Текст прогресса
     // this.progressText = this.add.text(width / 2, progressBoxY + progressBoxHeight / 2, '0%', {
@@ -113,7 +113,7 @@ this.subtitleText = this.add.text(
 
   setupLoadingHandlers() {
     const { width, height } = this.scale;
-    const progressBoxWidth = 300;
+    const progressBoxWidth = 320;
     const progressBoxX = width / 2 - 160;
     const progressBoxY = height / 2 + 50;
 
