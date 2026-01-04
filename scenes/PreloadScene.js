@@ -24,7 +24,7 @@ window.PreloadScene = class PreloadScene extends Phaser.Scene {
 
     // Логотип/заголовок
     // ✅ Везде используем BoldPixels
-    this.titleText = this.add.text(width / 2, height / 2 - 100, 'Find the Pair', {
+    this.titleText = this.add.text(width / 2, height / 2 - 100, 'Найди пару', {
       fontFamily: 'BoldPixels, "Courier New", monospace',
       fontSize: '48px',
       color: '#4ECDC4',
@@ -71,7 +71,7 @@ this.subtitleText = this.add.text(
     const progressBoxY = height / 2 + 50;
 
     // Фон прогресс-бара
-    this.progressBox = this.add.graphics();
+    //this.progressBox = this.add.graphics();
     this.progressBox.fillStyle(0x222222, 0.8);
     this.progressBox.fillRoundedRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight, 10);
     
@@ -80,22 +80,22 @@ this.subtitleText = this.add.text(
     this.progressBox.strokeRoundedRect(progressBoxX, progressBoxY, progressBoxWidth, progressBoxHeight, 10);
 
     // Сам прогресс-бар
-    this.progressBar = this.add.graphics();
+    //this.progressBar = this.add.graphics();
 
     // Текст прогресса
-    this.progressText = this.add.text(width / 2, progressBoxY + progressBoxHeight / 2, '0%', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '16px',
-      color: '#FFFFFF',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    // this.progressText = this.add.text(width / 2, progressBoxY + progressBoxHeight / 2, '0%', {
+    //   fontFamily: 'Arial, sans-serif',
+    //   fontSize: '16px',
+    //   color: '#FFFFFF',
+    //   fontStyle: 'bold'
+    // }).setOrigin(0.5);
 
     // Текст загружаемого файла
-    this.loadingText = this.add.text(width / 2, progressBoxY + progressBoxHeight + 30, 'Инициализация...', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
-      color: '#95A5A6'
-    }).setOrigin(0.5);
+    // this.loadingText = this.add.text(width / 2, progressBoxY + progressBoxHeight + 30, 'Инициализация...', {
+    //   fontFamily: 'Arial, sans-serif',
+    //   fontSize: '14px',
+    //   color: '#95A5A6'
+    // }).setOrigin(0.5);
 
     // Анимация заголовка
     this.tweens.add({

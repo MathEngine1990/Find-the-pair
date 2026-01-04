@@ -943,19 +943,13 @@ const updatePreview = async () => {
   // 🔒 защита от устаревших async-обновлений
   if (myToken !== previewUpdateToken) return;
 
-  // bg
-  if (preview.bg && this.textures.exists(bgKey)) {
-    preview.bg.setTexture(bgKey);
-    preview.bg.setDisplaySize(previewW, previewH);
-    preview.bg.setMask(previewMask);
-  }
+  if (bgPreviewImage && this.textures.exists(bgKey)) {
+  bgPreviewImage.setTexture(bgKey);
+  bgPreviewImage.setDisplaySize(modalW, modalH);
+}
 
-  // button
-  if (preview.button && this.textures.exists(btnKey)) {
-    preview.button.setTexture(btnKey);
-    preview.button.setDisplaySize(isMobile ? 92 : 110, isMobile ? 44 : 50);
-    preview.button.setMask(previewMask);
-  }
+
+
 
   // back
   if (preview.back && this.textures.exists(backKey)) {
@@ -1026,11 +1020,14 @@ rowButtons[key] = [];
       b.setColors(active ? '#243540' : '#F2DC9B');
     }
 
-    // если есть фон-спрайт — меняем tint/alpha
-    if (b.bg && typeof b.bg.setTint === 'function') {
-      b.bg.setTint(active ? 0x243540 : 0xF2DC9B);
-      b.bg.setAlpha(1);
-    }
+if (b.bg) {
+  if (b.bg.clearTint) b.bg.clearTint();
+  b.bg.setAlpha(active ? 1 : 0.75);
+}
+if (b.label && b.label.setColor) {
+  b.label.setColor(active ? '#F2DC9B' : '#243540');
+}
+
 
     // если есть label — подправим цвет (не обязательно)
     if (b.label && typeof b.label.setColor === 'function') {
@@ -1064,19 +1061,30 @@ refreshRowActive(); // ✅ мгновенная подсветка кнопок 
       { color: isActive ? '#243540' : '#F2DC9B' }
     );
 
-    const previewKey = buildPreviewKey(
-  key === 'button' ? 'button' : key,
-  num,
-  key === 'button' ? 'button01' : 'bg_menu'
-);
+const firstCard = (window.ALL_CARD_KEYS && window.ALL_CARD_KEYS[0]) ? window.ALL_CARD_KEYS[0] : null;
 
-loadPreviewBatch([
-  { key: previewKey, url: buildUrl(key === 'button' ? 'button' : 'bg', num, key === 'button' ? 'button01' : 'bg_menu') }
-]).then(() => {
+let type, fileBase, extra;
+if (key === 'bg') {
+  type = 'bg'; fileBase = 'bg_menu';
+} else if (key === 'button') {
+  type = 'button'; fileBase = 'button01';
+} else if (key === 'back') {
+  type = 'back_card'; fileBase = 'back_card02';
+} else if (key === 'cards') {
+  type = 'cards'; fileBase = firstCard || 'qd';
+  extra = fileBase; // чтобы ключи карт не конфликтовали
+}
+
+const previewKey = buildPreviewKey(type, num, fileBase, extra);
+
+loadPreviewBatch([{ key: previewKey, url: buildUrl(type, num, fileBase) }]).then(() => {
   if (btn.bg && this.textures.exists(previewKey)) {
     btn.bg.setTexture(previewKey);
+    // важно: НЕ tint'ить текстуры
+    if (btn.bg.clearTint) btn.bg.clearTint();
   }
 });
+
 
 
     btn.__num = num;               // запоминаем номер варианта
