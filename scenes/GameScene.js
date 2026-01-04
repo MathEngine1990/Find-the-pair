@@ -2075,25 +2075,25 @@ this.updateStarsHUD();
       this.victoryContainer.add(recordText);
     }
 
-    if (progressResult.synced) {
-      const syncText = this.textManager.createText(
-        panelX, panelY + panelH / 2 - 110,
-        'Прогресс сохранён',
-        'smallLabel'
-      );
-      syncText.setOrigin(0.5);
-      syncText.setColor('#02733E');
-      this.victoryContainer.add(syncText);
-    } else if (progressResult.syncError) {
-      const syncErrorText = this.textManager.createText(
-        panelX, panelY + panelH / 2 - 110,
-        'Не удалось синхронизировать прогресс',
-        'smallLabel'
-      );
-      syncErrorText.setOrigin(0.5);
-      syncErrorText.setColor('#BF3715');
-      this.victoryContainer.add(syncErrorText);
-    }
+    // if (progressResult.synced) {
+    //   const syncText = this.textManager.createText(
+    //     panelX, panelY + panelH / 2 - 110,
+    //     'Прогресс сохранён',
+    //     'smallLabel'
+    //   );
+    //   syncText.setOrigin(0.5);
+    //   syncText.setColor('#02733E');
+    //   this.victoryContainer.add(syncText);
+    // } else if (progressResult.syncError) {
+    //   const syncErrorText = this.textManager.createText(
+    //     panelX, panelY + panelH / 2 - 110,
+    //     'Не удалось синхронизировать прогресс',
+    //     'smallLabel'
+    //   );
+    //   syncErrorText.setOrigin(0.5);
+    //   syncErrorText.setColor('#BF3715');
+    //   this.victoryContainer.add(syncErrorText);
+    // }
 
 const btnY = panelY + panelH / 2 - 60;
 const btnW = Math.min(150, panelW * 0.30);
