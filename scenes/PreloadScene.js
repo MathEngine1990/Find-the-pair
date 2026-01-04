@@ -119,8 +119,19 @@ this.subtitleText = this.add.text(
 
 // Прогресс/имя файла не показываем
 this.load.on('progress', (value) => {
-  // ничего не рисуем
+  if (!this.progressBar) return;
+
+  this.progressBar.clear();
+  this.progressBar.fillStyle(0x4ECDC4);
+  this.progressBar.fillRoundedRect(
+    progressBoxX + 10,
+    progressBoxY + 10,
+    progressBoxWidth * value,
+    30,
+    5
+  );
 });
+
 
 this.load.on('fileprogress', (file) => {
   // ничего не показываем
