@@ -10,8 +10,8 @@ window.ALL_CARD_KEYS = [
  * desktop/mobile = разные cols/rows для одного и того же pairs
  */
 window.LEVELS_BASE = [
-  { label: '- 3 -',  pairs: 3,  desktop: { cols: 3, rows: 2 }, mobile: { cols: 2, rows: 3 } },
-  { label: '- 4 -',  pairs: 4,  desktop: { cols: 4, rows: 2 }, mobile: { cols: 2, rows: 4 } },
+  { label: '- 3 -',  pairs: 3,  desktop: { cols: 2, rows: 3 }, mobile: { cols: 2, rows: 3 } },
+  { label: '- 4 -',  pairs: 4,  desktop: { cols: 2, rows: 4 }, mobile: { cols: 2, rows: 4 } },
   { label: '- 5 -',  pairs: 5,  desktop: { cols: 5, rows: 2 }, mobile: { cols: 2, rows: 5 } },
 
   { label: '- 6 -',  pairs: 6,  desktop: { cols: 4, rows: 3 }, mobile: { cols: 3, rows: 4 } },
