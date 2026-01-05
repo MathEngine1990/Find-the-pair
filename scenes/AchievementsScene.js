@@ -339,15 +339,20 @@ if (isMobile) {
 
       container.add(bg);
 
-      // иконка слева (по центру по вертикали)
-      const icon = this.add.text(
-        panelX + itemHeight * 0.4,
-        centerY,
-        ach.icon,
-        {
-          fontSize: Math.round(itemHeight * 0.45) + 'px'
-        }
-      ).setOrigin(0.5);
+const iconFontSize = Math.min(
+  Math.round(itemHeight * (isMobile ? 0.34 : 0.42)),
+  isMobile ? 32 : 40
+);
+
+const icon = this.add.text(
+  panelX + itemHeight * 0.4,
+  centerY,
+  ach.icon,
+  {
+    fontSize: iconFontSize + 'px'
+  }
+).setOrigin(0.5);
+
       container.add(icon);
 
 // заголовок
