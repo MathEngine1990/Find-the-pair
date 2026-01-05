@@ -10,8 +10,8 @@ window.ALL_CARD_KEYS = [
  * desktop/mobile = разные cols/rows для одного и того же pairs
  */
 window.LEVELS_BASE = [
-  { label: '- 3 -',  pairs: 3,  desktop: { cols: 2, rows: 3 }, mobile: { cols: 2, rows: 3 } },
-  { label: '- 4 -',  pairs: 4,  desktop: { cols: 2, rows: 4 }, mobile: { cols: 2, rows: 4 } },
+  { label: '- 3 -',  pairs: 3,  desktop: { cols: 3, rows: 2 }, mobile: { cols: 2, rows: 3 } },
+  { label: '- 4 -',  pairs: 4,  desktop: { cols: 4, rows: 2 }, mobile: { cols: 2, rows: 4 } },
   { label: '- 5 -',  pairs: 5,  desktop: { cols: 5, rows: 2 }, mobile: { cols: 2, rows: 5 } },
 
   { label: '- 6 -',  pairs: 6,  desktop: { cols: 4, rows: 3 }, mobile: { cols: 3, rows: 4 } },
@@ -49,3 +49,9 @@ window.getLevelsForDevice = function () {
 // Оставляем window.LEVELS как “дефолт” для старого кода,
 // но лучше в сценах перейти на getLevelsForDevice().
 window.LEVELS = window.getLevelsForDevice();
+
+// === CARD METADATA ===
+// Истинное соотношение сторон ассетов (qd.png, qd@2x.png)
+// 2:3 → width / height
+window.CARD_ASPECT_RATIO = 2 / 3; // ≈ 0.6666667
+

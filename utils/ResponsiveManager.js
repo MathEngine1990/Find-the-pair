@@ -130,17 +130,18 @@ height: window.innerHeight  // ✅ Всегда реальный viewport
     const cardW = (availableW - gap * (level.cols - 1)) / level.cols;
     const cardH = (availableH - gap * (level.rows - 1)) / level.rows;
     
-    const aspectRatio = this.orientation === 'portrait' ? 0.68 : 0.80;
+const CARD_ASPECT_RATIO = window.CARD_ASPECT_RATIO;
+
     let finalW, finalH;
     
-    if (cardW / cardH > aspectRatio) {
-      finalH = cardH;
-      finalW = finalH * aspectRatio;
-    } else {
-      finalW = cardW;
-      finalH = finalW / aspectRatio;
-    }
-    
+if (cardW / cardH > CARD_ASPECT_RATIO) {
+  finalH = cardH;
+  finalW = finalH * CARD_ASPECT_RATIO;
+} else {
+  finalW = cardW;
+  finalH = finalW / CARD_ASPECT_RATIO;
+}
+
     const maxCardW = this.isMobile ? 220 : 250;
     const maxCardH = this.isMobile ? 300 : 320;
     

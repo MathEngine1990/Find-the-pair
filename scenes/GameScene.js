@@ -1418,6 +1418,10 @@ createCardLayout(deck) {
         offsetY: (availableH - (level.rows * cardH + (level.rows - 1) * gapSize)) / 2
       };
     }
+  
+
+  
+    
     };
   
   // ✅ FIX #5: Защита от повторных вызовов
@@ -1429,13 +1433,25 @@ createCardLayout(deck) {
   
   const { width: W, height: H } = this.scale;
   const hudH = rm.getAdaptiveFontSize(80, 60, 100);
+
+  const availableH = H - hudH;
+const dims = rm.getCardDimensions(this.currentLevel, W, availableH);
+
+// Нормализуем имена под текущий код:
+const cardParams = {
+  cardW: dims.width,
+  cardH: dims.height,
+  gapSize: dims.gap,
+  offsetX: dims.offsetX,
+  offsetY: dims.offsetY
+};
+
   
-  const cardParams = rm.getCardDimensions(
-    this.currentLevel,
-    W,
-    H - hudH
-  );
+
   
+this.baseCardSize = { width: cardParams.cardW, height: cardParams.cardH };
+
+
   // Кешируем размеры
   this.cachedCardParams = cardParams;
   
