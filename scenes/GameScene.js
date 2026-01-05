@@ -1393,7 +1393,8 @@ createCardLayout(deck) {
       const cardMaxW = (availableW - (level.cols - 1) * gapSize) / level.cols;
       const cardMaxH = (adjustedH - (level.rows - 1) * gapSize) / level.rows;
       
-      const aspectRatio = 0.68;
+    const aspectRatio = window.CARD_ASPECT_RATIO || (2/3); // 0.666...
+
       let cardW, cardH;
       
       if (cardMaxW / cardMaxH > aspectRatio) {
@@ -1437,14 +1438,26 @@ createCardLayout(deck) {
   const availableH = H - hudH;
 const dims = rm.getCardDimensions(this.currentLevel, W, availableH);
 
-// Нормализуем имена под текущий код:
+// ✅ Совместимо и с real ResponsiveManager, и с fallback из этой сцены
+const w   = (dims.cardW ?? dims.width);
+const h   = (dims.cardH ?? dims.height);
+const gap = (dims.gapSize ?? dims.gap);
+
 const cardParams = {
-  cardW: dims.width,
-  cardH: dims.height,
-  gapSize: dims.gap,
+  cardW: Math.floor(w),
+  cardH: Math.floor(h),
+  gapSize: Math.floor(gap),
   offsetX: dims.offsetX,
   offsetY: dims.offsetY
 };
+
+// ✅ Жёсткая защита от NaN/undefined (иначе карты “исчезают”)
+if (!cardParams.cardW || !cardParams.cardH) {
+  console.error('❌ Invalid card params → cards will be invisible', { dims, cardParams });
+  this._isCreatingLayout = false;
+  return;
+}
+
 
   
 
