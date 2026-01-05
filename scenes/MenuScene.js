@@ -2092,7 +2092,7 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
 Нажимая "Принимаю", вы соглашаетесь
 с условиями использования приложения.
 
-Версия: 2025-09-13`;
+Версия: 13-09-2025`;
 
     const text = this.add.text(W/2, H/2 - 50, agreementText, {
       fontFamily: 'Arial',
