@@ -349,9 +349,16 @@ const icon = this.add.text(
   centerY,
   ach.icon,
   {
-    fontSize: iconFontSize + 'px'
+    fontSize: iconFontSize + 'px',
+    // важное: задаём emoji-шрифты, чтобы метрики были стабильнее
+    fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, Arial, sans-serif'
   }
 ).setOrigin(0.5);
+
+// ✅ главное лечение обрезания emoji: добавляем "воздух" вокруг глифа
+const pad = Math.ceil(iconFontSize * 0.35); // можно 0.30–0.45
+icon.setPadding(pad, pad, pad, pad);
+
 
       container.add(icon);
 
