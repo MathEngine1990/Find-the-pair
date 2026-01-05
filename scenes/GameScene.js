@@ -905,7 +905,8 @@ this.victoryTitleY = null;
   }
 
 
-createOrUpdateStarsHUD(maxRightXOverride) {
+createOrUpdateStarsHUD(maxRightXOverride, minLeftXOverride) {
+
   const { W, H } = this.getSceneWH();
 
   const rm = window.responsiveManager || { safeArea: { top: 0 } };
@@ -922,8 +923,9 @@ createOrUpdateStarsHUD(maxRightXOverride) {
 
   const isMobile = rm.isMobile || W < 768 || H < 600;
 
-  const starSize = Math.round(hudH * (isMobile ? 0.38 : 0.5));
-  const spacing  = Math.round(starSize * 0.85);
+let starSize = Math.round(hudH * (isMobile ? 0.38 : 0.5));
+let spacing  = Math.round(starSize * 0.85);
+
 
   // ⭐ Позиция ВНУТРИ HUD
  // Размеры кнопок такие же, как в drawHUD()
@@ -941,10 +943,35 @@ const maxRightX = (typeof maxRightXOverride === 'number')
   : (W - Math.round(W * 0.20));
 
 // 👈 дополнительный сдвиг звёзд влево
-const starsShiftLeft = isMobile ? Math.round(W * 0.1) : Math.round(W * 0.04);
+// было 0.10W — слишком агрессивно, звезды налезали на таймер
+const starsShiftLeft = isMobile ? Math.round(W * 0.03) : Math.round(W * 0.02);
 
-// anchorX = позиция ПЕРВОЙ звезды так, чтобы вся тройка влезла слева от maxRightX
-const anchorX = maxRightX - spacing * 2 - starsShiftLeft;
+
+const minLeftX = (typeof minLeftXOverride === 'number') ? minLeftXOverride : null;
+
+// базовая позиция (первой звезды)
+let anchorX = maxRightX - spacing * 2 - starsShiftLeft;
+
+// если задана левая граница (после таймера) — соблюдаем её
+if (minLeftX !== null) {
+  // если места между таймером и правой границей мало — ужимаем spacing (а значит и "ширину" блока звезд)
+  const availableForStars = maxRightX - minLeftX;
+  const neededForStars = spacing * 2;
+
+  if (availableForStars < neededForStars) {
+    const newSpacing = Math.max(10, Math.floor(availableForStars / 2));
+    // аккуратно пересчитаем размеры под новый spacing
+    spacing = newSpacing;
+    starSize = Math.max(12, Math.floor(spacing / 0.85));
+  }
+
+  // финальный clamp: слева не залезаем на таймер, справа не залезаем на кнопки
+  anchorX = Phaser.Math.Clamp(anchorX, minLeftX, maxRightX - spacing * 2);
+} else {
+  // если minLeftX не задан — просто держим в пределах справа
+  anchorX = Math.min(anchorX, maxRightX - spacing * 2);
+}
+
 
 
   const y = safeTop + hudH / 2;
@@ -1054,9 +1081,12 @@ async drawHUD() {
     this.mistakeText.setOrigin(0, 0.5).setDepth(6);
     this.mistakeText.setColor('#B6561A');
 
-      const rm = window.responsiveManager;
+const rm = window.responsiveManager;
 const isMobile = rm?.isMobile || W < 768 || H < 600;
-const timerX = isMobile ? Math.round(W * 0.42) : Math.round(W * 0.50);
+
+// было 0.42 — на мобилке уезжал вправо и лез на звезды
+const timerX = isMobile ? Math.round(W * 0.38) : Math.round(W * 0.50);
+
 
     // Таймер
 this.timeText = this.textManager.createText(
@@ -1126,7 +1156,12 @@ const homeBtn = window.makeIconButton(
 const musicBounds = this.musicButton?.getBounds?.();
 const maxRightXForStars = musicBounds ? (musicBounds.left - 8) : (W - 20);
 
-this.createOrUpdateStarsHUD(maxRightXForStars);
+// 👇 левая граница для звёзд — правый край таймера + зазор
+const timerBounds = this.timeText?.getBounds?.();
+const minLeftXForStars = timerBounds ? (timerBounds.right + 12) : (Math.round(W * 0.38) + 60);
+
+this.createOrUpdateStarsHUD(maxRightXForStars, minLeftXForStars);
+
 
   
   console.log('✅ HUD created successfully');
