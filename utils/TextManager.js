@@ -166,25 +166,25 @@ updateDimensions() {
     );
   }
 
-    if (preset.autoStroke2) {
-    const strokeCfg = preset.stroke || THEME.strokes?.titleThick2 || {};
-    const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
+  //   if (preset.autoStroke2) {
+  //   const strokeCfg = preset.stroke || THEME.strokes?.titleThick2 || {};
+  //   const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
     
-    text.setStroke(
-      strokeCfg.color,
-      strokeSize
-    );
-  }
+  //   text.setStroke(
+  //     strokeCfg.color,
+  //     strokeSize
+  //   );
+  // }
 
-    if (preset.autoStroke3) {
-    const strokeCfg = preset.stroke || THEME.strokes?.titleThick3 || {};
-    const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
+  //   if (preset.autoStroke3) {
+  //   const strokeCfg = preset.stroke || THEME.strokes?.titleThick3 || {};
+  //   const strokeSize = strokeCfg.thickness || Math.max(2, Math.round(this.getSize(type) * 0.08));
     
-    text.setStroke(
-      strokeCfg.color,
-      strokeSize
-    );
-  }
+  //   text.setStroke(
+  //     strokeCfg.color,
+  //     strokeSize
+  //   );
+  // }
 
     return text;
   }
