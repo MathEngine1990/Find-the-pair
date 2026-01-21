@@ -1,11 +1,27 @@
-/* ИСПРАВЛЕНО: Стили для ультра-высокого разрешения */
+/* =====================================================
+   КРИТИЧЕСКИЕ ИСПРАВЛЕНИЯ ДЛЯ ПОЛНОЭКРАННОГО РЕЖИМА
+   ===================================================== */
+
+/* Базовые стили - убираем все отступы */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+
 html, body { 
   margin: 0; 
   padding: 0; 
   width: 100%; 
   height: 100%; 
   background: #1d2330; 
-  overflow: hidden; 
+  overflow: hidden;
+  
+  /* КРИТИЧНО: Фиксируем позицию для мобильных */
+  position: fixed;
+  top: 0;
+  left: 0;
   
   /* Отключаем выделение на touch */
   -webkit-user-select: none;
@@ -16,72 +32,243 @@ html, body {
   /* Отключаем масштабирование */
   -webkit-touch-callout: none;
   -webkit-text-size-adjust: none;
+  -ms-text-size-adjust: none;
+  text-size-adjust: none;
+  
+  /* ✅ КРИТИЧНО: НЕТ PADDING ДЛЯ BODY */
+  padding: 0 !important;
 }
 
 #game { 
-  /* ИСПРАВЛЕНО: Оптимальное позиционирование для ультра-разрешения */
-  width: 100vw; 
-  height: 100vh; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* КРИТИЧНО: Заполняем весь экран без отступов */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
   
-  /* Безопасные зоны */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* ИСПРАВЛЕНО: Убираем flex, он мешает Phaser */
+  display: block !important;
+  
+  /* ✅ КРИТИЧНО: НЕТ PADDING ДЛЯ GAME */
+  padding: 0 !important;
   box-sizing: border-box;
+  
+  background: #1d2330;
 }
 
-/* КРИТИЧНО: Стили для canvas ультра-высокого качества */
-canvas {
-  /* ИСПРАВЛЕНО: Максимальное качество рендеринга */
-  image-rendering: auto !important;
-  image-rendering: high-quality;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: optimize-contrast;
-  
-  /* Суперчеткие края без размытия */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  
-  /* ДОБАВЛЕНО: Дополнительные настройки для четкости */
-  transform: translateZ(0); /* Принудительное использование GPU */
-  -webkit-transform: translateZ(0);
-  
-  /* Предотвращаем touch события */
-  touch-action: manipulation;
-  
-  /* Максимальное качество */
-  display: block;
-  max-width: 100%;
-  max-height: 100vh;
-  
-  /* ДОБАВЛЕНО: Фильтры для максимальной четкости */
-  filter: contrast(1.02) brightness(1.01);
-  -webkit-filter: contrast(1.02) brightness(1.01);
+/* КРИТИЧНО: Canvas должен заполнять весь контейнер */
+#game canvas {
+  display: block !important;
+  /* НЕ устанавливаем width/height - пусть Phaser управляет */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ДОБАВЛЕНО: Специальные стили для высоких DPI экранов */
-@media 
-  (-webkit-min-device-pixel-ratio: 2), 
-  (min-resolution: 192dpi),
-  (min-resolution: 2dppx) {
+/* Добавить поддержку safe-area */
+:root {
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
+}
+
+
+/* =====================================================
+   МОБИЛЬНЫЕ УСТРОЙСТВА - КРИТИЧНО
+   ===================================================== */
+
+/* Специальные правила для мобильных */
+@media (max-width: 768px) {
+  html, body {
+    /* Фиксируем viewport */
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+    
+    /* Предотвращаем прокрутку */
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  #game {
+    /* Заполняем весь экран */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    
+    /* iOS фиксы */
+    -webkit-transform: translate3d(0,0,0);
+    transform: translate3d(0,0,0);
+  }
   
   canvas {
-    /* Дополнительные настройки для Retina */
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: optimize-contrast;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+    /* Мобильная оптимизация */
+    -webkit-tap-highlight-color: transparent !important;
+    tap-highlight-color: transparent !important;
   }
 }
 
-/* ДОБАВЛЕНО: Стили для 4K дисплеев */
+/* =====================================================
+   HIGH DPI ЭКРАНЫ
+   ===================================================== */
+
+@media (-webkit-min-device-pixel-ratio: 2), 
+       (min-resolution: 192dpi),
+       (min-resolution: 2dppx) {
+  canvas {
+    /* Оптимизация для Retina */
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+    
+    /* Сглаживание текста */
+    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: subpixel-antialiased !important;
+  }
+}
+
+/* =====================================================
+   ПЛАНШЕТЫ И БОЛЬШИЕ ЭКРАНЫ
+   ===================================================== */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  #game {
+    /* Центрирование на планшетах */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* 4K дисплеи */
 @media (min-width: 3840px), (min-height: 2160px) {
   canvas {
-    /* Максимальные настройки качества для 4K */
-    image-rendering: high-quality;
-    filter: contrast(1.03) brightness(1.02) saturate(1.01);
+    /* Максимальное качество для 4K */
+    image-rendering: high-quality !important;
+    image-rendering: -webkit-optimize-contrast !important;
   }
+}
+
+/* =====================================================
+   VK MINI APPS ТЕМЫ
+   ===================================================== */
+
+:root {
+  --vk-accent: #5A9EF4;
+  --bg-primary: #1d2330;
+  --text-primary: #FFFFFF;
+}
+
+[data-scheme="bright"] {
+  --bg-primary: #FFFFFF;
+  --text-primary: #000000;
+}
+
+[data-scheme="space"] {
+  --bg-primary: #19191A;
+  --text-primary: #FFFFFF;
+}
+
+/* Применение VK темы */
+body[data-scheme] {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+#game[data-scheme] {
+  background: var(--bg-primary) !important;
+}
+
+/* =====================================================
+   iOS СПЕЦИФИЧНЫЕ ФИКСЫ
+   ===================================================== */
+
+/* iOS Safari фиксы */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Фикс для iOS Safari адресной строки */
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
+  
+  #game {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
+}
+
+/* iPhone X и выше (с notch) */
+@supports (padding: env(safe-area-inset-top)) {
+  /* Применяем safe-area ТОЛЬКО если нужно */
+  .with-safe-area {
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+
+/* =====================================================
+   ДОПОЛНИТЕЛЬНЫЕ ОПТИМИЗАЦИИ
+   ===================================================== */
+
+/* Отключаем анимации при слабой производительности */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Скрываем прелоадер когда игра загружена */
+.game-loaded #preloader,
+#game.ready #preloader {
+  display: none !important;
+}
+
+/* Прелоадер стили */
+#preloader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #1d2330;
+  z-index: 9999;
+}
+
+/* =====================================================
+   КРИТИЧНО: УБИРАЕМ ВСЕ ВОЗМОЖНЫЕ ОТСТУПЫ
+   ===================================================== */
+
+/* Убеждаемся что нет никаких отступов */
+html, body, #game {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+}
+
+/* Фикс для VK WebView */
+.vk-apps-webview body,
+.vk-apps-webview #game {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* =====================================================
+   DEBUG СТИЛИ (УДАЛИТЬ В ПРОДАКШЕНЕ)
+   ===================================================== */
+
+/* Для отладки границ элементов */
+.debug * {
+  border: 1px solid red !important;
+}
+
+.debug canvas {
+  border: 2px solid yellow !important;
 }

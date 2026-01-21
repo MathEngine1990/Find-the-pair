@@ -1,0 +1,33 @@
+/* css/fonts.css - КРИТИЧНО: Загрузка кастомного шрифта */
+
+@font-face {
+  font-family: 'BoldPixels';
+  src: url('../assets/fonts/BoldPixels.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* ✅ Блокирует рендер до загрузки */
+}
+
+body {
+  font-family: 'BoldPixels', system-ui, sans-serif;
+}
+
+@font-face {
+  font-family: 'Loreley Antiqua';
+  src: url('../assets/fonts/LoreleyAntiqua.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* ✅ Блокирует рендер до загрузки */
+}
+
+/* ✅ Запасной вариант, если есть WOFF2 версия (быстрее): */
+/*
+@font-face {
+  font-family: 'BoldPixels';
+  src: url('../assets/fonts/BoldPixels.woff2') format('woff2'),
+       url('../assets/fonts/BoldPixels.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+*/

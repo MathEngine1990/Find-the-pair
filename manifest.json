@@ -1,7 +1,8 @@
 {
   "name": "Память: Найди пару",
   "short_name": "Find the Pair",
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#1d2330",
   "theme_color": "#1d2330",

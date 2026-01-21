@@ -1,9 +1,54 @@
 {
-  "static_path": ".",
-  "app_id": 0,
+  "static_path": "dist",
+  "app_id": 53937545,
   "endpoints": {
-    "mobile": "index.html",
-    "mvk": "index.html", 
-    "web": "index.html"
-  }
+    "mobile": "/",
+    "mvk": "/", 
+    "web": "/"
+  },
+  "build_commands": [
+    "npm install",
+    "npm run build"
+  ],
+  "ignore_files": [
+    "node_modules/**",
+    "src/**",
+    "*.log",
+    "*.md",
+    ".git/**",
+    ".vscode/**",
+    "sync/**",  
+    "vite.config.js",
+    "tsconfig.json"
+  ],
+  "headers": {
+    "/**": [
+      {
+        "key": "X-Frame-Options",
+        "value": "SAMEORIGIN"
+      },
+      {
+        "key": "X-Content-Type-Options", 
+        "value": "nosniff"
+      }
+    ],
+    "/**/*.{js,css,png,jpg,jpeg,webp,svg,woff2,ttf}": [
+      {
+        "key": "Cache-Control",
+        "value": "public, max-age=31536000, immutable"
+      }
+    ],
+    "/index.html": [
+      {
+        "key": "Cache-Control",
+        "value": "no-cache, no-store, must-revalidate"
+      }
+    ]
+  },
+  "rewrites": [
+    {
+      "source": "/**",
+      "destination": "/index.html"
+    }
+  ]
 }
