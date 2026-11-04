@@ -1,3 +1,31 @@
+// A single interruptible tween prevents hover/press animations fighting each other.
+window.attachButtonMotion = function(scene, cont, zone, txt, color, hoverColor) {
+  let baseX, baseY, hovered = false;
+  let motion;
+  const animate = (factor) => {
+    if (!cont.scene || !cont.active) return;
+    if (baseX === undefined) { baseX = cont.scaleX; baseY = cont.scaleY; }
+    if (motion) motion.stop();
+    motion = scene.tweens.add({
+      targets: cont, scaleX: baseX * factor, scaleY: baseY * factor,
+      duration: 150, ease: 'Sine.easeOut'
+    });
+  };
+  zone.on('pointerover', () => {
+    hovered = true;
+    txt.setColor(hoverColor);
+    animate(1.035);
+  });
+  zone.on('pointerout', () => {
+    hovered = false;
+    txt.setColor(color);
+    animate(1);
+  });
+  zone.on('pointerdown', () => animate(0.975));
+  zone.on('pointerup', () => animate(hovered ? 1.035 : 1));
+  cont.once('destroy', () => { if (motion) motion.stop(); });
+};
+
 //---ui/Button.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 // ✅ Добавлена поддержка кастомных цветов фона/границы для makeIconButton
 // ✅ Цвета можно передавать через opts.bgColor и opts.borderColor
@@ -19,7 +47,8 @@ window.makeImageButton = function(scene, x, y, w, h, label, onClick, opts = {}){
     fontStyle: (window.THEME?.buttonStyle || 'bold'),
     color,
     stroke: '#000000',
-    strokeThickness: 2
+    strokeThickness: 2,
+    shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 3, fill: true }
   }).setOrigin(0.5).setScrollFactor(0);
   
   const zone = scene.add.zone(0, 0, w, h)
@@ -35,12 +64,8 @@ cont.setSize(w, h);
 // ⚡ Сохраняем колбэк на самом контейнере, чтобы его можно было менять позже
 cont.onClick = onClick;
 
+window.attachButtonMotion(scene, cont, zone, txt, color, hoverColor);
 zone.on('pointerdown', () => cont.onClick && cont.onClick());
-
-zone.on('pointerout',  () => { 
-  txt.setColor(color);      
-  scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); 
-});
 
 cont.label = txt; 
 cont.bg = img; 
@@ -53,11 +78,11 @@ return cont;
 window.makeIconButton = function(scene, x, y, size, iconText, onClick, opts = {}){
   const color       = opts.color       || (window.THEME?.buttonTextColor || '#B6561A');
   const hoverColor  = opts.hoverColor  || color;
-  const bgColor     = opts.bgColor     || 0x000000;  // 🔥 НОВОЕ: цвет фона (hex number)
-  const borderColor = opts.borderColor || 0xFFFFFF;  // 🔥 НОВОЕ: цвет границы (hex number)
-  const bgAlpha     = opts.bgAlpha     || 0;         // 🔥 НОВОЕ: прозрачность фона (0-1)
-  const borderAlpha = opts.borderAlpha || 0.5;       // 🔥 НОВОЕ: прозрачность границы (0-1)
-  const borderWidth = opts.borderWidth || 2;         // 🔥 НОВОЕ: толщина границы
+  const bgColor     = opts.bgColor     ?? 0x000000;  // 🔥 НОВОЕ: цвет фона (hex number)
+  const borderColor = opts.borderColor ?? 0xFFFFFF;  // 🔥 НОВОЕ: цвет границы (hex number)
+  const bgAlpha     = opts.bgAlpha     ?? 0;         // 🔥 НОВОЕ: прозрачность фона (0-1)
+  const borderAlpha = opts.borderAlpha ?? 0.5;       // 🔥 НОВОЕ: прозрачность границы (0-1)
+  const borderWidth = opts.borderWidth ?? 2;         // 🔥 НОВОЕ: толщина границы
   
   const fontFamily = (window.THEME?.fontButton || window.THEME?.font || 'sans-serif');
   const ts         = Math.round(size * (opts.fontFactor ?? 0.45));
@@ -123,16 +148,9 @@ if (typeof iconText === 'string' && /^[‹›←→]$/.test(iconText)) {
   const cont = scene.add.container(Math.round(x), Math.round(y), [bg, txt, zone]);
   cont.setSize(size, size);
   
+  window.attachButtonMotion(scene, cont, zone, txt, color, hoverColor);
   zone.on('pointerdown', () => onClick && onClick());
-  zone.on('pointerover', () => { 
-    txt.setColor(hoverColor); 
-    scene.tweens.add({ targets: cont, scale: 1.05, duration: 110 }); 
-  });
-  zone.on('pointerout',  () => { 
-    txt.setColor(color);      
-    scene.tweens.add({ targets: cont, scale: 1.00, duration: 110 }); 
-  });
-  
+
   cont.label = txt;
   cont.bg = bg;  // 🔥 НОВОЕ: сохраняем ссылку на фон
   cont.zone = zone;
