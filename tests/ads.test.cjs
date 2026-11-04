@@ -20,8 +20,106 @@ function setup(overrides = {}) {
     getConfig: () => config, getBridge: () => bridge, isVK: () => true,
     now: () => now, storage: null, ...overrides
   });
-  return { manager, config, bridge, calls, advance: ms => { now += ms; } };
+  return { window, manager, config, bridge, calls, advance: ms => { now += ms; } };
 }
+
+test('iPhone and iPad skip ads before any SDK calls, hooks or counters', async () => {
+  for (const navigator of [
+    {userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'},
+    {userAgent:'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)'},
+    {userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X)', platform:'MacIntel',maxTouchPoints:5}
+  ]) {
+    const s=setup();s.window.navigator=navigator;
+    let hooks=0;
+    const result=await s.manager.beforeResults({onShow:()=>hooks++,onFinish:()=>hooks++});
+    assert.equal(result.reason,'ios_ads_disabled');
+    assert.equal(s.calls.length,0);assert.equal(hooks,0);
+    assert.equal(s.manager.state.rounds,0);assert.equal(s.manager.busy,false);assert.equal(s.manager.showing,false);
+  }
+});
+test('iOS launch parameters bypass ads even without a recognizable user agent', async () => {
+  for (const platform of ['mobile_iphone','mobile_iphone_messenger','mobile_ios','mobile_web_ios']) {
+    const s=setup();s.window.location.search=`?vk_app_id=12&vk_platform=${platform}`;
+    // mobile_iphone is also handled through the launch parameter check.
+    assert.equal((await s.manager.beforeResults()).reason,'ios_ads_disabled');
+    assert.equal(s.calls.length,0);
+  }
+});
+test('Android and desktop Mac retain supported advertisements', async () => {
+  for (const navigator of [{userAgent:'Mozilla/5.0 (Linux; Android 14)'},
+    {userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X)',platform:'MacIntel',maxTouchPoints:0}]) {
+    const s=setup();s.window.navigator=navigator;
+    assert.equal((await s.manager.beforeResults()).reason,'shown');
+  }
+});
+test('iOS advertising can only be re-enabled with explicit true', async () => {
+  const s=setup({requestIOSStart:start=>start()});s.window.navigator={userAgent:'iPhone'};
+  s.config.allowIOSAds='true';assert.equal((await s.manager.beforeResults()).reason,'ios_ads_disabled');
+  s.config.allowIOSAds=true;assert.equal((await s.manager.beforeResults()).reason,'shown');
+});
+
+function attachPromptDOM(s) {
+  const mounted=[];
+  function element() {
+    return { style:{}, children:[], setAttribute(){}, focus(){},
+      append(...children){this.children.push(...children);},
+      remove(){const i=mounted.indexOf(this);if(i>=0)mounted.splice(i,1);} };
+  }
+  s.window.document={createElement:element,body:{append:node=>mounted.push(node)}};
+  s.window.navigator={userAgent:'iPhone'};
+  s.config.allowIOSAds=true;
+  return mounted;
+}
+
+test('iOS shows only from the click stack after availability; double click cannot duplicate', async () => {
+  const s=setup();const mounted=attachPromptDOM(s);let insideClick=false, hooks=0;
+  s.bridge.send=method=>{
+    if(method==='VKWebAppShowNativeAds') assert.equal(insideClick,true);
+    s.calls.push(method);return Promise.resolve({result:true});
+  };
+  const completion=s.manager.beforeResults({onShow:()=>hooks++});
+  await new Promise(r=>setTimeout(r,0));
+  assert.deepEqual(s.calls,['VKWebAppCheckNativeAds']);
+  assert.equal(hooks,0);assert.equal(s.manager.showing,false);
+  assert.equal(mounted.length,1);
+  const button=mounted[0].children[2];
+  insideClick=true;button.onclick();button.onclick();insideClick=false;
+  assert.equal((await completion).reason,'shown');
+  assert.equal(mounted.length,0);assert.equal(hooks,1);
+  assert.deepEqual(s.calls,['VKWebAppCheckNativeAds','VKWebAppShowNativeAds']);
+});
+test('iOS prompt cancels after inactivity and never sends a late ad', async () => {
+  const s=setup();const mounted=attachPromptDOM(s);
+  const completion=s.manager.beforeResults();await new Promise(r=>setTimeout(r,0));
+  const oldButton=mounted[0].children[2];
+  s.advance(30000);
+  assert.equal((await completion).reason,'gesture_cancelled');
+  oldButton.onclick();assert.equal(s.calls.length,1);assert.equal(mounted.length,0);
+  assert.equal(s.manager.busy,false);assert.equal(s.manager.state.requests,0);
+});
+test('iOS click rechecks scene and background state', async () => {
+  for (const hidden of [false,true]) {
+    const s=setup();const mounted=attachPromptDOM(s);let current=true;
+    const completion=s.manager.beforeResults({isCurrent:()=>current});
+    await new Promise(r=>setTimeout(r,0));
+    if(hidden) s.window.GamePlatform={canRequestAd:()=>false}; else current=false;
+    mounted[0].children[2].onclick();
+    assert.equal((await completion).reason,'gesture_cancelled');
+    assert.equal(s.calls.length,1);assert.equal(s.manager.busy,false);
+  }
+});
+test('unsupported iOS never presents a launch prompt', async () => {
+  const s=setup();const mounted=attachPromptDOM(s);s.bridge.supportsAsync=async()=>false;
+  assert.equal((await s.manager.beforeResults()).reason,'unavailable');assert.equal(mounted.length,0);
+});
+test('synchronous SDK throw after iOS click restores hooks and lock', async () => {
+  const s=setup();const mounted=attachPromptDOM(s);let restored=0;
+  s.bridge.send=method=>{if(method==='VKWebAppShowNativeAds')throw Error('SDK failure');return Promise.resolve({result:true});};
+  const completion=s.manager.beforeResults({onFinish:()=>restored++});
+  await new Promise(r=>setTimeout(r,0));mounted[0].children[2].onclick();
+  assert.equal((await completion).reason,'error');assert.equal(restored,1);
+  assert.equal(s.manager.busy,false);assert.equal(s.manager.showing,false);
+});
 
 test('interstitial check then show, sound hooks balanced', async () => {
   const {manager,calls}=setup(); const hooks=[];
