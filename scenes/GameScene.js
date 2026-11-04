@@ -524,6 +524,11 @@ async initializeSyncManager() {
 
 // НОВЫЙ МЕТОД: Правильная очистка с проверками
 cleanup() {
+  this._resultRun = null;
+  if (this._adsInputRestore !== undefined && this.input) {
+    this.input.enabled = this._adsInputRestore;
+    this._adsInputRestore = undefined;
+  }
   console.log('🧹 GameScene cleanup started');
   
   // ===== 1. ОЧИСТКА ТАЙМЕРОВ =====
@@ -1334,6 +1339,8 @@ clearHUD() {
   }
 
  async startGame(level) {
+    this._resultRun = {};
+    this._winStarted = false;
     console.log('Starting game with level:', level);
     
     if (!level || !level.cols || !level.rows) {
@@ -1872,6 +1879,10 @@ if (this.starState && this.starState.errorsOk) {
 
 // УЛУЧШЕННЫЙ МЕТОД: Экран победы с отдельным экраном достижений
 async showWin() {
+  if (this._winStarted) return;
+  this._winStarted = true;
+  const resultRun = this._resultRun;
+  const isCurrent = () => this._resultRun === resultRun && this.scene.isActive();
 // финальная фиксация условий перед сохранением
 const pairs = this.starRules?.pairs ?? this.gameMetrics?.pairs ?? 0;
 const timeLimitSec = this.starRules?.timeLimitSec ?? Math.round((pairs * pairs) * 0.3);
@@ -1933,11 +1944,16 @@ this.updateStarsHUD();
     console.warn('⚠️ showWin: syncManager is null, progress won’t be saved');
   }
 
+  if (!isCurrent()) return;
+  await this.showAdBeforeResults(isCurrent);
+  if (!isCurrent()) return;
+
   const { W, H } = this.getSceneWH();
   this.textManager.updateDimensions();
 
   // 2) Внутренняя функция, которая рисует уже привычное окно "ПОБЕДА!"
   const renderVictoryUI = () => {
+    if (!isCurrent()) return;
     this.victoryContainer = this.add.container(0, 0);
     this.victoryContainer.setDepth(100);
 
@@ -2130,6 +2146,39 @@ this.victoryElements = buttons;
   }
 }
 
+
+  // The round timer and card input are already stopped by showWin.
+  async showAdBeforeResults(isCurrent) {
+    if (!window.adsManager) return;
+    const inputWasEnabled = this.input.enabled;
+    this._adsInputRestore = inputWasEnabled;
+    const sound = this.sound;
+    const wasMuted = sound?.mute;
+    const { W, H } = this.getSceneWH();
+    const status = this.add.text(W / 2, H / 2, 'Подготовка результатов…', {
+      fontFamily: 'Arial', fontSize: '20px', color: '#FFFFFF',
+      backgroundColor: '#243540', padding: { x: 20, y: 14 }
+    }).setOrigin(0.5).setDepth(1000);
+    this.input.enabled = false;
+    try {
+      await window.adsManager.beforeResults({
+        isCurrent,
+        onShow: () => { if (sound) sound.mute = true; },
+        onFinish: () => {
+          if (sound) sound.mute = !!wasMuted || document.hidden ||
+            !!this.game.registry.get('musicMuted');
+        }
+      });
+    } catch (error) {
+      console.warn('[Ads] Results will be shown without advertising:', error);
+    } finally {
+      if (status.scene) status.destroy();
+      if (isCurrent()) {
+        this.input.enabled = inputWasEnabled;
+        this._adsInputRestore = undefined;
+      }
+    }
+  }
 
   // НОВЫЙ МЕТОД: Сохранение прогресса через ProgressSyncManager
 // НОВЫЙ МЕТОД: Сохранение рекорда уровня через ProgressSyncManager
