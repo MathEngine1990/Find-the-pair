@@ -566,7 +566,7 @@ window.alert = showGameNotification;
       debugLog('User data loaded', userData);
       
       try {
-        localStorage.setItem('vk_user_cache', JSON.stringify({
+        localStorage.setItem(window.GamePlatform?.localKey('vk_user_cache') || 'vk_user_cache', JSON.stringify({
           ...userData,
           cached_at: Date.now(),
           mobile_device: isMobile
@@ -580,7 +580,7 @@ window.alert = showGameNotification;
       console.warn('Failed to load user data:', error);
       
       try {
-        const cached = localStorage.getItem('vk_user_cache');
+        const cached = localStorage.getItem(window.GamePlatform?.localKey('vk_user_cache') || 'vk_user_cache');
         if (cached) {
           const data = JSON.parse(cached);
           if (Date.now() - data.cached_at < 24 * 60 * 60 * 1000) {
@@ -607,6 +607,7 @@ function subscribeToVKEvents() {
   
   // ✅ КРИТИЧНО: Обернуть в try-catch + async handler
   const eventHandler = async (e) => {
+    window.GamePlatform?.onBridgeEvent(e);
     try {
       const eventType = e.detail?.type;
       const eventData = e.detail?.data;
@@ -1456,18 +1457,16 @@ startPhaserGame();
   window.VKHelpers = {
     shareResult: function(score, level) {
       if (!window.VK_BRIDGE_READY) return Promise.reject('VK Bridge not ready');
+      if (!window.GamePlatform?.publicURL()) return Promise.reject('Public game URL is not configured');
 
       return window.VKSafe.send('VKWebAppShare', {
-        link: window.location.href + `?shared_score=${score}&level=${level}`
+        link: window.GamePlatform.publicURL()
       });
     },
 
     showAd: function() {
-      if (!window.VK_BRIDGE_READY) return Promise.reject('VK Bridge not ready');
-
-      return window.VKSafe.send('VKWebAppShowNativeAds', {
-        ad_format: 'interstitial'
-      });
+      // Advertisements are requested only by GameScene at the end of a round.
+      return Promise.resolve({ result: false, reason: 'use_end_of_round_flow' });
     },
 
     setStorageData: function(key, value) {
@@ -1950,6 +1949,7 @@ if (gameActive) {
   // ВСПОМОГАТЕЛЬНО: Определение ключа прогресса
   // ========================================
   function detectProgressStorageKey() {
+    if (window.GamePlatform?.isOK) return `findpair_progress_${window.GamePlatform.storageIdentity}`;
     try {
       const userId =
         (window.VK_USER_DATA && window.VK_USER_DATA.id) ||
@@ -1966,7 +1966,7 @@ if (gameActive) {
       const ls = window.localStorage || null;
       if (ls) {
         const keys = Object.keys(ls);
-        const existing = keys.find(k => k.startsWith('findpair_progress'));
+        const existing = keys.find(k => k.startsWith('findpair_progress') && !k.startsWith('findpair_progress_ok_'));
         if (existing) {
           return existing;
         }
@@ -2025,7 +2025,9 @@ window.resetAllGameProgress = async function () {
     if (window.localStorage) {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('findpair_progress')) {
+        if (key && (window.GamePlatform?.isOK
+          ? key === `findpair_progress_${window.GamePlatform.storageIdentity}`
+          : key.startsWith('findpair_progress') && !key.startsWith('findpair_progress_ok_'))) {
           lsKeys.push(key);
         }
       }
@@ -2059,8 +2061,9 @@ window.resetAllGameProgress = async function () {
         (window.VK_LAUNCH_PARAMS && window.VK_LAUNCH_PARAMS.vk_user_id) ||
         (window.VK_USER_DATA && window.VK_USER_DATA.id);
 
-      const extraKeys = ['findpair_progress'];
-      if (userId) extraKeys.push(`findpair_progress_${userId}`);
+      const extraKeys = window.GamePlatform?.isOK
+        ? [`findpair_progress_${window.GamePlatform.storageIdentity}`] : ['findpair_progress'];
+      if (userId && !window.GamePlatform?.isOK) extraKeys.push(`findpair_progress_${userId}`);
 
       for (const key of extraKeys) {
         try {
@@ -2112,12 +2115,12 @@ window.DebugAgreement = {
   reset: async function() {
     // 1) Локальный сброс
     try {
-      localStorage.removeItem('acceptedAgreement');
-      localStorage.removeItem('agreementVersion');
-      localStorage.removeItem('agreementAcceptedAt');
-      localStorage.removeItem('vk_agreement_shown');
-      localStorage.removeItem('firstLaunchShown');
-      localStorage.removeItem('findpair_agreement_declined');
+      localStorage.removeItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement');
+      localStorage.removeItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion');
+      localStorage.removeItem(window.GamePlatform?.localKey('agreementAcceptedAt') || 'agreementAcceptedAt');
+      localStorage.removeItem(window.GamePlatform?.localKey('vk_agreement_shown') || 'vk_agreement_shown');
+      localStorage.removeItem(window.GamePlatform?.localKey('firstLaunchShown') || 'firstLaunchShown');
+      localStorage.removeItem(window.GamePlatform?.localKey('findpair_agreement_declined') || 'findpair_agreement_declined');
 window.__AGREEMENT_DECLINED__ = false;
 
       console.log('✅ Agreement data cleared in localStorage');
@@ -2147,11 +2150,11 @@ window.__AGREEMENT_DECLINED__ = false;
 
     status: function() {
       const status = {
-        accepted: localStorage.getItem('acceptedAgreement'),
-        version: localStorage.getItem('agreementVersion'),
-        acceptedAt: localStorage.getItem('agreementAcceptedAt'),
-        vkShown: localStorage.getItem('vk_agreement_shown'),
-        firstLaunch: localStorage.getItem('firstLaunchShown')
+        accepted: localStorage.getItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement'),
+        version: localStorage.getItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion'),
+        acceptedAt: localStorage.getItem(window.GamePlatform?.localKey('agreementAcceptedAt') || 'agreementAcceptedAt'),
+        vkShown: localStorage.getItem(window.GamePlatform?.localKey('vk_agreement_shown') || 'vk_agreement_shown'),
+        firstLaunch: localStorage.getItem(window.GamePlatform?.localKey('firstLaunchShown') || 'firstLaunchShown')
       };
       console.table(status);
       return status;
@@ -2177,10 +2180,10 @@ accept: async function() {
 
   // 1) Локально
   try {
-    localStorage.setItem('acceptedAgreement', 'true');
-    localStorage.setItem('agreementVersion', '2025-09-13');
-    localStorage.setItem('agreementAcceptedAt', acceptedAt);
-    localStorage.setItem('vk_agreement_shown', '1');
+    localStorage.setItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement', 'true');
+    localStorage.setItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion', '2026-11-04');
+    localStorage.setItem(window.GamePlatform?.localKey('agreementAcceptedAt') || 'agreementAcceptedAt', acceptedAt);
+    localStorage.setItem(window.GamePlatform?.localKey('vk_agreement_shown') || 'vk_agreement_shown', '1');
   } catch (e) {
     console.warn('Failed to save agreement to localStorage', e);
   }
@@ -2190,7 +2193,7 @@ accept: async function() {
     if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
       await window.VKHelpers.setStorageData('findpair_agreement_v1', {
         accepted: true,
-        version: '2025-09-13',
+        version: '2026-11-04',
         acceptedAt
       });
       console.log('☁️ VK Storage: agreement stored (findpair_agreement_v1)');

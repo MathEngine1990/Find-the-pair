@@ -473,7 +473,7 @@ async initializeSyncManager() {
         try {
           const key =
   this.syncManager?.getUserStorageKey?.() ||
-  `findpair_progress_guest`;
+  `findpair_progress_${window.GamePlatform?.isOK ? window.GamePlatform.storageIdentity : 'guest'}`;
 
           const saved = localStorage.getItem(key);
           
@@ -493,7 +493,7 @@ async initializeSyncManager() {
         try {
           const key =
   this.syncManager?.getUserStorageKey?.() ||
-  `findpair_progress_guest`;
+  `findpair_progress_${window.GamePlatform?.isOK ? window.GamePlatform.storageIdentity : 'guest'}`;
 
           
           localStorage.setItem(key, JSON.stringify(data));
