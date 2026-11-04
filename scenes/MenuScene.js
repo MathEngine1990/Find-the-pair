@@ -320,7 +320,7 @@ async initializeSyncManager() {
       // Метод загрузки прогресса
       loadProgress: async () => {
         try {
-          const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+          const key = `findpair_progress_${(window.GamePlatform?.isOK ? window.GamePlatform.storageIdentity : window.VK_USER_DATA?.id) || 'guest'}`;
           const saved = localStorage.getItem(key);
           if (!saved) return { levels: {} };
           
@@ -335,7 +335,7 @@ async initializeSyncManager() {
       // ✅ ИСПРАВЛЕНО: независимая реализация
       getProgress: async () => {
         try {
-          const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+          const key = `findpair_progress_${(window.GamePlatform?.isOK ? window.GamePlatform.storageIdentity : window.VK_USER_DATA?.id) || 'guest'}`;
           const saved = localStorage.getItem(key);
           if (!saved) return { levels: {} };
           
@@ -349,7 +349,7 @@ async initializeSyncManager() {
       
       saveProgress: (data) => {
         try {
-          const key = `findpair_progress_${window.VK_USER_DATA?.id || 'guest'}`;
+          const key = `findpair_progress_${(window.GamePlatform?.isOK ? window.GamePlatform.storageIdentity : window.VK_USER_DATA?.id) || 'guest'}`;
           localStorage.setItem(key, JSON.stringify(data));
         } catch (e) {
           console.error('💾 Fallback save error:', e);
@@ -1516,18 +1516,18 @@ if (isMobile) {
     this.levelPage = Math.max(0, Math.min(page, maxPage));
 
     // Проверяем принятие соглашения
-    const acceptedAgreement = localStorage.getItem('acceptedAgreement');
-    const agreementVersion  = localStorage.getItem('agreementVersion');
-    const CURRENT_VERSION   = '2025-09-13';
+    const acceptedAgreement = localStorage.getItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement');
+    const agreementVersion  = localStorage.getItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion');
+    const CURRENT_VERSION   = '2026-11-04';
 
     if (!acceptedAgreement && window.VK_DEBUG) {
       console.log('Auto-accepting agreement for debugging');
-      localStorage.setItem('acceptedAgreement', 'true');
-      localStorage.setItem('agreementVersion', CURRENT_VERSION);
+      localStorage.setItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement', 'true');
+      localStorage.setItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion', CURRENT_VERSION);
     }
 
-    if (!localStorage.getItem('acceptedAgreement') ||
-        localStorage.getItem('agreementVersion') !== CURRENT_VERSION) {
+    if (!localStorage.getItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement') ||
+        localStorage.getItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion') !== CURRENT_VERSION) {
       console.log('Showing user agreement');
       this.showUserAgreement();
       return;
@@ -2043,12 +2043,12 @@ updateSingleLevelButton(button, levelIndex, progressLevels) {
 • Сбор данных: ID пользователя, игровая статистика
 • Возрастное ограничение: 0+ (безопасно для всех)
 • Данные используются только для работы игры
-• Соответствует политике ВКонтакте
+• Может показываться реклама платформы
 
 Нажимая "Принимаю", вы соглашаетесь
 с условиями использования приложения.
 
-Версия: 13-09-2025`;
+Версия: 04-11-2026`;
 
     const text = this.add.text(W/2, H/2 - 50, agreementText, {
       fontFamily: 'Arial',
@@ -2064,17 +2064,17 @@ const acceptBtn = window.makeImageButton(
   120, 45, 'Принимаю', 
   async () => {
       // ✅ снимаем “вечную” блокировку, если она была
-  try { localStorage.removeItem('findpair_agreement_declined'); } catch {}
+  try { localStorage.removeItem(window.GamePlatform?.localKey('findpair_agreement_declined') || 'findpair_agreement_declined'); } catch {}
   window.__AGREEMENT_DECLINED__ = false;
 
     const acceptedAt = new Date().toISOString();
 
     // 1) Локальное сохранение (как было)
     try {
-      localStorage.setItem('acceptedAgreement', 'true');
-      localStorage.setItem('agreementVersion', '2025-09-13');
-      localStorage.setItem('agreementAcceptedAt', acceptedAt);
-      localStorage.setItem('vk_agreement_shown', '1');
+      localStorage.setItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement', 'true');
+      localStorage.setItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion', '2026-11-04');
+      localStorage.setItem(window.GamePlatform?.localKey('agreementAcceptedAt') || 'agreementAcceptedAt', acceptedAt);
+      localStorage.setItem(window.GamePlatform?.localKey('vk_agreement_shown') || 'vk_agreement_shown', '1');
     } catch (e) {
       console.warn('Failed to save agreement to localStorage', e);
     }
@@ -2084,7 +2084,7 @@ const acceptBtn = window.makeImageButton(
       if (window.VKHelpers && typeof window.VKHelpers.setStorageData === 'function') {
         await window.VKHelpers.setStorageData('findpair_agreement_v1', {
           accepted: true,
-          version: '2025-09-13',
+          version: '2026-11-04',
           acceptedAt
         });
         console.log('☁️ VK Storage: agreement stored (findpair_agreement_v1)');
@@ -2170,25 +2170,25 @@ const acceptBtn = window.makeImageButton(
       if (data.accepted) {
         // ✅ Соглашение принято на другом устройстве / в другой версии
         try {
-          localStorage.setItem('acceptedAgreement', 'true');
+          localStorage.setItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement', 'true');
           if (data.version) {
-            localStorage.setItem('agreementVersion', data.version);
+            localStorage.setItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion', data.version);
           }
           if (data.acceptedAt) {
-            localStorage.setItem('agreementAcceptedAt', data.acceptedAt);
+            localStorage.setItem(window.GamePlatform?.localKey('agreementAcceptedAt') || 'agreementAcceptedAt', data.acceptedAt);
           }
           // Помечаем, что диалог уже показывался через VK
-          localStorage.setItem('vk_agreement_shown', '1');
+          localStorage.setItem(window.GamePlatform?.localKey('vk_agreement_shown') || 'vk_agreement_shown', '1');
         } catch (e) {
           console.warn('[MenuScene] Failed to write agreement to localStorage:', e);
         }
       } else {
         // ❌ В VK Storage хранится "не принято" — очищаем локальный статус
         try {
-          localStorage.removeItem('acceptedAgreement');
-          localStorage.removeItem('agreementVersion');
-          localStorage.removeItem('agreementAcceptedAt');
-          localStorage.removeItem('vk_agreement_shown');
+          localStorage.removeItem(window.GamePlatform?.localKey('acceptedAgreement') || 'acceptedAgreement');
+          localStorage.removeItem(window.GamePlatform?.localKey('agreementVersion') || 'agreementVersion');
+          localStorage.removeItem(window.GamePlatform?.localKey('agreementAcceptedAt') || 'agreementAcceptedAt');
+          localStorage.removeItem(window.GamePlatform?.localKey('vk_agreement_shown') || 'vk_agreement_shown');
         } catch (e) {
           console.warn('[MenuScene] Failed to clear agreement from localStorage:', e);
         }
@@ -2255,10 +2255,10 @@ showExitConfirmation(previousDialogElements) {
 
   // Fallback (на случай если main.js ещё не обновили)
   try {
-    localStorage.setItem('findpair_agreement_declined', '1');
+    localStorage.setItem(window.GamePlatform?.localKey('findpair_agreement_declined') || 'findpair_agreement_declined', '1');
     window.__AGREEMENT_DECLINED__ = true;
   } catch {}
-  window.location.href = "https://vk.com";
+  window.location.href = window.GamePlatform?.isOK ? "https://ok.ru" : "https://vk.com";
 }
 
   );

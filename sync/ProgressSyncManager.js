@@ -51,6 +51,7 @@ class ProgressSyncManager {
 
   // ========== USER ID ISOLATION ==========
   getUserId() {
+    if (window.GamePlatform?.isOK) return window.GamePlatform.storageIdentity;
     // Priority: VKManager > VK_USER_DATA > guest
     return window.VKManager?.getUserData()?.id || 
            window.VK_USER_DATA?.id || 
@@ -59,6 +60,7 @@ class ProgressSyncManager {
 
   //251123
 getCurrentUserId() {
+  if (window.GamePlatform?.isOK) return window.GamePlatform.storageIdentity;
   // 0. Прямо из query-параметров — самый надёжный источник
   try {
     const params = new URLSearchParams(window.location.search);
@@ -402,6 +404,9 @@ saveToLocal(data) {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('findpair_') && !key.includes('progress')) {
+        if (window.GamePlatform?.isOK
+          ? !key.endsWith(`_${window.GamePlatform.storageIdentity}`)
+          : key.includes('_ok_')) continue;
         keysToRemove.push(key);
       }
     }
@@ -416,7 +421,7 @@ loadFromLocal() {
     const newKey = this.getUserStorageKey();
 
     // 🔄 Миграция со старого общего ключа на пользовательский
-    if (newKey !== oldKey) {
+    if (newKey !== oldKey && !window.GamePlatform?.isOK) {
       const oldData = localStorage.getItem(oldKey);
       const hasNewData = localStorage.getItem(newKey);
 
@@ -791,7 +796,7 @@ setCurrentLevel(levelIndex) {
   
   // Сохраняем в localStorage для восстановления после перезагрузки
   try {
-    localStorage.setItem('findpair_current_level', levelIndex.toString());
+    localStorage.setItem(window.GamePlatform?.localKey('findpair_current_level') || 'findpair_current_level', levelIndex.toString());
     console.log(`[ProgressSyncManager] Current level set to: ${levelIndex}`);
   } catch (e) {
     console.warn('[ProgressSyncManager] Cannot save currentLevel:', e);
@@ -809,7 +814,7 @@ getCurrentLevel() {
   
   // Восстановление из localStorage
   try {
-    const saved = localStorage.getItem('findpair_current_level');
+    const saved = localStorage.getItem(window.GamePlatform?.localKey('findpair_current_level') || 'findpair_current_level');
     return saved ? parseInt(saved, 10) : 0;
   } catch (e) {
     return 0;
@@ -1281,7 +1286,7 @@ if (isVKEnvironment) {
       if (!window.progressSyncManager) {
         console.log('📱 Creating local-only ProgressSyncManager');
         window.progressSyncManager = new ProgressSyncManager();
-        window.progressSyncManager.isVKAvailable = () => false;
+        // Keep runtime availability detection: Bridge may become ready later.
         await window.progressSyncManager.init();
       }
     }

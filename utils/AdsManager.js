@@ -12,7 +12,7 @@
       if (this.storage === undefined) {
         try { this.storage = window.sessionStorage; } catch { this.storage = null; }
       }
-      this.storageKey = 'findpair_ads_session_v1';
+      this.storageKey = window.GamePlatform?.localKey('findpair_ads_session_v1') || 'findpair_ads_session_v1';
       this.state = { rounds: 0, requests: 0, lastFinishedAt: 0 };
       try {
         const saved = JSON.parse(this.storage?.getItem(this.storageKey) || 'null');
@@ -43,6 +43,7 @@
     async beforeResults({ isCurrent = () => true, onShow = () => {}, onFinish = () => {} } = {}) {
       const config = this.getConfig();
       if (!config.enabled || !this.isVK()) return { reason: 'disabled_or_standalone' };
+      if (window.GamePlatform && !window.GamePlatform.canRequestAd()) return { reason: 'platform_limit' };
       if (this.busy) return { reason: 'busy' };
       this.state.rounds++;
       this.persist();
@@ -85,6 +86,7 @@
         })(), checkMs);
         if (!available) return { reason: 'unavailable' };
         if (!isCurrent()) return { reason: 'scene_changed' };
+        if (window.GamePlatform && !window.GamePlatform.canRequestAd()) return { reason: 'platform_limit' };
 
         onShow();
         didShow = true;

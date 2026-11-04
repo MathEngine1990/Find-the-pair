@@ -86,13 +86,7 @@
       100% { transform: rotate(360deg); }
     }
 
-    @font-face {
-  font-family: 'YourFont';
-  src: url('fonts/YourFont-Regular.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: block; /* ← ВАЖНО: блокирует рендер до загрузки */
-}
+
     
     /* Скрываем прелоадер когда игра загружена */
     .game-loaded #preloader {
@@ -131,6 +125,8 @@
   <script src="game/Data.js"></script>
   <script src="ui/Button.js"></script>
 
+  <script src="utils/OKReleaseConfig.js"></script>
+  <script src="utils/PlatformContext.js"></script>
   <script src="sync/ProgressSyncManager.js"></script>
   <script src="utils/AdsConfig.js"></script>
   <script src="utils/AdsManager.js"></script>
