@@ -776,6 +776,10 @@ function pauseGameAudio() {
 function resumeGameAudio() {
   try {
     if (!window.game || !window.game.sound) return;
+    if (window.adsManager?.showing) {
+      window.game.sound.mute = true;
+      return;
+    }
 
     const sound = window.game.sound;
     const registry = window.game.registry;
@@ -797,18 +801,18 @@ function resumeGameAudio() {
         console.log('[Audio] AudioContext resumed (promise resolved)');
 
         // 1️⃣ применяем mute после resume
-        sound.mute = !!musicMuted;
+        sound.mute = !!musicMuted || !!window.adsManager?.showing;
 
         // 2️⃣ если фоновой музыки нет или она не играет — запускаем
         tryResumeBackgroundMusic(sound, registry, musicMuted);
 
         // ✅ FIX #2: финальная страховка
-        sound.mute = !!musicMuted;
+        sound.mute = !!musicMuted || !!window.adsManager?.showing;
       }).catch((err) => {
         console.warn('[Audio] AudioContext resume failed:', err);
 
         // даже если не получилось, всё равно выставим mute-флаг
-        sound.mute = !!musicMuted;
+        sound.mute = !!musicMuted || !!window.adsManager?.showing;
       });
 
       return; // ждём промис

@@ -75,8 +75,8 @@ height: window.innerHeight  // ✅ Всегда реальный viewport
         // ✅ FIX #2: Всегда включаем antialias для гладкой графики
         antialias: true,
         pixelArt: false,
-        // ✅ FIX #2: КРИТИЧНО для резкости текста/UI
-        roundPixels: true,
+        // Allow subpixel movement during scaling and transitions.
+        roundPixels: false,
         preserveDrawingBuffer: false,
         // ✅ FIX #4: Отключаем premultipliedAlpha для стабильности
         premultipliedAlpha: false,
@@ -87,7 +87,7 @@ height: window.innerHeight  // ✅ Всегда реальный viewport
       },
       fps: {
         target: deviceClass.isLowEnd ? 30 : 60,
-        forceSetTimeOut: this.isMobile
+        forceSetTimeOut: false
       }
     };
   }

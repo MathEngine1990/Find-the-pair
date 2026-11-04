@@ -1793,50 +1793,6 @@ this.levelButtons.push(achBtn);
 
 
 
-// 🔥 Ховер- и клик-анимация как у уровней
-const achBaseScaleX = achBtn.scaleX;
-const achBaseScaleY = achBtn.scaleY;
-
-// Если makeImageButton создаёт интерактивную зону (как у кнопок уровней)
-if (achBtn.zone) {
-  achBtn.zone.on('pointerover', () => {
-    if (achBtn._hoverTween) achBtn._hoverTween.stop();
-    achBtn._hoverTween = this.tweens.add({
-      targets: achBtn,
-      scaleX: achBaseScaleX * 1.05,
-      scaleY: achBaseScaleY * 1.05,
-      duration: 110,
-      ease: 'Sine.easeOut'
-    });
-  });
-
-  achBtn.zone.on('pointerout', () => {
-    if (achBtn._hoverTween) achBtn._hoverTween.stop();
-    achBtn._hoverTween = this.tweens.add({
-      targets: achBtn,
-      scaleX: achBaseScaleX,
-      scaleY: achBaseScaleY,
-      duration: 110,
-      ease: 'Sine.easeIn'
-    });
-  });
-
-  achBtn.zone.on('pointerdown', () => {
-    this.tweens.add({
-      targets: achBtn,
-      scaleX: achBaseScaleX * 0.97,
-      scaleY: achBaseScaleY * 0.97,
-      yoyo: true,
-      duration: 60,
-      ease: 'Quad.easeOut'
-    });
-  });
-}
-
-
-
-
-
     // Колесо мыши (для десктопа)
     if (!isMobile) {
   this._wheelHandler = async (_p, _objs, _dx, dy) => {
@@ -2433,43 +2389,6 @@ if (levelProgress && levelProgress.bestTime) {
   btn.statsContainer.setVisible(false);
 }
 
-
-  // --- ХОВЕР-МАСШТАБ (как у стрелок!) ---
-  const baseScaleX = btn.scaleX;
-  const baseScaleY = btn.scaleY;
-
-  btn.zone.on('pointerover', () => {
-    if (btn._hoverTween) btn._hoverTween.stop();
-    btn._hoverTween = this.tweens.add({
-      targets: btn,
-      scaleX: baseScaleX * 1.05,
-      scaleY: baseScaleY * 1.05,
-      duration: 110,
-      ease: 'Sine.easeOut'
-    });
-  });
-
-  btn.zone.on('pointerout', () => {
-    if (btn._hoverTween) btn._hoverTween.stop();
-    btn._hoverTween = this.tweens.add({
-      targets: btn,
-      scaleX: baseScaleX,
-      scaleY: baseScaleY,
-      duration: 110,
-      ease: 'Sine.easeIn'
-    });
-  });
-
-  btn.zone.on('pointerdown', () => {
-    this.tweens.add({
-      targets: btn,
-      scaleX: baseScaleX * 0.97,
-      scaleY: baseScaleY * 0.97,
-      yoyo: true,
-      duration: 60,
-      ease: 'Quad.easeOut'
-    });
-  });
 
   this.levelButtons.push(btn);
   return btn;
