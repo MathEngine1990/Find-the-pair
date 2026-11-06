@@ -82,7 +82,7 @@ test('iOS shows only from the click stack after availability; double click canno
   assert.deepEqual(s.calls,['VKWebAppCheckNativeAds']);
   assert.equal(hooks,0);assert.equal(s.manager.showing,false);
   assert.equal(mounted.length,1);
-  const button=mounted[0].children[2];
+  const button=mounted[0].children.at(-1);
   insideClick=true;button.onclick();button.onclick();insideClick=false;
   assert.equal((await completion).reason,'shown');
   assert.equal(mounted.length,0);assert.equal(hooks,1);
@@ -91,7 +91,7 @@ test('iOS shows only from the click stack after availability; double click canno
 test('iOS prompt cancels after inactivity and never sends a late ad', async () => {
   const s=setup();const mounted=attachPromptDOM(s);
   const completion=s.manager.beforeResults();await new Promise(r=>setTimeout(r,0));
-  const oldButton=mounted[0].children[2];
+  const oldButton=mounted[0].children.at(-1);
   s.advance(30000);
   assert.equal((await completion).reason,'gesture_cancelled');
   oldButton.onclick();assert.equal(s.calls.length,1);assert.equal(mounted.length,0);
@@ -103,7 +103,7 @@ test('iOS click rechecks scene and background state', async () => {
     const completion=s.manager.beforeResults({isCurrent:()=>current});
     await new Promise(r=>setTimeout(r,0));
     if(hidden) s.window.GamePlatform={canRequestAd:()=>false}; else current=false;
-    mounted[0].children[2].onclick();
+    mounted[0].children.at(-1).onclick();
     assert.equal((await completion).reason,'gesture_cancelled');
     assert.equal(s.calls.length,1);assert.equal(s.manager.busy,false);
   }
@@ -116,7 +116,7 @@ test('synchronous SDK throw after iOS click restores hooks and lock', async () =
   const s=setup();const mounted=attachPromptDOM(s);let restored=0;
   s.bridge.send=method=>{if(method==='VKWebAppShowNativeAds')throw Error('SDK failure');return Promise.resolve({result:true});};
   const completion=s.manager.beforeResults({onFinish:()=>restored++});
-  await new Promise(r=>setTimeout(r,0));mounted[0].children[2].onclick();
+  await new Promise(r=>setTimeout(r,0));mounted[0].children.at(-1).onclick();
   assert.equal((await completion).reason,'error');assert.equal(restored,1);
   assert.equal(s.manager.busy,false);assert.equal(s.manager.showing,false);
 });

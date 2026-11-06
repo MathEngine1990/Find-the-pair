@@ -52,13 +52,11 @@
         panel.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;background:rgba(17,26,39,.97);color:white;font:18px Arial;text-align:center;box-sizing:border-box;';
         const title = document.createElement('strong');
         title.textContent = 'Партия завершена';
-        const text = document.createElement('p');
-        text.textContent = 'Перед результатами может быть показана реклама.';
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = 'Продолжить';
         button.style.cssText = 'padding:16px 28px;border:0;border-radius:12px;background:#4ecdc4;color:#10232b;font:bold 20px Arial;cursor:pointer;touch-action:manipulation;';
-        panel.append(title, text, button);
+        panel.append(title, button);
         const previousFocus = document.activeElement;
         let done = false;
         let timer;
@@ -147,11 +145,12 @@
           for (const method of ['VKWebAppCheckNativeAds', 'VKWebAppShowNativeAds']) {
             const supported = bridge.supportsAsync
               ? await bridge.supportsAsync(method) : bridge.supports?.(method);
-            if (!supported) return false;
+            if (!supported) return 'unsupported_method';
           }
-          return (await bridge.send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }))?.result === true;
+          const check = await bridge.send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' });
+          return check?.result === true ? 'ready' : 'no_ad_available';
         })(), checkMs);
-        if (!available) return { reason: 'unavailable' };
+        if (available !== 'ready') return { reason: 'unavailable', detail: available };
         if (!isCurrent()) return { reason: 'scene_changed' };
         if (window.GamePlatform && !window.GamePlatform.canRequestAd()) return { reason: 'platform_limit' };
 

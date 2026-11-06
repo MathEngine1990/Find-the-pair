@@ -2154,14 +2154,9 @@ this.victoryElements = buttons;
     this._adsInputRestore = inputWasEnabled;
     const sound = this.sound;
     const wasMuted = sound?.mute;
-    const { W, H } = this.getSceneWH();
-    const status = this.add.text(W / 2, H / 2, 'Подготовка результатов…', {
-      fontFamily: 'Arial', fontSize: '20px', color: '#FFFFFF',
-      backgroundColor: '#243540', padding: { x: 20, y: 14 }
-    }).setOrigin(0.5).setDepth(1000);
     this.input.enabled = false;
     try {
-      await window.adsManager.beforeResults({
+      const outcome = await window.adsManager.beforeResults({
         isCurrent,
         onShow: () => { if (sound) sound.mute = true; },
         onFinish: () => {
@@ -2169,10 +2164,12 @@ this.victoryElements = buttons;
             !!this.game.registry.get('musicMuted');
         }
       });
+      if (outcome && outcome.reason !== 'shown') {
+        console.info('[Ads] Итоги без рекламы:', outcome.detail || outcome.reason);
+      }
     } catch (error) {
       console.warn('[Ads] Results will be shown without advertising:', error);
     } finally {
-      if (status.scene) status.destroy();
       if (isCurrent()) {
         this.input.enabled = inputWasEnabled;
         this._adsInputRestore = undefined;

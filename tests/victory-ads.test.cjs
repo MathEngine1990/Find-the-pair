@@ -11,7 +11,6 @@ function setup() {
     window, document, Phaser: { Scene: class {} }, console
   });
   const scene = Object.create(window.GameScene.prototype);
-  const status = { scene: true, setOrigin(){return this;}, setDepth(){return this;}, destroy(){this.scene=null;} };
   Object.assign(scene, {
     _resultRun: {}, starState: {}, starRules: {pairs:3,timeLimitSec:60,maxErrors:1},
     gameMetrics: {attempts:3,errors:0}, currentTimeSeconds:10, currentLevelIndex:0,
@@ -21,9 +20,9 @@ function setup() {
     saveProgressViaSyncManager: async()=>{events.push('save');return {};},
     checkAndUnlockAchievements: async()=>{events.push('achievements');return [{}];},
     getSceneWH:()=>({W:500,H:700}), textManager:{updateDimensions(){}},
-    add:{text:()=>status}, showAchievementsScreen(){events.push('results');}
+    showAchievementsScreen(){events.push('results');}
   });
-  return {scene,window,document,events,status};
+  return {scene,window,document,events};
 }
 
 test('victory saves once before advertising, then displays results', async()=>{
@@ -52,9 +51,9 @@ test('muted player stays muted after advertising', async()=>{
   await scene.showWin(); assert.equal(scene.sound.mute,true);
 });
 test('late reply cannot draw previous round results in a new scene', async()=>{
-  const {scene,window,events,status}=setup();
+  const {scene,window,events}=setup();
   window.adsManager.beforeResults=async()=>{scene._resultRun={};};
-  await scene.showWin(); assert.equal(events.includes('results'),false); assert.equal(status.scene,null);
+  await scene.showWin(); assert.equal(events.includes('results'),false);
 });
 test('unexpected manager failure does not block results or controls', async()=>{
   const {scene,window,events}=setup();
